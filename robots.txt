@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://lonzycooper1.github.io/ultron-direct-revenue/sitemap.xml
