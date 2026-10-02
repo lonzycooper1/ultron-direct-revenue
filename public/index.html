@@ -1,1 +1,66 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ULTRON Revenue Studio</title><style>body{font-family:system-ui;margin:0;background:#0b1020;color:#fff}main{max-width:900px;margin:auto;padding:64px 24px}.card{background:#151c33;padding:28px;border-radius:20px;margin:20px 0}h1{font-size:42px;margin-bottom:8px}p{color:#c9d2ea;line-height:1.6}input,textarea,button{box-sizing:border-box;width:100%;padding:14px;margin:7px 0;border-radius:10px;border:0}button{font-weight:700;cursor:pointer}small{color:#91a0c5}</style></head><body><main><h1>ULTRON Revenue Studio</h1><p>Simple online sales workspace for legitimate products and services.</p><div class="card"><h2>Launch checklist</h2><p>1. Define a real product or service.<br>2. Publish pricing and fulfillment terms.<br>3. Connect an approved payment processor or merchant account.<br>4. Drive qualified customers to your offer.</p></div><div class="card"><h2>Lead capture</h2><form id="f"><input name="name" placeholder="Name" required><input type="email" name="email" placeholder="Email" required><textarea name="need" placeholder="What are you interested in?"></textarea><button>Submit</button></form><small id="s"></small></div></main><script>f.onsubmit=async(e)=>{e.preventDefault();const data=Object.fromEntries(new FormData(f));const r=await fetch('/api/leads',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(data)});s.textContent=r.ok?'Received.':'Please try again.'}</script></body></html>
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ULTRON Revenue Studio</title>
+<style>
+body{font-family:system-ui;margin:0;background:#0b1020;color:#fff}
+main{max-width:900px;margin:auto;padding:64px 24px}
+.card{background:#151c33;padding:28px;border-radius:20px;margin:20px 0}
+h1{font-size:42px;margin-bottom:8px}
+p{color:#c9d2ea;line-height:1.6}
+input,textarea,button,a.pay{box-sizing:border-box;width:100%;padding:14px;margin:7px 0;border-radius:10px;border:0}
+button,a.pay{font-weight:700;cursor:pointer;text-align:center;text-decoration:none;display:block}
+a.pay{background:#ffd140;color:#111}
+small{color:#91a0c5}
+</style>
+</head>
+<body>
+<main>
+<h1>ULTRON Revenue Studio</h1>
+<p>Simple online sales workspace for legitimate products and services.</p>
+
+<div class="card">
+<h2>Core offer</h2>
+<p><strong>Business lead-response and booking automation setup</strong></p>
+<p>Initial setup: <strong>$2,500</strong><br>Optional ongoing management: <strong>$750/month</strong></p>
+<a id="pay" class="pay" href="/checkout" hidden>Pay securely with PayPal</a>
+<small id="payStatus">Checking payment availability…</small>
+</div>
+
+<div class="card">
+<h2>Lead capture</h2>
+<form id="f">
+<input name="name" placeholder="Name" required>
+<input type="email" name="email" placeholder="Email" required>
+<textarea name="need" placeholder="What are you interested in?"></textarea>
+<button>Request information</button>
+</form>
+<small id="s"></small>
+</div>
+</main>
+<script>
+(async()=>{
+  try{
+    const r=await fetch('/api/payment-status');
+    const j=await r.json();
+    if(j.configured){
+      pay.hidden=false;
+      payStatus.textContent='PayPal checkout is available.';
+    }else{
+      payStatus.textContent='PayPal checkout is being connected.';
+    }
+  }catch{
+    payStatus.textContent='Payment status unavailable.';
+  }
+})();
+f.onsubmit=async(e)=>{
+  e.preventDefault();
+  const data=Object.fromEntries(new FormData(f));
+  const r=await fetch('/api/leads',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(data)});
+  s.textContent=r.ok?'Received. We will follow up shortly.':'Please try again.';
+}
+</script>
+</body>
+</html>
