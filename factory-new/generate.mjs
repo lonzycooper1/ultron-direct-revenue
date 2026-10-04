@@ -1,0 +1,3 @@
+import {readFile,writeFile,mkdir} from 'node:fs/promises';import {resolve,join} from 'node:path';import {buildProduct} from './product-factory.mjs';
+const [briefPath,outputPath]=process.argv.slice(2);if(!briefPath||!outputPath){console.error('Usage: node generate.mjs brief.json output-directory');process.exit(1)}
+const brief=JSON.parse(await readFile(resolve(briefPath),'utf8'));const product=buildProduct(brief);const target=resolve(outputPath);await mkdir(target,{recursive:true});await writeFile(join(target,'Booking-Workflow-Field-Guide.html'),product.html);await writeFile(join(target,'product-manifest.json'),JSON.stringify(product.manifest,null,2)+'\n');console.log('Draft HTML and manifest generated. Publication requires owner review.');
