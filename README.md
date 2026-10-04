@@ -1,17 +1,13 @@
-# ULTRON Direct Revenue
+# ULTRON Revenue Studio
 
-PayPal-ready storefront for legitimate lead-response and booking automation services.
+Public storefront: https://ultron-web-production-ffe0.up.railway.app/
 
-## Payment destination
-Public PayPal.Me profile: https://www.paypal.com/paypalme/LonzyCooper
+The Node server serves public/index.html. Railway deploys main with node server.js and checks /health. PORT is provided by Railway. Run locally with npm start.
 
-## Current offers
-- $250 Workflow Audit
-- $750 Lead System Setup
-- $2,500 Full Automation Setup
+The storefront links the existing $29 Booking Starter Kit on Payhip, the Payhip contact form, and the existing scoped consulting services. Payhip/PayPal handle external checkout; this server does not process or transfer funds.
 
-## Launch
-The repository contains a static `index.html`. Publish it with any static hosting provider or GitHub Pages if available for this repository/account.
+/api/leads deliberately returns 503 because this service has no durable inquiry storage. The linked contact form is the supported inquiry destination. /checkout redirects only to the fixed Payhip product; /api/payment-status reports external checkout availability separately from payment verification.
 
-## Important
-The site redirects customers to PayPal for payment. It does not itself process, custody, settle, or transfer funds. PayPal controls payment acceptance, holds, availability, fees and bank transfers.
+No bank details, credentials, orders, personal customer records or authenticated payment callbacks are stored in this repository. A public store or a payment link does not prove payment, delivery, settlement or revenue. Paid acceptance and payout checks remain required.
+
+The server exposes only the storefront and explicit public routes, never repository source or environment values.
