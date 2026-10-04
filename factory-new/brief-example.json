@@ -1,0 +1,14 @@
+{
+  "category": "booking-operations",
+  "title": "Booking Workflow Field Guide",
+  "audience": "Independent service businesses handling appointment requests manually",
+  "problem": "Booking requests arrive through several channels and staff cannot reliably identify the next action or confirmation owner.",
+  "objective": "Document one understandable intake-to-confirmation workflow with exception handling before implementing automation.",
+  "successCriterion": "Five synthetic booking cases each produce a documented next step without duplicate confirmations.",
+  "priceCents": 2900,
+  "originalityAcknowledged": true,
+  "evidence": [
+    {"url":"https://help.payhip.com/article/115-webhooks","label":"Payhip payment notification documentation","observedAt":"2026-10-04T21:00:00Z","relevance":"Useful for distinguishing operational events from authenticated payment evidence; does not establish booking-product demand."},
+    {"url":"https://help.payhip.com/article/347-public-api","label":"Payhip public integration scope","observedAt":"2026-10-04T21:00:00Z","relevance":"Useful for identifying integration limitations before promising customers a connected workflow; does not prove sales."}
+  ]
+}
