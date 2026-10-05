@@ -9,6 +9,7 @@ import {wizardFromConversation,generateCandidates,critiqueCandidate,buildAcquisi
 import {saveProject,getProject,listProjects,updateProjectProgress} from './project-store.mjs';
 import {productCritiqueSystem,appFactorySystem,prospectRevenueSystem,wizardOperatingSystem,unifiedVideoArchitecture} from './video-systems.mjs';
 import {runBusinessOSCycle,businessOSState,businessOSManifest,opportunityMap,productIdeasForOpportunity,targetProfile,commandBridge} from './business-os.mjs';
+import {agentFarmState,agentFarmManifest,missionPlan} from './agent-farm.mjs';
 import {autopilotState,productionTerminal} from './autopilot-mode.mjs';
 import {answerQuestion} from './support.js';
 const BASE='https://api-m.paypal.com',CID=process.env.PAYPAL_CLIENT_ID||'',SECRET=process.env.PAYPAL_CLIENT_SECRET||'',WH=process.env.PAYPAL_WEBHOOK_ID||'',PUBLIC=(process.env.PUBLIC_BASE_URL||'').replace(/\/$/,''),READY=Boolean(CID&&SECRET&&WH&&PUBLIC);
@@ -39,6 +40,8 @@ if(path.startsWith('/product/')){const p=marketProduct(decodeURIComponent(path.s
 if(path==='/api/market')return json(200,{ok:true,stats:marketStats(),stores:marketStores()});
 if(path==='/api/ultron2'){const bos=await businessOSState();return json(200,{ok:true,manifest:capabilityManifest(),businessOS:businessOSManifest(),businessState:{cycles:bos.cycles,lastCycleAt:bos.lastCycleAt,metrics:bos.metrics,topOpportunities:bos.opportunities?.slice(0,5)},market:marketStats(),agentIntervalMinutes:INTERVAL,workloadMultiplier:WORKLOAD})}
 if(path==='/api/business-os')return json(200,{ok:true,manifest:businessOSManifest(),state:await businessOSState()});
+if(path==='/api/agent-farm')return json(200,{ok:true,manifest:agentFarmManifest(),state:await agentFarmState()});
+if(path==='/api/agent-farm/plan'&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;return json(200,{ok:true,plan:missionPlan(raw?JSON.parse(raw):{})})}
 if(path==='/api/agent-state')return json(200,{ok:true,state:await agentState()});
 if(path==='/api/autopilot'){const s=await autopilotState();return json(200,{ok:true,terminal:productionTerminal(),state:s});}
 if(path==='/api/opportunities')return json(200,{ok:true,opportunities:opportunityMap(await ledger())});
