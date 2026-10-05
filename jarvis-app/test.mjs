@@ -8,9 +8,10 @@ import {SECURITY_LAYERS,SECURITY_STACK_A,SECURITY_STACK_B,agentSecurityProfile} 
 import {PROSPECT_MISSION,targetingMatrix,scoreProspect,personalizedEmailDraft} from './prospect-outreach.mjs';
 import {AGENT_OF_AGENTS_VERSION,COMMERCE_AGENTS,POD_STRATEGY,visualAgentGraph,agentOfAgentsManifest} from './agent-of-agents.mjs';
 import {UNIVERSAL_MARKET_VERSION,UNIVERSAL_MARKET_SUMMARY,universalMarketManifest} from './universal-marketplace.mjs';
+import {OMNI_VERSION,OMNI_CAPABILITIES,omniStatus,planOmniTask,omniManifest,inferOmniMode} from './omni-runtime.mjs';
 
 test('four interfaces contract',()=>assert.equal(['web','ios','android','desktop'].length,4));
-test('nucleus has persistent control architecture and a large skill registry',()=>{assert.equal(NUCLEUS_VERSION,'2.5.0');assert.ok(NUCLEUS_SKILLS.length>=50);assert.equal(NUCLEUS_POLICY.externalFinancialActions,'explicit-human-approval')});
+test('nucleus has persistent control architecture and a large skill registry',()=>{assert.equal(NUCLEUS_VERSION,'2.6.0');assert.ok(NUCLEUS_SKILLS.length>=50);assert.equal(NUCLEUS_POLICY.externalFinancialActions,'explicit-human-approval')});
 test('all nine uploaded videos are represented in capability pack',()=>{assert.equal(VIDEO_ANALYSIS.length,9);assert.equal(CAPABILITY_PACK.videoCount,9);assert.ok(CAPABILITY_PACK.capabilities.length>=40)});
 test('financial execution remains approval gated',()=>{const p=capabilityMission({goal:'trade BTC with real money',division:'crypto'});assert.equal(p.approvalRequired,true);assert.equal(p.externalExecution,'human-approved-only')});
 test('ordinary software research can route to builder specialists without financial approval',()=>{const p=capabilityMission({goal:'build and test a local business scheduling app',division:'builder'});assert.equal(p.approvalRequired,false);assert.ok(p.specialists.includes('RapidSoftwareFactory'))});
@@ -64,4 +65,33 @@ test('JARVIS includes Amazon-inspired Everything Market without impersonating Am
  const m=universalMarketManifest();
  assert.equal(m.security.totalLayers,20);
  assert.ok(m.differentiators.some(x=>/provider-neutral/i.test(x)));
+});
+
+
+test('JARVIS Omni runtime exposes broad capability classes without pretending missing credentials are live',()=>{
+ assert.equal(OMNI_VERSION,'1.0.0');
+ assert.ok(OMNI_CAPABILITIES.length>=20);
+ const ids=OMNI_CAPABILITIES.map(x=>x.id);
+ for(const id of ['reason','research','vision','file-analysis','code','compute','image-generation','memory','agent-orchestration','automation','shopify','commerce','payments'])assert.ok(ids.includes(id));
+ const status=omniStatus();
+ assert.equal(status.capabilities.length,OMNI_CAPABILITIES.length);
+ assert.ok(status.capabilities.every(x=>['LIVE','READY_NEEDS_CREDENTIAL','APPROVAL_GATED'].includes(x.status)));
+});
+test('Omni planner routes research code compute image and files to the right modes',()=>{
+ assert.equal(inferOmniMode('search the internet for current AI news'),'research');
+ assert.equal(inferOmniMode('write code and debug this function'),'code');
+ assert.equal(inferOmniMode('analyze this CSV and make a chart'),'compute');
+ assert.equal(inferOmniMode('generate an image of a storefront'),'image');
+ assert.equal(inferOmniMode('summarize this PDF file'),'file');
+ const p=planOmniTask({prompt:'search the internet for current AI news'});
+ assert.equal(p.mode,'research');
+ assert.ok(p.capabilities.some(x=>x.id==='research'));
+});
+test('Omni manifest preserves truthful execution parity and security',()=>{
+ const m=omniManifest();
+ assert.match(m.parityRule,/does not claim access/i);
+ assert.equal(m.security.totalLayers,20);
+ assert.ok(m.openaiResponses.supportedWhenConfigured.includes('web_search'));
+ assert.ok(m.openaiResponses.supportedWhenConfigured.includes('code_interpreter'));
+ assert.ok(m.openaiResponses.supportedWhenConfigured.includes('image_generation'));
 });
