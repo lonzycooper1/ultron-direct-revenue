@@ -2,6 +2,7 @@ import {mkdir,readFile,writeFile,rename} from 'node:fs/promises';
 import {dirname} from 'node:path';
 import crypto from 'node:crypto';
 import {CAPABILITY_PACK as OCT05_CAPABILITY_PACK,LOCAL_MODEL_RESOURCES,capabilityMission} from './capability-pack.mjs';
+import {caseStudyMasteryManifest,buildRevenuePortfolio,interpretOwnerDirective,OWNER_OPERATING_CONTRACT,MASTERY_PRINCIPLES} from './business-mastery.mjs';
 
 const STATE_PATH=process.env.JARVIS_NUCLEUS_STATE_PATH||'/data/jarvis-nucleus.json';
 const MAX_EVENTS=2000,MAX_MISSIONS=500,MAX_OUTCOMES=1000;
@@ -71,7 +72,17 @@ export const NUCLEUS_SKILLS=Object.freeze([
   {id:'memory',name:'Persistent Mission Memory',division:'core',agent:'MemoryAgent'},
   {id:'audit-log',name:'Append-Only Audit Trail',division:'core',agent:'AuditAgent'},
   {id:'health',name:'Division Health Monitoring',division:'core',agent:'HealthAgent'},
-  {id:'approvals',name:'Consequential Action Approval',division:'core',agent:'ApprovalAgent'}
+  {id:'approvals',name:'Consequential Action Approval',division:'core',agent:'ApprovalAgent'},
+  {id:'case-study-mastery',name:'Business Case Study Mastery',division:'core',agent:'CaseStudyMasteryAgent'},
+  {id:'pain-mining',name:'Pain-First Opportunity Mining',division:'market',agent:'PainMinerAgent'},
+  {id:'proof-validation',name:'Proof Before Scale',division:'market',agent:'ValidationAgent'},
+  {id:'recurring-revenue',name:'Recurring Revenue Design',division:'market',agent:'RecurringRevenueAgent'},
+  {id:'retention',name:'Retention and Churn Reduction',division:'market',agent:'RetentionAgent'},
+  {id:'utility-wedge',name:'Free Utility Conversion Wedge',division:'market',agent:'UtilityWedgeAgent'},
+  {id:'offer-ladder',name:'Offer Ladder Design',division:'market',agent:'OfferLadderAgent'},
+  {id:'audience-leverage',name:'Audience and Distribution Leverage',division:'market',agent:'AudienceLeverageAgent'},
+  {id:'customer-feedback',name:'Customer Feedback Learning',division:'core',agent:'CustomerFeedbackAgent'},
+  {id:'revenue-evidence',name:'Verified Revenue Evidence',division:'core',agent:'RevenueEvidenceAgent'}
 ]);
 
 function baseState(){
@@ -85,7 +96,7 @@ function baseState(){
     outcomes:[],
     events:[],
     skillStats:Object.fromEntries(NUCLEUS_SKILLS.map(s=>[s.id,{runs:0,successes:0,failures:0,lastUsedAt:null,score:0.5}])),
-    modelRouter:{lastHealthCheckAt:null,providers:{}}
+    modelRouter:{lastHealthCheckAt:null,providers:{}},ownerGoal:OWNER_OPERATING_CONTRACT.stretchObjective,businessMastery:caseStudyMasteryManifest(),revenuePortfolio:buildRevenuePortfolio({verifiedRevenueUsd:0,completedOrders:0})
   };
 }
 let state=null,writeChain=Promise.resolve();
@@ -170,7 +181,7 @@ export async function planMission({goal='',division='general',context={}}={}){
   const plan=capabilityMission({goal,division});
   const mission={
     id:crypto.randomUUID(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),
-    goal:plan.goal,division:plan.division,status:plan.approvalRequired?'planned-awaiting-consequential-action':'planned',
+    goal:plan.goal,division:plan.division,status:plan.approvalRequired?'planned-awaiting-consequential-action':'planned',ownerIntent:interpretOwnerDirective(plan.goal),
     approvalRequired:plan.approvalRequired,specialists:plan.specialists,skillIds:skillIdsForMission(plan),stages:plan.stages,
     currentStage:0,context:Object.fromEntries(Object.entries(context||{}).slice(0,20).map(([k,v])=>[String(k).slice(0,80),String(v).slice(0,1000)])),
     evidence:[],artifacts:[],metrics:{},history:[{at:new Date().toISOString(),event:'planned'}]
@@ -208,7 +219,7 @@ export async function nucleusSnapshot(){
   const ranked=Object.entries(state.skillStats).sort((a,b)=>b[1].score-a[1].score).slice(0,15).map(([id,v])=>({id,...v}));
   return {
     id:state.nucleusId,version:NUCLEUS_VERSION,status:'online',lastTickAt:state.lastTickAt,heartbeatCount:state.heartbeatCount,
-    policy:NUCLEUS_POLICY,capabilityPack:OCT05_CAPABILITY_PACK,localModelResources:LOCAL_MODEL_RESOURCES,
+    policy:NUCLEUS_POLICY,capabilityPack:OCT05_CAPABILITY_PACK,localModelResources:LOCAL_MODEL_RESOURCES,ownerOperatingContract:OWNER_OPERATING_CONTRACT,businessMastery:caseStudyMasteryManifest(),masteryPrinciples:MASTERY_PRINCIPLES,revenuePortfolio:state.revenuePortfolio,
     skills:{count:NUCLEUS_SKILLS.length,registry:NUCLEUS_SKILLS,topRanked:ranked},
     memory:{missions:state.missions.length,outcomes:state.outcomes.length,events:state.events.length,statePath:'persistent-volume'},
     recentMissions:state.missions.slice(0,20),recentOutcomes:state.outcomes.slice(0,20),recentEvents:state.events.slice(0,50),
