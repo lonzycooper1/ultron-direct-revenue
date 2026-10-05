@@ -225,7 +225,7 @@ export async function decideApproval({approvalId,decision,note=''}={}){
 }
 
 export async function runAgentOfAgentsCycle({goal='Operate the commerce network',context={}}={}){
-  return mutateJson(KEY,seed(),async state=>{
+  const state=await mutateJson(KEY,seed(),async state=>{
     state.cycles++;state.updatedAt=new Date().toISOString();
     if(!state.missions.length){
       const m=buildCommerceMission({goal,context});state.missions.unshift(m);state.activeTeam=m.team;state.metrics.missionsCreated++;state.metrics.agentsSpawned+=m.team.agents.length;
@@ -243,6 +243,8 @@ export async function runAgentOfAgentsCycle({goal='Operate the commerce network'
     audit(state,'ceo-cycle',{cycle:state.cycles,missionId:mission.id,status:mission.status});
     state.approvals=state.approvals.slice(0,MAX_APPROVALS);
   });
+  console.log('ULTRON agent-of-agents',JSON.stringify({version:AGENT_OF_AGENTS_VERSION,cycles:state.cycles,missionId:state.missions?.[0]?.id||null,missionStatus:state.missions?.[0]?.status||null,activeAgents:state.activeTeam?.agents?.map(x=>x.name)||[],pendingApprovals:(state.approvals||[]).filter(x=>x.status==='pending').length,shopifyStore:state.connectors?.shopify?.storeDomain||null,podFirst:true}));
+  return state;
 }
 
 export async function agentOfAgentsState(){return getJson(KEY,seed())}
