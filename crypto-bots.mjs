@@ -1,3 +1,4 @@
+import {cryptoResearchMission,expansionManifest} from './video-expansion-pack.mjs';
 import {cryptoVideoPlan} from './video-master-pack.mjs';
 // ULTRON Crypto Bots — autonomous market analysis and paper-trading only.
 export const CRYPTO_BOT_RULES=Object.freeze({
@@ -14,7 +15,7 @@ export const CRYPTO_BOT_RULES=Object.freeze({
 export const CRYPTO_AGENTS=Object.freeze([
  'CryptoMarketDataAgent','CryptoSignalAgent','CryptoMomentumAgent','CryptoVolatilityAgent','CryptoRegimeAgent','CryptoLiquidityAgent',
  'CryptoRelativeStrengthAgent','CryptoMeanReversionAgent','CryptoBreakoutAgent','CryptoMacroAgent','CryptoCatalystAgent','CryptoSentimentAgent',
- 'CryptoRiskAgent','CryptoScenarioAgent','CryptoPortfolioAgent','CryptoExecutionProposalAgent','CryptoAuditAgent','CryptoDriftAgent','CryptoKillSwitchAgent'
+ 'CryptoRiskAgent','CryptoScenarioAgent','CryptoPortfolioAgent','CryptoExecutionProposalAgent','CryptoBacktestAgent','CryptoBenchmarkAgent','CryptoBiasCheckAgent','CryptoAuditAgent','CryptoDriftAgent','CryptoKillSwitchAgent'
 ]);
 
 const mean=x=>x.length?x.reduce((a,b)=>a+b,0)/x.length:0;
@@ -51,4 +52,4 @@ export function runPaperDecision({instrument,prices,equity=10000,positionUsd=0}=
  return {instrument,analysis,risk,execution,agents:CRYPTO_AGENTS,videoPlan:cryptoVideoPlan(),mode:'paper-trading'};
 }
 
-export function cryptoCapabilityManifest(){return {agents:CRYPTO_AGENTS,rules:CRYPTO_BOT_RULES,videoPlan:cryptoVideoPlan()}}
+export function cryptoCapabilityManifest(){return {agents:CRYPTO_AGENTS,rules:CRYPTO_BOT_RULES,videoPlan:cryptoVideoPlan(),expansion:expansionManifest().crypto,researchMission:cryptoResearchMission({})}}
