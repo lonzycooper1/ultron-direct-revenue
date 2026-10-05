@@ -1,7 +1,7 @@
 import {mkdir,readFile,writeFile,rename} from 'node:fs/promises';
 import {dirname} from 'node:path';
 import crypto from 'node:crypto';
-import {OCT05_CAPABILITY_PACK,LOCAL_MODEL_RESOURCES,capabilityMission} from '../video-batch-1005.mjs';
+import {CAPABILITY_PACK as OCT05_CAPABILITY_PACK,LOCAL_MODEL_RESOURCES,capabilityMission} from './capability-pack.mjs';
 
 const STATE_PATH=process.env.JARVIS_NUCLEUS_STATE_PATH||'/data/jarvis-nucleus.json';
 const MAX_EVENTS=2000,MAX_MISSIONS=500,MAX_OUTCOMES=1000;
