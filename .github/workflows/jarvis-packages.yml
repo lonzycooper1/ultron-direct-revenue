@@ -28,6 +28,7 @@ jobs:
           distribution: temurin
           java-version: '17'
       - run: npm install
+      - run: npx expo install --fix
       - run: npx expo prebuild --platform android --clean
       - run: cd android && ./gradlew assembleDebug
       - uses: actions/upload-artifact@v4
@@ -47,6 +48,7 @@ jobs:
         with:
           node-version: 22
       - run: npm install
+      - run: npx expo install --fix
       - run: npx expo prebuild --platform ios --clean
       - name: Build unsigned simulator app
         shell: bash
