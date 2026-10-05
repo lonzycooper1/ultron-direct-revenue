@@ -13,7 +13,32 @@ const STORES=Object.freeze([
 {id:'local',name:'Local Growth',category:'local-business',focus:'local-business growth operations'},
 {id:'productivity',name:'Productivity OS',category:'productivity',focus:'planning and productivity systems'},
 {id:'research',name:'Research Desk',category:'research',focus:'research and decision frameworks'},
-{id:'agent',name:'Agent Studio',category:'ai-agents',focus:'AI-agent workflow design'}]);
+{id:'agent',name:'Agent Studio',category:'ai-agents',focus:'AI-agent workflow design'},
+{id:'ugc',name:'UGC Opportunity Lab',category:'creator-commerce',focus:'creator deal research, brief matching and portfolio systems'},
+{id:'software',name:'Software Factory',category:'software',focus:'AI-assisted app, website and workflow software production'},
+{id:'ecommerce',name:'Commerce Scout',category:'ecommerce',focus:'product research, merchandising and bundle design'},
+{id:'businessex',name:'Business Audit Exchange',category:'business-audit',focus:'workflow gap, lost-opportunity and implementation audits'},
+{id:'aiimplementation',name:'AI Implementation Studio',category:'ai-services',focus:'business AI implementation plans and delivery systems'},
+{id:'websecurity',name:'Web3 Security Lab',category:'web3-security',focus:'defensive smart-contract research, proxy verification and security reporting'},
+{id:'tradinglab',name:'Strategy Research Lab',category:'market-research',focus:'indicator research, backtesting, regime and risk analysis'},
+{id:'audiolab',name:'Ambient Audio Lab',category:'audio',focus:'original ambient audio concepts, segmentation, metadata and release packaging'},
+{id:'faceless',name:'Faceless Media Studio',category:'media',focus:'faceless channel research, original scripts, creative systems and publishing plans'},
+{id:'localmodels',name:'Local Model Lab',category:'local-ai',focus:'Ollama, LM Studio and compatible local-model workflow design'},
+{id:'affiliates',name:'Affiliate Systems',category:'affiliate',focus:'permissioned affiliate research, content and conversion workflows'},
+{id:'videostudio',name:'Video Studio',category:'video',focus:'original video concepts, storyboards, editing briefs and publishing systems'},
+{id:'designlab',name:'Design Lab',category:'design',focus:'brand systems, creative briefs, visual asset plans and QA'},
+{id:'seolab',name:'SEO Lab',category:'seo',focus:'search demand research, content clusters, on-page structure and measurement'},
+{id:'crmops',name:'CRM Operations',category:'crm',focus:'lead routing, pipeline operations, follow-up and CRM workflow design'},
+{id:'voiceops',name:'Voice Operations',category:'voice-ai',focus:'voice-agent scripts, call flows, escalation and appointment workflows'},
+{id:'analyticslab',name:'Analytics Lab',category:'analytics',focus:'KPI systems, attribution, dashboards, experiments and decision support'},
+{id:'courseware',name:'Courseware Factory',category:'education',focus:'original course outlines, lessons, worksheets and assessment systems'},
+{id:'researchplus',name:'Research Plus',category:'research',focus:'evidence synthesis, competitor mapping and decision reports'},
+{id:'automationplus',name:'Automation Plus',category:'automation',focus:'advanced workflow maps, agent orchestration and integration plans'},
+{id:'creatorops',name:'Creator Operations',category:'creator-ops',focus:'content calendars, sponsorship operations, asset pipelines and analytics'},
+{id:'datalab',name:'Data Lab',category:'data',focus:'data cleanup, reporting, forecasting and research workflow products'},
+{id:'securitylab',name:'Security Operations Lab',category:'security',focus:'defensive security checklists, incident readiness and review workflows'},
+{id:'growthlab',name:'Growth Experiment Lab',category:'growth',focus:'ethical acquisition experiments, conversion testing and retention systems'},
+{id:'servicelab',name:'Service Business Lab',category:'services',focus:'productized service offers, delivery SOPs, client onboarding and measurement'}]);
 const STORE_MAP=new Map(STORES.map(s=>[s.id,s]));
 const FEATURED=Object.freeze([
  Object.freeze({
@@ -43,7 +68,7 @@ export function validateMarketProduct(p){if(!p||typeof p!=='object')throw Error(
 export function marketProduct(id){return FEATURED_MAP.get(String(id||''))||parseProductId(id)}
 export function featuredProducts(){return FEATURED.map(x=>({...x}))}
 export function marketStores(){return STORES.map(s=>({id:s.id,name:s.name,category:s.category,focus:s.focus,products:PRODUCTS_PER_STORE,minPrice:1,maxPrice:10000}))}
-export function marketStats(){return {stores:STORES.length,products:STORES.length*PRODUCTS_PER_STORE,featuredOffers:FEATURED.length,productsPerStore:PRODUCTS_PER_STORE,minPrice:1,maxPrice:10000,pricePoints:10000,priceCoverage:'every whole-dollar price from $1 through $10,000 repeats throughout each store',currency:'USD',catalogMode:'deterministic-on-demand-plus-validated-featured-offers',checkout:'PayPal live order flow',fulfillment:'verified-payment-only',architecture:'demand-research-competitor-analysis-product-factory-quality-checkout-fulfillment-analytics-optimization'}}
+export function marketStats(){return {stores:STORES.length,products:STORES.length*PRODUCTS_PER_STORE,featuredOffers:FEATURED.length,productsPerStore:PRODUCTS_PER_STORE,minPrice:1,maxPrice:10000,pricePoints:10000,priceCoverage:'every whole-dollar price from $1 through $10,000 repeats throughout each store',currency:'USD',catalogMode:'deterministic-on-demand-plus-validated-featured-offers',checkout:'PayPal live order flow',fulfillment:'verified-payment-only',architecture:'demand-research-competitor-analysis-product-factory-quality-checkout-fulfillment-analytics-optimization',incrementalExpansion:500000000}}
 export function buildDigitalDelivery(product,orderId){const p=validateMarketProduct(product);const sections=p.featured==='missed-lead-recovery'?[
  {title:'Start Here',body:'Map where calls or leads are currently missed, who owns response, current response time and the booking outcome you want to improve.'},
  {title:'Missed-Lead Response Map',body:'Create a response path for missed calls, forms and messages: acknowledge quickly, identify the request, qualify fit, offer the next booking action and record the outcome.'},
