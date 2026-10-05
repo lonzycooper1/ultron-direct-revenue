@@ -1,0 +1,6 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {opportunityMap,productIdeasForOpportunity,commandBridge,targetProfile,businessOSManifest} from './business-os.mjs';
+test('opportunity engine ranks real buyer problems',()=>{const x=opportunityMap({orders:{}});assert.ok(x.length>=8);assert.ok(x[0].score>=70);assert.ok(x.every(o=>o.buyers.length))});
+test('product factory creates buyer-specific candidates',()=>{const o=opportunityMap()[0],x=productIdeasForOpportunity(o,6);assert.equal(x.length,6);assert.ok(x.every(p=>p.buyer&&p.competitionPlan.length>=3))});
+test('command bridge closes the verified revenue loop',()=>{const b=commandBridge();assert.ok(b.loop.includes('route buyer to PayPal'));assert.ok(b.loop.includes('fulfill after verified capture'))});
+test('targeting is need-based and permissioned',()=>{const t=targetProfile(opportunityMap()[0]);assert.match(t.outreach,/permissioned/i);assert.ok(t.qualification.includes('no deceptive personalization'))});
+test('manifest contains autonomous business roles and integrity controls',()=>{const m=businessOSManifest();assert.match(m.mode,/24\/7/);assert.ok(m.guardrails.includes('no fabricated revenue'));assert.ok(m.commandBridge.roles.includes('CompetitionAgent'))});
