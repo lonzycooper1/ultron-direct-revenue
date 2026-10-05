@@ -82,7 +82,11 @@ export const NUCLEUS_SKILLS=Object.freeze([
   {id:'offer-ladder',name:'Offer Ladder Design',division:'market',agent:'OfferLadderAgent'},
   {id:'audience-leverage',name:'Audience and Distribution Leverage',division:'market',agent:'AudienceLeverageAgent'},
   {id:'customer-feedback',name:'Customer Feedback Learning',division:'core',agent:'CustomerFeedbackAgent'},
-  {id:'revenue-evidence',name:'Verified Revenue Evidence',division:'core',agent:'RevenueEvidenceAgent'}
+  {id:'revenue-evidence',name:'Verified Revenue Evidence',division:'core',agent:'RevenueEvidenceAgent'},
+  {id:'creator-opportunity-feed',name:'Creator Opportunity Feed',division:'creator',agent:'UGCOpportunityAgent'},
+  {id:'opportunity-fit',name:'Opportunity Fit Scoring',division:'creator',agent:'BrandBriefMatcher'},
+  {id:'portfolio-proof',name:'Portfolio Proof Builder',division:'creator',agent:'PortfolioProofAgent'},
+  {id:'autonomous-build-queue',name:'Autonomous Software Build Queue',division:'builder',agent:'RapidSoftwareFactory'}
 ]);
 
 function baseState(){
