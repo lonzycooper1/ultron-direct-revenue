@@ -9,6 +9,7 @@ import {PROSPECT_MISSION,targetingMatrix,scoreProspect,personalizedEmailDraft} f
 import {AGENT_OF_AGENTS_VERSION,COMMERCE_AGENTS,POD_STRATEGY,visualAgentGraph,agentOfAgentsManifest} from './agent-of-agents.mjs';
 import {UNIVERSAL_MARKET_VERSION,UNIVERSAL_MARKET_SUMMARY,universalMarketManifest} from './universal-marketplace.mjs';
 import {OMNI_VERSION,OMNI_CAPABILITIES,omniStatus,planOmniTask,omniManifest,inferOmniMode} from './omni-runtime.mjs';
+import {automationManifest} from './automations.mjs';
 
 test('four interfaces contract',()=>assert.equal(['web','ios','android','desktop'].length,4));
 test('nucleus has persistent control architecture and a large skill registry',()=>{assert.equal(NUCLEUS_VERSION,'2.6.0');assert.ok(NUCLEUS_SKILLS.length>=50);assert.equal(NUCLEUS_POLICY.externalFinancialActions,'explicit-human-approval')});
@@ -94,4 +95,12 @@ test('Omni manifest preserves truthful execution parity and security',()=>{
  assert.ok(m.openaiResponses.supportedWhenConfigured.includes('web_search'));
  assert.ok(m.openaiResponses.supportedWhenConfigured.includes('code_interpreter'));
  assert.ok(m.openaiResponses.supportedWhenConfigured.includes('image_generation'));
+});
+
+test('JARVIS automation engine is persistent and bounded',()=>{
+ const m=automationManifest();
+ assert.equal(m.persistent,true);
+ assert.ok(m.supportedSchedules.includes('once'));
+ assert.ok(m.supportedSchedules.includes('interval >=60 minutes'));
+ assert.equal(m.maxTasks,200);
 });
