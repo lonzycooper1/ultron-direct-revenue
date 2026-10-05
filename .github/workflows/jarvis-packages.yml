@@ -1,0 +1,93 @@
+name: JARVIS Native Packages
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/mobile/**'
+      - 'apps/desktop/**'
+      - '.github/workflows/jarvis-packages.yml'
+
+jobs:
+  android:
+    name: Android installable APK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/mobile/package.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - run: npm install
+      - run: npx expo prebuild --platform android --clean
+      - run: cd android && ./gradlew assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ultron-jarvis-android-apk
+          path: apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+
+  ios-simulator:
+    name: iOS simulator app
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npx expo prebuild --platform ios --clean
+      - name: Build unsigned simulator app
+        shell: bash
+        run: |
+          cd ios
+          WORKSPACE="$(ls -1 *.xcworkspace | head -1)"
+          SCHEME="$(xcodebuild -workspace "$WORKSPACE" -list -json | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["workspace"]["schemes"][0])')"
+          xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -sdk iphonesimulator -configuration Release CODE_SIGNING_ALLOWED=NO -derivedDataPath build build
+          APP="$(find build/Build/Products/Release-iphonesimulator -maxdepth 1 -name '*.app' | head -1)"
+          test -n "$APP"
+          ditto -c -k --sequesterRsrc --keepParent "$APP" ../ultron-jarvis-ios-simulator.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ultron-jarvis-ios-simulator
+          path: apps/mobile/ultron-jarvis-ios-simulator.zip
+
+  desktop:
+    name: Desktop ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: apps/desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Linux dependencies
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - run: npm install
+      - run: npm run tauri build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ultron-jarvis-desktop-${{ runner.os }}
+          path: apps/desktop/src-tauri/target/release/bundle/**
