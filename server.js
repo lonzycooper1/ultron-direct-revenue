@@ -17,6 +17,7 @@ import {expansionManifest,contentMission,businessOpportunityMission,cryptoResear
 import {acquisitionPlan,outreachDraft} from './audience-acquisition.mjs';
 import {revenueLoopStatus,flagshipOffer,DEMAND_EVIDENCE} from './revenue-loop.mjs';
 import {OCT05_CAPABILITY_PACK,OCT05_VIDEO_ANALYSIS,LOCAL_MODEL_RESOURCES} from './video-batch-1005.mjs';
+import {caseStudyMasteryManifest,buildRevenuePortfolio,interpretOwnerDirective,OWNER_OPERATING_CONTRACT} from './chatgpt-business-mastery.mjs';
 const BASE='https://api-m.paypal.com',CID=process.env.PAYPAL_CLIENT_ID||'',SECRET=process.env.PAYPAL_CLIENT_SECRET||'',WH=process.env.PAYPAL_WEBHOOK_ID||'',PUBLIC=(process.env.PUBLIC_BASE_URL||'').replace(/\/$/,''),READY=Boolean(CID&&SECRET&&WH&&PUBLIC);
 const WORKLOAD=Math.max(1,Math.min(10,Number(process.env.ULTRON_WORKLOAD_MULTIPLIER||3))),INTERVAL=Math.max(5,Number(process.env.AGENT_INTERVAL_MINUTES||5));
 let cache={token:null,exp:0},payment={ok:false,checkedAt:null},timer=null;
@@ -68,6 +69,8 @@ if(path==='/api/video-systems'&&req.method==='GET')return json(200,{ok:true,arch
 if(path==='/api/video-master'&&req.method==='GET')return json(200,{ok:true,manifest:masterCapabilityManifest(),expansion:expansionManifest()});
 if(path==='/api/video-expansion'&&req.method==='GET')return json(200,{ok:true,manifest:expansionManifest(),content:contentMission({}),animatedMedia:animatedMediaMission({}),business:businessOpportunityMission({}),crypto:cryptoResearchMission({})});
 if(path==='/api/video-batch-1005'&&req.method==='GET')return json(200,{ok:true,pack:OCT05_CAPABILITY_PACK,analysis:OCT05_VIDEO_ANALYSIS,localModels:LOCAL_MODEL_RESOURCES,market:marketStats()});
+if(path==='/api/business-mastery'&&req.method==='GET'){const l=await ledger();const orders=Object.values(l?.orders||{}),completed=orders.filter(x=>String(x?.status||'').toUpperCase()==='COMPLETED'||x?.capturedAt),revenue=completed.reduce((s,x)=>s+Number(x?.capturedAmount||x?.amount||0),0);return json(200,{ok:true,mastery:caseStudyMasteryManifest(),portfolio:buildRevenuePortfolio({verifiedRevenueUsd:revenue,completedOrders:completed.length}),ownerOperatingContract:OWNER_OPERATING_CONTRACT})}
+if(path==='/api/interpret-directive'&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;let b={};try{b=JSON.parse(raw||'{}')}catch{}return json(200,{ok:true,interpretation:interpretOwnerDirective(b.text||b.goal||'')})}
 if(path==='/api/acquisition'&&req.method==='GET')return json(200,{ok:true,plan:acquisitionPlan({target:Number(u.searchParams.get('target')||1000)}),draft:outreachDraft({})});
 if(path==='/api/video-master/mission'&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;const b=raw?JSON.parse(raw):{};return json(200,{ok:true,mission:buildMission(b)})}
 if(path==='/api/video-systems/critique'&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;return json(200,{ok:true,result:productCritiqueSystem(raw?JSON.parse(raw):{})})}
