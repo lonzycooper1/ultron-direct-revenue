@@ -23,6 +23,7 @@ import {PROSPECT_MISSION,targetingMatrix,scoreProspect,personalizedEmailDraft,pr
 import {securityManifest,agentSecurityProfile} from './agent-security.mjs';
 import {agentOfAgentsManifest,agentOfAgentsState,createCommerceMission,decideApproval,visualAgentGraph} from './agent-of-agents.mjs';
 import {universalMarketManifest,marketplaceState,marketplaceSearch,marketplaceProduct,registerMerchant,upsertProduct,upsertOffer,recordInteraction} from './universal-marketplace.mjs';
+import {podManifest,createPodOrder} from './pod-adapters.mjs';
 const BASE='https://api-m.paypal.com',CID=process.env.PAYPAL_CLIENT_ID||'',SECRET=process.env.PAYPAL_CLIENT_SECRET||'',WH=process.env.PAYPAL_WEBHOOK_ID||'',PUBLIC=(process.env.PUBLIC_BASE_URL||'').replace(/\/$/,''),READY=Boolean(CID&&SECRET&&WH&&PUBLIC);
 const WORKLOAD=Math.max(1,Math.min(10,Number(process.env.ULTRON_WORKLOAD_MULTIPLIER||3))),INTERVAL=Math.max(5,Number(process.env.AGENT_INTERVAL_MINUTES||5));
 let cache={token:null,exp:0},payment={ok:false,checkedAt:null},timer=null;
@@ -86,6 +87,8 @@ if(path==='/api/agent-of-agents/approvals'&&req.method==='GET'){const s=await ag
 if(/^\/api\/agent-of-agents\/approvals\/[^/]+\/decision$/.test(path)&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;let b={};try{b=JSON.parse(raw||'{}')}catch{return json(400,{ok:false,error:'invalid JSON'})}const id=decodeURIComponent(path.split('/')[4]);try{const s=await decideApproval({approvalId:id,decision:b.decision,note:b.note||''});return json(200,{ok:true,state:s})}catch(e){return json(400,{ok:false,error:String(e?.message||e)})}}
 if(path==='/api/agent-of-agents/graph'&&req.method==='GET')return json(200,{ok:true,graph:visualAgentGraph()});
 if(path==='/api/universal-marketplace'&&req.method==='GET'){const s=await marketplaceState();return json(200,{ok:true,manifest:universalMarketManifest(),stats:s.stats})}
+if(path==='/api/pod'&&req.method==='GET')return json(200,{ok:true,pod:podManifest()});
+if(path==='/api/pod/order'&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;let b={};try{b=JSON.parse(raw||'{}')}catch{return json(400,{ok:false,error:'invalid JSON'})}try{const result=await createPodOrder(b.provider,b.payload,{ownerApproved:Boolean(b.ownerApproved)});return json(201,{ok:true,provider:b.provider,result})}catch(e){return json(400,{ok:false,error:String(e?.message||e)})}}
 if(path==='/api/universal-marketplace/search'&&req.method==='GET')return json(200,{ok:true,query:u.searchParams.get('q')||'',results:await marketplaceSearch(u.searchParams.get('q')||'',Number(u.searchParams.get('limit')||24))});
 if(path.startsWith('/api/universal-marketplace/product/')&&req.method==='GET'){const id=decodeURIComponent(path.slice('/api/universal-marketplace/product/'.length));const p=await marketplaceProduct(id);return p?json(200,{ok:true,...p}):json(404,{ok:false,error:'product not found'})}
 if(path==='/api/universal-marketplace/interaction'&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;let b={};try{b=JSON.parse(raw||'{}')}catch{return json(400,{ok:false,error:'invalid JSON'})}await recordInteraction(b);return json(202,{ok:true})}
