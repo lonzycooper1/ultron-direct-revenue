@@ -1,3 +1,4 @@
+import {intelligenceFor} from './competitive-intelligence-2026.mjs';
 // ULTRON Video Master Pack — clean-room capability reconstruction from five observed videos.
 // The implementation recreates workflows/capabilities, not proprietary source, branding or private data.
 
@@ -39,13 +40,13 @@ export const CRYPTO_SQUADS=Object.freeze({
 });
 
 export function marketVideoPlan(){
- return {version:1,systems:VIDEO_SYSTEMS.map(x=>x.id),squads:MARKET_SQUADS,totalWorkers:Object.values(MARKET_SQUADS).flat().length,
+ return {version:2,systems:VIDEO_SYSTEMS.map(x=>x.id),squads:MARKET_SQUADS,totalWorkers:Object.values(MARKET_SQUADS).flat().length,intelligence:intelligenceFor('market'),
  flow:['objective','research','competitor-gap','product/app factory','creative variants','owned/authorized distribution','lead routing','PayPal checkout','verified fulfillment','CRM/support','analytics','learning'],
  principles:['generate multiple candidates before selecting','preview/test before publish','use specialized managers/subagents','measure real conversions','keep approval gates for sensitive actions','spawn capacity only when queue/quality metrics justify it']};
 }
 
 export function cryptoVideoPlan(){
- return {version:1,systems:['market-signal-city','prompt-to-app-factory','autonomous-company'],squads:CRYPTO_SQUADS,totalWorkers:Object.values(CRYPTO_SQUADS).flat().length,
+ return {version:2,systems:['market-signal-city','prompt-to-app-factory','autonomous-company'],squads:CRYPTO_SQUADS,totalWorkers:Object.values(CRYPTO_SQUADS).flat().length,intelligence:intelligenceFor('crypto'),
  flow:['live/public market data','feature extraction','multi-agent signal ensemble','regime/catalyst check','risk review','ranked trade proposal','human approval for real-money action','fill/outcome journal','post-trade attribution','strategy drift review'],
  constraints:['no guaranteed-return logic','no fabricated P&L','no unilateral real-money execution','no leverage by default','no celebrity/social post treated as a signal without independent evidence']};
 }
