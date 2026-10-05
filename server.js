@@ -13,7 +13,7 @@ import {agentFarmState,agentFarmManifest,missionPlan} from './agent-farm.mjs';
 import {autopilotState,productionTerminal} from './autopilot-mode.mjs';
 import {answerQuestion} from './support.js';
 import {masterCapabilityManifest,marketVideoPlan,cryptoVideoPlan,buildMission} from './video-master-pack.mjs';
-import {expansionManifest,contentMission,businessOpportunityMission,cryptoResearchMission} from './video-expansion-pack.mjs';
+import {expansionManifest,contentMission,businessOpportunityMission,cryptoResearchMission,animatedMediaMission} from './video-expansion-pack.mjs';
 const BASE='https://api-m.paypal.com',CID=process.env.PAYPAL_CLIENT_ID||'',SECRET=process.env.PAYPAL_CLIENT_SECRET||'',WH=process.env.PAYPAL_WEBHOOK_ID||'',PUBLIC=(process.env.PUBLIC_BASE_URL||'').replace(/\/$/,''),READY=Boolean(CID&&SECRET&&WH&&PUBLIC);
 const WORKLOAD=Math.max(1,Math.min(10,Number(process.env.ULTRON_WORKLOAD_MULTIPLIER||3))),INTERVAL=Math.max(5,Number(process.env.AGENT_INTERVAL_MINUTES||5));
 let cache={token:null,exp:0},payment={ok:false,checkedAt:null},timer=null;
@@ -58,7 +58,7 @@ if(path==='/api/acquisition-plan'&&req.method==='POST'){let raw='';for await(con
 if(path==='/api/sales-workflow'&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;return json(200,{ok:true,workflow:prospectToPaymentWorkflow(raw?JSON.parse(raw):{})})}
 if(path==='/api/video-systems'&&req.method==='GET')return json(200,{ok:true,architecture:unifiedVideoArchitecture(),master:masterCapabilityManifest(),market:marketVideoPlan(),crypto:cryptoVideoPlan()});
 if(path==='/api/video-master'&&req.method==='GET')return json(200,{ok:true,manifest:masterCapabilityManifest(),expansion:expansionManifest()});
-if(path==='/api/video-expansion'&&req.method==='GET')return json(200,{ok:true,manifest:expansionManifest(),content:contentMission({}),business:businessOpportunityMission({}),crypto:cryptoResearchMission({})});
+if(path==='/api/video-expansion'&&req.method==='GET')return json(200,{ok:true,manifest:expansionManifest(),content:contentMission({}),animatedMedia:animatedMediaMission({}),business:businessOpportunityMission({}),crypto:cryptoResearchMission({})});
 if(path==='/api/video-master/mission'&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;const b=raw?JSON.parse(raw):{};return json(200,{ok:true,mission:buildMission(b)})}
 if(path==='/api/video-systems/critique'&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;return json(200,{ok:true,result:productCritiqueSystem(raw?JSON.parse(raw):{})})}
 if(path==='/api/video-systems/app-factory'&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;return json(200,{ok:true,result:appFactorySystem(raw?JSON.parse(raw):{})})}
