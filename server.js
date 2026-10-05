@@ -1,5 +1,6 @@
 import {answerQuestion} from './support.js';
 import {runAgentCycle,agentState,insightBySlug,renderInsightsIndex,renderInsight} from './agents.mjs';
+import {runMicroTool} from './revenue-engines.mjs';
 import {createServer} from 'node:http';
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import {dirname} from 'node:path';
@@ -85,6 +86,20 @@ export function createApp(){return createServer(async(req,res)=>{
   if(path==='/blog/booking-guide'&&req.method==='GET'){try{const body=await readFile(new URL('./public/booking-guide.html',import.meta.url));res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-cache'});return res.end(body);}catch{return json(503,{error:'Guide unavailable'});}}
   if(path==='/booking-kit-cover.jpg'&&req.method==='GET'){try{const body=await readFile(new URL('./public/booking-kit-cover.jpg',import.meta.url));res.writeHead(200,{'Content-Type':'image/jpeg','Cache-Control':'public, max-age=3600'});return res.end(body);}catch{return json(404,{error:'Image unavailable'});}}
   if(path==='/health'&&req.method==='GET'){const a=await agentState();return json(200,{ok:true,environment:'production-only',storefront:'ready',paymentReady:PAYPAL_LIVE_READY,paypal:{mode:'live',apiBase:PAYPAL_BASE,credentialsConfigured:Boolean(PAYPAL_CLIENT_ID&&PAYPAL_CLIENT_SECRET),webhookConfigured:Boolean(PAYPAL_WEBHOOK_ID)},agents:{autorun:AGENT_AUTORUN,intervalMinutes:AGENT_INTERVAL_MINUTES,lastCycleAt:a.metrics?.lastCycleAt||null,cycles:a.metrics?.cycles||0,insightsPublished:a.metrics?.insightsPublished||0},sandboxFallback:false});}
+  if(path==='/api/revenue-bots'&&req.method==='GET'){const a=await agentState();return json(200,{ok:true,suite:a.revenueBotSuite||null,metrics:a.metrics||{}});}
+  if(path.startsWith('/api/tools/')&&req.method==='POST'){
+   if(!(req.headers['content-type']||'').startsWith('application/json'))return json(415,{error:'Use application/json'});
+   let raw='';for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>16384)return json(413,{error:'Payload too large'})}
+   let data;try{data=raw?JSON.parse(raw):{}}catch{return json(400,{error:'Invalid JSON'})}
+   try{return json(200,{ok:true,result:runMicroTool(decodeURIComponent(path.slice('/api/tools/'.length)),data)})}catch(e){return json(400,{error:e.message})}
+  }
+  if(path.startsWith('/api/reports/')&&req.method==='GET'){
+   const report=decodeURIComponent(path.slice('/api/reports/'.length));const a=await agentState();
+   if(report==='revenue-pipeline')return json(200,{ok:true,report,orders:a.metrics?.lastOrderCount||0,completed:a.metrics?.lastCompletedCount||0,revenueUsd:a.metrics?.lastRevenueUsd||0,asOf:a.metrics?.lastCycleAt||null});
+   if(report==='content-performance')return json(200,{ok:true,report,insightsPublished:a.metrics?.insightsPublished||0,queuedCampaigns:a.campaignQueue?.length||0,asOf:a.metrics?.lastCycleAt||null});
+   if(report==='opportunity-scorecard')return json(200,{ok:true,report,lastRun:a.runs?.[0]?.orchestration||null,asOf:a.metrics?.lastCycleAt||null});
+   return json(404,{error:'Unknown report'});
+  }
   if(path==='/api/payment-status'&&req.method==='GET')return json(200,{provider:'PayPal',mode:'live',apiAuthorized:PAYPAL_LIVE_READY,webhookConfigured:Boolean(PAYPAL_WEBHOOK_ID),sandboxFallback:false});
   if(path==='/api/agent-status'&&req.method==='GET'){const a=await agentState();return json(200,{ok:true,metrics:a.metrics,agents:a.agents,recentRuns:a.runs?.slice(0,10)||[],campaignQueue:a.campaignQueue?.slice(0,10)||[]});}
   if(path==='/api/agent-run'&&req.method==='POST'){if(!process.env.ADMIN_API_KEY||req.headers['x-ultron-admin-key']!==process.env.ADMIN_API_KEY)return json(401,{error:'Unauthorized'});const a=await runAgents('manual');return json(a?200:500,a?{ok:true,metrics:a.metrics}:{ok:false});}
