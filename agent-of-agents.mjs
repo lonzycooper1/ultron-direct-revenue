@@ -166,9 +166,35 @@ function audit(state,event,data){
   state.auditHash=e.hash;state.history.unshift(e);state.history=state.history.slice(0,MAX_HISTORY);return e;
 }
 
+async function safePost(url,payload){
+  if(!url)return {configured:false,sent:false};
+  try{
+    const r=await fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload),signal:AbortSignal.timeout(5000)});
+    return {configured:true,sent:r.ok,status:r.status};
+  }catch(e){return {configured:true,sent:false,error:String(e?.message||e).slice(0,180)}}
+}
+async function notifyApprovals(approvals=[]){
+  const pending=(approvals||[]).filter(x=>x.status==='pending').slice(0,10);
+  if(!pending.length)return {pending:0,slack:{configured:false,sent:false},discord:{configured:false,sent:false}};
+  const text='ULTRON Editor-in-Chief approval required:\n'+pending.map(a=>'- '+a.owner+': '+a.action+' ['+a.id+']').join('\n');
+  const [slack,discord]=await Promise.all([
+    safePost(process.env.SLACK_APPROVAL_WEBHOOK_URL,{text}),
+    safePost(process.env.DISCORD_APPROVAL_WEBHOOK_URL,{content:text})
+  ]);
+  return {pending:pending.length,slack,discord};
+}
+async function mirrorToVisualBuilders(mission){
+  const payload={source:'ULTRON-Agent-of-Agents',version:AGENT_OF_AGENTS_VERSION,mission,graph:visualAgentGraph()};
+  const [flowise,langflow]=await Promise.all([
+    safePost(process.env.FLOWISE_WEBHOOK_URL,payload),
+    safePost(process.env.LANGFLOW_WEBHOOK_URL,payload)
+  ]);
+  return {flowise,langflow};
+}
+
 export async function createCommerceMission(input={}){
   const mission=buildCommerceMission(input);
-  return mutateJson(KEY,seed(),async state=>{
+  const state=await mutateJson(KEY,seed(),async state=>{
     state.enabled=true;state.updatedAt=new Date().toISOString();
     state.missions.unshift(mission);state.missions=state.missions.slice(0,MAX_MISSIONS);
     state.activeTeam=mission.team;
@@ -179,18 +205,23 @@ export async function createCommerceMission(input={}){
     state.approvals=state.approvals.slice(0,MAX_APPROVALS);
     audit(state,'mission-created',{missionId:mission.id,goal:mission.goal,agents:mission.team.agents.map(x=>x.name)});
   });
+  state.lastNotification=await notifyApprovals(state.approvals);
+  state.visualBuilderMirror=await mirrorToVisualBuilders(mission);
+  return state;
 }
 
 export async function decideApproval({approvalId,decision,note=''}={}){
   const d=String(decision||'').toLowerCase();
   if(!['approve','reject'].includes(d))throw Error('decision must be approve or reject');
-  return mutateJson(KEY,seed(),async state=>{
+  const state=await mutateJson(KEY,seed(),async state=>{
     const a=state.approvals.find(x=>x.id===approvalId);if(!a)throw Error('approval not found');
     if(a.status!=='pending')throw Error('approval already decided');
     a.status=d==='approve'?'approved':'rejected';a.decision=d;a.note=clean(note,500);a.decidedAt=new Date().toISOString();
     state.metrics[d==='approve'?'approved':'rejected']++;
     audit(state,'approval-decided',{approvalId:a.id,missionId:a.missionId,decision:d});
   });
+  state.lastNotification=await notifyApprovals(state.approvals);
+  return state;
 }
 
 export async function runAgentOfAgentsCycle({goal='Operate the commerce network',context={}}={}){
