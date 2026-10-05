@@ -6,6 +6,7 @@ import {ledger,saveLedger} from './ledger-store.mjs';
 import {storeHealth} from './state-store.mjs';
 import {runAgentCycle,agentState} from './agents.mjs';
 import {wizardFromConversation,generateCandidates,critiqueCandidate,buildAcquisitionPlan,prospectToPaymentWorkflow,capabilityManifest} from './ultron2-core.mjs';
+import {saveProject,getProject,listProjects,updateProjectProgress} from './project-store.mjs';
 const BASE='https://api-m.paypal.com',CID=process.env.PAYPAL_CLIENT_ID||'',SECRET=process.env.PAYPAL_CLIENT_SECRET||'',WH=process.env.PAYPAL_WEBHOOK_ID||'',PUBLIC=(process.env.PUBLIC_BASE_URL||'').replace(/\/$/,''),READY=Boolean(CID&&SECRET&&WH&&PUBLIC);
 const WORKLOAD=Math.max(1,Math.min(10,Number(process.env.ULTRON_WORKLOAD_MULTIPLIER||3))),INTERVAL=Math.max(5,Number(process.env.AGENT_INTERVAL_MINUTES||5));
 let cache={token:null,exp:0},payment={ok:false,checkedAt:null},timer=null;
@@ -22,7 +23,10 @@ export function createApp(){return createServer(async(req,res)=>{const u=new URL
 if(path==='/health'){const db=await storeHealth(),a=await agentState();return json(db.ok?200:503,{ok:db.ok,database:db,aiMarket:{ready:true,...marketStats()},paymentReady:READY&&payment.ok,agents:{lastCycleAt:a.metrics?.lastCycleAt||null,intervalMinutes:INTERVAL,workloadMultiplier:WORKLOAD}})}
 if(path==='/api/market')return json(200,{ok:true,stats:marketStats(),stores:marketStores()});
 if(path==='/api/ultron2')return json(200,{ok:true,manifest:capabilityManifest(),market:marketStats(),agentIntervalMinutes:INTERVAL,workloadMultiplier:WORKLOAD});
-if(path==='/api/wizard'&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;return json(200,{ok:true,project:wizardFromConversation(raw?JSON.parse(raw):{})})}
+if(path==='/api/wizard'&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;const project=wizardFromConversation(raw?JSON.parse(raw):{});await saveProject(project);return json(200,{ok:true,project})}
+if(path==='/api/projects'&&req.method==='GET')return json(200,{ok:true,projects:await listProjects()});
+if(path.startsWith('/api/projects/')&&req.method==='GET'){const id=decodeURIComponent(path.slice('/api/projects/'.length));const project=await getProject(id);return project?json(200,{ok:true,project}):json(404,{error:'project not found'})}
+if(path==='/api/project-progress'&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;const b=raw?JSON.parse(raw):{};return json(200,{ok:true,project:await updateProjectProgress(b.projectId,b.milestoneId,b.status)})}
 if(path==='/api/candidates'&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;return json(200,{ok:true,candidates:generateCandidates(raw?JSON.parse(raw):{})})}
 if(path==='/api/critique'&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;const b=raw?JSON.parse(raw):{};return json(200,{ok:true,result:critiqueCandidate(b.candidate||{},b.metrics||{})})}
 if(path==='/api/acquisition-plan'&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;return json(200,{ok:true,plan:buildAcquisitionPlan(raw?JSON.parse(raw):{})})}
