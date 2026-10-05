@@ -1,1 +1,1 @@
-{"name":"ultron-direct-revenue","version":"1.0.0","private":true,"type":"module","scripts":{"start":"node server.js"},"dependencies":{"express":"^5.1.0"}}
+{"name":"ultron-direct-revenue","version":"1.1.0","private":true,"type":"module","scripts":{"start":"node server.js","test":"node --test *.test.js *.test.mjs factory-new/*.test.mjs payments-new/*.test.mjs"},"dependencies":{"express":"^5.1.0"}}
