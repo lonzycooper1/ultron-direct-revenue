@@ -137,6 +137,34 @@ function skillIdsForMission(plan){
   if(plan.approvalRequired&&!ids.includes('approvals'))ids.push('approvals');
   return ids;
 }
+export async function invokeLocalModel({provider='ollama',prompt='',system=''}={}){
+  await initNucleus();
+  const cfg=providerConfig().find(x=>x.id===provider);
+  if(!cfg)throw Error('unknown model provider');
+  if(!cfg.configured)throw Error(cfg.name+' is not configured');
+  const userPrompt=String(prompt||'').trim().slice(0,20000);
+  if(!userPrompt)throw Error('prompt required');
+  const policySystem='You are a JARVIS nucleus model worker. Follow the application policy above the model layer. Do not perform phishing, credential theft, malware deployment, exploit execution, fund theft, spam, fake engagement, fabricated financial results, or autonomous real-money trading. Consequential financial actions require explicit human approval. Produce useful research, drafting, planning, coding, analysis, or defensive-security assistance within those boundaries.';
+  let model=cfg.model;
+  if(provider==='ollama'){
+    if(!model){const lr=await fetch(new URL('/api/tags',cfg.baseUrl),{signal:AbortSignal.timeout(5000)}),ld=await lr.json();model=ld?.models?.[0]?.name||''}
+    if(!model)throw Error('no Ollama model loaded');
+    const r=await fetch(new URL('/api/chat',cfg.baseUrl),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({model,stream:false,messages:[{role:'system',content:policySystem+' '+String(system||'').slice(0,4000)},{role:'user',content:userPrompt}]}),signal:AbortSignal.timeout(120000)});
+    const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d?.error||('Ollama '+r.status));
+    event('model-invocation',{provider,model,ok:true});await persist();
+    return {provider,model,output:String(d?.message?.content||''),local:true};
+  }
+  if(provider==='lmstudio'){
+    if(!model){const lr=await fetch(new URL('/v1/models',cfg.baseUrl),{signal:AbortSignal.timeout(5000)}),ld=await lr.json();model=ld?.data?.[0]?.id||''}
+    if(!model)throw Error('no LM Studio model loaded');
+    const r=await fetch(new URL('/v1/chat/completions',cfg.baseUrl),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({model,messages:[{role:'system',content:policySystem+' '+String(system||'').slice(0,4000)},{role:'user',content:userPrompt}],temperature:0.3}),signal:AbortSignal.timeout(120000)});
+    const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d?.error?.message||('LM Studio '+r.status));
+    event('model-invocation',{provider,model,ok:true});await persist();
+    return {provider,model,output:String(d?.choices?.[0]?.message?.content||''),local:true};
+  }
+  throw Error('AnythingLLM workspace execution requires an explicitly configured workspace adapter; model routing remains available through Ollama or LM Studio.');
+}
+
 export async function planMission({goal='',division='general',context={}}={}){
   await initNucleus();
   const plan=capabilityMission({goal,division});
