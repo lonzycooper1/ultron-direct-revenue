@@ -1,0 +1,5 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {assembleTeam,missionPlan,agentFarmManifest} from './agent-farm.mjs';
+test('software revenue mission assembles specialized farm',()=>{const t=assembleTeam({mission:'build and sell an AI automation app'});for(const r of ['chiefOfStaff','sourceArchitect','codeBuilder','marketer','sales','payment','fulfillment','risk'])assert.ok(t.roles.some(x=>x.id===r))});
+test('mission plan covers full business lifecycle',()=>{const p=missionPlan({mission:'build and sell software'});assert.equal(p.tasks[0].stage,'STRATEGY');assert.ok(p.tasks.some(x=>x.stage==='PAYMENT_VERIFY'));assert.ok(p.tasks.some(x=>x.stage==='LEARN'))});
+test('payment verification gate is explicit',()=>{const p=missionPlan({mission:'sell a product'});assert.match(p.tasks.find(x=>x.stage==='PAYMENT_VERIFY').acceptance,/PayPal/i)});
+test('manifest preserves clean-room and integrity rules',()=>{const m=agentFarmManifest();assert.match(m.mode,/AI_FARM/);assert.ok(m.principles.some(x=>/independently authored/.test(x)));assert.ok(m.principles.some(x=>/proprietary-code extraction/.test(x)))});
