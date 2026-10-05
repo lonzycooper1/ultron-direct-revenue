@@ -149,12 +149,21 @@ function connectorTools(ids=[]){
  }));
 }
 
+function internalFunctionTools(){
+ return [
+  {type:'function',name:'ultron_market_search',description:'Search the live ULTRON Everything Market and native catalog for products, software, services, POD or merchant offers.',parameters:{type:'object',properties:{query:{type:'string'},limit:{type:'integer',minimum:1,maximum:25}},required:['query'],additionalProperties:false},strict:true},
+  {type:'function',name:'ultron_market_status',description:'Read the live ULTRON revenue/market service health and public runtime status.',parameters:{type:'object',properties:{},additionalProperties:false},strict:true},
+  {type:'function',name:'ultron_agent_of_agents_status',description:'Read the Agent-of-Agents commerce CEO runtime, active specialist team and pending approvals.',parameters:{type:'object',properties:{},additionalProperties:false},strict:true},
+  {type:'function',name:'ultron_create_commerce_mission',description:'Create a new internal commerce mission. This plans and stages work; consequential publishing, spend and refunds remain human-approved.',parameters:{type:'object',properties:{goal:{type:'string',minLength:1,maxLength:2000}},required:['goal'],additionalProperties:false},strict:true},
+  {type:'function',name:'ultron_crypto_status',description:'Read the live crypto intelligence service health. Does not place trades.',parameters:{type:'object',properties:{},additionalProperties:false},strict:true}
+ ];
+}
 function buildTools(mode,{connectors=[]}={}){
  const tools=[];
  if(mode==='research'||mode==='deep-research')tools.push({type:'web_search'});
  if(['compute','data','code-run','deep-research'].includes(mode))tools.push({type:'code_interpreter',container:{type:'auto'}});
  if(['image','image-edit'].includes(mode))tools.push({type:'image_generation',action:'auto'});
- tools.push(...connectorTools(connectors),...customMcpTools());
+ tools.push(...internalFunctionTools(),...connectorTools(connectors),...customMcpTools());
  return tools;
 }
 
@@ -209,28 +218,63 @@ export function planOmniTask({prompt='',mode='auto',connectors=[]}={}){
  };
 }
 
+const MARKET_URL=process.env.MARKET_URL||'https://ultron-direct-revenue-production.up.railway.app';
+const CRYPTO_URL=process.env.CRYPTO_URL||'https://ultron-trading-engine-production.up.railway.app';
+async function serviceJson(url,options={}){
+ const r=await fetch(url,{...options,headers:{'content-type':'application/json','accept':'application/json',...(options.headers||{})},signal:AbortSignal.timeout(12000)});
+ const d=await r.json().catch(()=>({}));
+ if(!r.ok)throw Error((d&&d.error)||('service '+r.status));
+ return d;
+}
+async function runInternalFunction(name,args={}){
+ if(name==='ultron_market_search'){
+   const q=encodeURIComponent(clean(args.query,500)),limit=Math.max(1,Math.min(25,Number(args.limit)||10));
+   return serviceJson(MARKET_URL.replace(/\/$/,'')+'/api/universal-marketplace/search?q='+q+'&limit='+limit);
+ }
+ if(name==='ultron_market_status')return serviceJson(MARKET_URL.replace(/\/$/,'')+'/health');
+ if(name==='ultron_agent_of_agents_status')return serviceJson(MARKET_URL.replace(/\/$/,'')+'/api/agent-of-agents');
+ if(name==='ultron_create_commerce_mission'){
+   return serviceJson(MARKET_URL.replace(/\/$/,'')+'/api/agent-of-agents/mission',{method:'POST',body:JSON.stringify({goal:clean(args.goal,2000)})});
+ }
+ if(name==='ultron_crypto_status')return serviceJson(CRYPTO_URL.replace(/\/$/,'')+'/health');
+ throw Error('unknown internal function');
+}
+function functionCalls(d){return (d?.output||[]).filter(x=>x?.type==='function_call')}
+
 export async function invokeOpenAIOmni({prompt='',mode='reason',files=[],images=[],connectors=[],instructions=''}={}){
  if(!openaiConfigured())throw Error('OPENAI_API_KEY is not configured');
  const user=clean(prompt,40000);if(!user)throw Error('prompt required');
- const body={
-   model:DEFAULT_MODEL,
-   instructions:POLICY+' '+clean(instructions,6000),
-   input:[{role:'user',content:buildContent(user,{files,images})}],
-   tools:buildTools(mode,{connectors}),
-   store:false
- };
- const r=await fetch(OPENAI_URL,{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+process.env.OPENAI_API_KEY},body:JSON.stringify(body),signal:AbortSignal.timeout(180000)});
- const d=await r.json().catch(()=>({}));
- if(!r.ok)throw Error(clean(d?.error?.message||('OpenAI Responses API '+r.status),1000));
+ const tools=buildTools(mode,{connectors});
+ let input=[{role:'user',content:buildContent(user,{files,images})}],d=null,totalUsage=null;
+ for(let turn=0;turn<5;turn++){
+   const body={model:DEFAULT_MODEL,instructions:POLICY+' '+clean(instructions,6000),input,tools,store:false};
+   const r=await fetch(OPENAI_URL,{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+process.env.OPENAI_API_KEY},body:JSON.stringify(body),signal:AbortSignal.timeout(180000)});
+   d=await r.json().catch(()=>({}));
+   if(!r.ok)throw Error(clean(d?.error?.message||('OpenAI Responses API '+r.status),1000));
+   totalUsage=d.usage||totalUsage;
+   const calls=functionCalls(d);
+   if(!calls.length||approvalRequests(d).length)break;
+   const outputs=[];
+   for(const call of calls){
+     let args={};try{args=JSON.parse(call.arguments||'{}')}catch{}
+     try{
+       const value=await runInternalFunction(call.name,args);
+       outputs.push({type:'function_call_output',call_id:call.call_id,output:JSON.stringify(value).slice(0,60000)});
+     }catch(e){
+       outputs.push({type:'function_call_output',call_id:call.call_id,output:JSON.stringify({ok:false,error:String(e?.message||e).slice(0,1000)})});
+     }
+   }
+   input=[...(d.output||[]),...outputs];
+ }
  return {
-   ok:true,provider:'openai',model:d.model||DEFAULT_MODEL,responseId:d.id||null,
+   ok:true,provider:'openai',model:d?.model||DEFAULT_MODEL,responseId:d?.id||null,
    text:redactSecrets(extractOutputText(d)),
    citations:citations(d),
    approvalRequests:approvalRequests(d),
    images:imageOutputs(d),
    codeInterpreter:codeOutputs(d),
-   usage:d.usage||null,
-   status:d.status||'completed'
+   usage:totalUsage,
+   status:d?.status||'completed'
  };
 }
 
