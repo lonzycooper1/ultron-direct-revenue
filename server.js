@@ -1,4 +1,5 @@
 import {answerQuestion} from './support.js';
+import {runAgentCycle,agentState,insightBySlug,renderInsightsIndex,renderInsight} from './agents.mjs';
 import {createServer} from 'node:http';
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import {dirname} from 'node:path';
@@ -16,7 +17,10 @@ const PAYPAL_WEBHOOK_ID=process.env.PAYPAL_WEBHOOK_ID||'';
 const PUBLIC_BASE_URL=(process.env.PUBLIC_BASE_URL||'').replace(/\/$/,'');
 const LEDGER_PATH=process.env.ORDER_LEDGER_PATH||'/data/orders.json';
 const PAYPAL_LIVE_READY=Boolean(PAYPAL_CLIENT_ID&&PAYPAL_CLIENT_SECRET&&PUBLIC_BASE_URL);
-let tokenCache={token:null,expiresAt:0},writeQueue=Promise.resolve();
+const AGENT_AUTORUN=process.env.AGENT_AUTORUN!=='false';
+const AGENT_INTERVAL_MINUTES=Math.max(15,Number(process.env.AGENT_INTERVAL_MINUTES||60));
+let tokenCache={token:null,expiresAt:0},writeQueue=Promise.resolve(),agentTimer=null;
+
 async function ledger(){try{return JSON.parse(await readFile(LEDGER_PATH,'utf8'))}catch{return {orders:{},events:[]}}}
 async function saveLedger(mut){writeQueue=writeQueue.then(async()=>{const l=await ledger();mut(l);await mkdir(dirname(LEDGER_PATH),{recursive:true});await writeFile(LEDGER_PATH,JSON.stringify(l,null,2))}).catch(e=>console.error('ledger',e));return writeQueue}
 async function paypalToken(){
@@ -53,32 +57,49 @@ async function verifyPayPalWebhook(req,event){
  const body={auth_algo:req.headers['paypal-auth-algo'],cert_url:req.headers['paypal-cert-url'],transmission_id:req.headers['paypal-transmission-id'],transmission_sig:req.headers['paypal-transmission-sig'],transmission_time:req.headers['paypal-transmission-time'],webhook_id:PAYPAL_WEBHOOK_ID,webhook_event:event};
  const r=await paypal('/v1/notifications/verify-webhook-signature','POST',body);return r.verification_status==='SUCCESS'
 }
+async function runAgents(reason='scheduled'){
+ try{const s=await runAgentCycle({ledger:await ledger(),baseUrl:PUBLIC_BASE_URL||'https://ultron-direct-revenue-production.up.railway.app'});console.log('ULTRON agents cycle',reason,s.metrics?.lastCycleAt);return s}
+ catch(e){console.error('agent-cycle',e);return null}
+}
+function startAgents(){
+ if(!AGENT_AUTORUN||agentTimer)return;
+ setTimeout(()=>runAgents('startup'),5000);
+ agentTimer=setInterval(()=>runAgents('scheduled'),AGENT_INTERVAL_MINUTES*60*1000);
+ agentTimer.unref?.();
+}
 
 export function createApp(){return createServer(async(req,res)=>{
- const path=new URL(req.url,'http://local').pathname;
+ const url=new URL(req.url,'http://local');const path=url.pathname;
  res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','strict-origin-when-cross-origin');
  res.setHeader('Content-Security-Policy',"default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
  const json=(status,data)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(data));};
- if(path==='/api/support'&&req.method==='POST'){
-  if(!(req.headers['content-type']||'').startsWith('application/json'))return json(415,{error:'Use application/json'});
-  if(req.headers.origin&&req.headers.origin!==`https://${req.headers.host}`&&req.headers.origin!==`http://${req.headers.host}`)return json(403,{error:'Origin rejected'});
-  try{let body='';for await(const chunk of req){body+=chunk;if(Buffer.byteLength(body)>4096)return json(413,{error:'Question too long'});}const data=JSON.parse(body);return json(200,answerQuestion(data.question));}catch{return json(400,{error:'Enter a question between 2 and 600 characters.'});}
- }
- if((path==='/support'||path==='/support-client.js')&&req.method==='GET'){
-  try{const file=path==='/support'?'support.html':'support-client.js';const body=await readFile(new URL('./public/'+file,import.meta.url));res.writeHead(200,{'Content-Type':path==='/support'?'text/html; charset=utf-8':'text/javascript; charset=utf-8','Cache-Control':'no-cache'});return res.end(body);}catch{return json(503,{error:'Support unavailable'});}
- }
- if(path==='/blog/booking-guide'&&req.method==='GET'){try{const body=await readFile(new URL('./public/booking-guide.html',import.meta.url));res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-cache'});return res.end(body);}catch{return json(503,{error:'Guide unavailable'});}}
- if(path==='/booking-kit-cover.jpg'&&req.method==='GET'){try{const body=await readFile(new URL('./public/booking-kit-cover.jpg',import.meta.url));res.writeHead(200,{'Content-Type':'image/jpeg','Cache-Control':'public, max-age=3600'});return res.end(body);}catch{return json(404,{error:'Image unavailable'});}}
- if(path==='/health'&&req.method==='GET')return json(200,{ok:true,environment:'production-only',storefront:'ready',paymentReady:PAYPAL_LIVE_READY,paypal:{mode:'live',apiBase:PAYPAL_BASE,credentialsConfigured:Boolean(PAYPAL_CLIENT_ID&&PAYPAL_CLIENT_SECRET),webhookConfigured:Boolean(PAYPAL_WEBHOOK_ID)},sandboxFallback:false});
- if(path==='/api/leads')return json(503,{ok:false,message:'Direct inquiry storage is not connected. Use the contact form linked on the storefront.'});
- if(path==='/api/payment-status'&&req.method==='GET')return json(200,{provider:'PayPal',mode:'live',apiAuthorized:PAYPAL_LIVE_READY,webhookConfigured:Boolean(PAYPAL_WEBHOOK_ID),sandboxFallback:false});
- if(path==='/buy'&&req.method==='GET'){if(!PAYPAL_LIVE_READY)return json(503,{error:'Live PayPal authorization is not configured'});const key=new URL(req.url,'http://local').searchParams.get('product')||'';const o=await createPayPalOrder(key);res.writeHead(303,{Location:o.approve,'Cache-Control':'no-store'});return res.end();}
- if(path==='/paypal/return'&&req.method==='GET'){if(!PAYPAL_LIVE_READY)return json(503,{error:'Live PayPal authorization is not configured'});const id=new URL(req.url,'http://local').searchParams.get('token')||'';const x=await capturePayPalOrder(id);if(!x.capture||x.capture.status!=='COMPLETED')return json(409,{error:'PayPal capture not completed'});res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});return res.end('<!doctype html><meta charset="utf-8"><title>Payment received</title><style>body{font-family:system-ui;background:#090c10;color:#fff;padding:40px}main{max-width:700px;margin:auto;background:#141920;padding:28px;border-radius:16px}a{color:#6ee77a}</style><main><h1>Payment received</h1><p>Status: COMPLETED</p><p>Amount: '+String(x.capture.amount?.value||'')+' '+String(x.capture.amount?.currency_code||'USD')+'</p><p>PayPal capture ID: '+String(x.capture.id||'')+'</p><p><a href="/">Return to storefront</a></p></main>');}
- if(path==='/paypal/cancel'&&req.method==='GET'){res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});return res.end('<!doctype html><meta charset="utf-8"><title>Payment canceled</title><h1>Payment canceled</h1><p>No charge was completed. <a href="/">Return</a>.</p>');}
- if(path==='/api/paypal/webhook'&&req.method==='POST'){let raw='';for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>512000)return json(413,{error:'Webhook too large'})}let event;try{event=JSON.parse(raw)}catch{return json(400,{error:'Invalid JSON'})}if(!(await verifyPayPalWebhook(req,event)))return json(400,{error:'Webhook verification failed'});await saveLedger(l=>{l.events.unshift({id:event.id||null,type:event.event_type||null,resourceId:event.resource?.id||null,at:new Date().toISOString()});l.events=l.events.slice(0,5000)});return json(200,{ok:true});}
- if(path==='/api/orders'&&req.method==='GET'){if(!process.env.ADMIN_API_KEY||req.headers['x-ultron-admin-key']!==process.env.ADMIN_API_KEY)return json(401,{error:'Unauthorized'});return json(200,await ledger());}
- if(path==='/'&&(req.method==='GET'||req.method==='HEAD')){try{const body=await readFile(new URL('./public/index.html',import.meta.url));res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-cache'});return res.end(req.method==='HEAD'?undefined:body);}catch{return json(503,{ok:false,message:'Storefront unavailable'});}}
- return json(404,{ok:false,message:'Not found'});
+ try{
+  if(path==='/api/support'&&req.method==='POST'){
+   if(!(req.headers['content-type']||'').startsWith('application/json'))return json(415,{error:'Use application/json'});
+   if(req.headers.origin&&req.headers.origin!==`https://${req.headers.host}`&&req.headers.origin!==`http://${req.headers.host}`)return json(403,{error:'Origin rejected'});
+   try{let body='';for await(const chunk of req){body+=chunk;if(Buffer.byteLength(body)>4096)return json(413,{error:'Question too long'});}const data=JSON.parse(body);return json(200,answerQuestion(data.question));}catch{return json(400,{error:'Enter a question between 2 and 600 characters.'});}
+  }
+  if((path==='/support'||path==='/support-client.js')&&req.method==='GET'){
+   try{const file=path==='/support'?'support.html':'support-client.js';const body=await readFile(new URL('./public/'+file,import.meta.url));res.writeHead(200,{'Content-Type':path==='/support'?'text/html; charset=utf-8':'text/javascript; charset=utf-8','Cache-Control':'no-cache'});return res.end(body);}catch{return json(503,{error:'Support unavailable'});}
+  }
+  if(path==='/blog/booking-guide'&&req.method==='GET'){try{const body=await readFile(new URL('./public/booking-guide.html',import.meta.url));res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-cache'});return res.end(body);}catch{return json(503,{error:'Guide unavailable'});}}
+  if(path==='/booking-kit-cover.jpg'&&req.method==='GET'){try{const body=await readFile(new URL('./public/booking-kit-cover.jpg',import.meta.url));res.writeHead(200,{'Content-Type':'image/jpeg','Cache-Control':'public, max-age=3600'});return res.end(body);}catch{return json(404,{error:'Image unavailable'});}}
+  if(path==='/health'&&req.method==='GET'){const a=await agentState();return json(200,{ok:true,environment:'production-only',storefront:'ready',paymentReady:PAYPAL_LIVE_READY,paypal:{mode:'live',apiBase:PAYPAL_BASE,credentialsConfigured:Boolean(PAYPAL_CLIENT_ID&&PAYPAL_CLIENT_SECRET),webhookConfigured:Boolean(PAYPAL_WEBHOOK_ID)},agents:{autorun:AGENT_AUTORUN,intervalMinutes:AGENT_INTERVAL_MINUTES,lastCycleAt:a.metrics?.lastCycleAt||null,cycles:a.metrics?.cycles||0,insightsPublished:a.metrics?.insightsPublished||0},sandboxFallback:false});}
+  if(path==='/api/payment-status'&&req.method==='GET')return json(200,{provider:'PayPal',mode:'live',apiAuthorized:PAYPAL_LIVE_READY,webhookConfigured:Boolean(PAYPAL_WEBHOOK_ID),sandboxFallback:false});
+  if(path==='/api/agent-status'&&req.method==='GET'){const a=await agentState();return json(200,{ok:true,metrics:a.metrics,agents:a.agents,recentRuns:a.runs?.slice(0,10)||[],campaignQueue:a.campaignQueue?.slice(0,10)||[]});}
+  if(path==='/api/agent-run'&&req.method==='POST'){if(!process.env.ADMIN_API_KEY||req.headers['x-ultron-admin-key']!==process.env.ADMIN_API_KEY)return json(401,{error:'Unauthorized'});const a=await runAgents('manual');return json(a?200:500,a?{ok:true,metrics:a.metrics}:{ok:false});}
+  if(path==='/insights'&&req.method==='GET'){const body=await renderInsightsIndex();res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'public, max-age=300'});return res.end(body);}
+  if(path.startsWith('/insights/')&&req.method==='GET'){const slug=decodeURIComponent(path.slice('/insights/'.length));const item=await insightBySlug(slug);if(!item)return json(404,{error:'Insight not found'});const body=renderInsight(item);res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'public, max-age=300'});return res.end(body);}
+  if(path==='/buy'&&req.method==='GET'){if(!PAYPAL_LIVE_READY)return json(503,{error:'Live PayPal authorization is not configured'});const key=url.searchParams.get('product')||'';const o=await createPayPalOrder(key);res.writeHead(303,{Location:o.approve,'Cache-Control':'no-store'});return res.end();}
+  if(path==='/paypal/return'&&req.method==='GET'){if(!PAYPAL_LIVE_READY)return json(503,{error:'Live PayPal authorization is not configured'});const id=url.searchParams.get('token')||'';const x=await capturePayPalOrder(id);if(!x.capture||x.capture.status!=='COMPLETED')return json(409,{error:'PayPal capture not completed'});await runAgents('completed-payment');res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});return res.end('<!doctype html><meta charset="utf-8"><title>Payment received</title><style>body{font-family:system-ui;background:#090c10;color:#fff;padding:40px}main{max-width:700px;margin:auto;background:#141920;padding:28px;border-radius:16px}a{color:#6ee77a}</style><main><h1>Payment received</h1><p>Status: COMPLETED</p><p>Amount: '+String(x.capture.amount?.value||'')+' '+String(x.capture.amount?.currency_code||'USD')+'</p><p>PayPal capture ID: '+String(x.capture.id||'')+'</p><p><a href="/">Return to storefront</a></p></main>');}
+  if(path==='/paypal/cancel'&&req.method==='GET'){res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});return res.end('<!doctype html><meta charset="utf-8"><title>Payment canceled</title><h1>Payment canceled</h1><p>No charge was completed. <a href="/">Return</a>.</p>');}
+  if((path==='/webhooks/paypal'||path==='/api/paypal/webhook')&&req.method==='POST'){let raw='';for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>512000)return json(413,{error:'Webhook too large'})}let event;try{event=JSON.parse(raw)}catch{return json(400,{error:'Invalid JSON'})}if(!(await verifyPayPalWebhook(req,event)))return json(400,{error:'Webhook verification failed'});await saveLedger(l=>{l.events.unshift({id:event.id||null,type:event.event_type||null,resourceId:event.resource?.id||null,at:new Date().toISOString()});l.events=l.events.slice(0,5000)});if(/PAYMENT\.CAPTURE\.COMPLETED|CHECKOUT\.ORDER\.COMPLETED/.test(event.event_type||''))setTimeout(()=>runAgents('paypal-webhook'),10);return json(200,{ok:true});}
+  if(path==='/api/orders'&&req.method==='GET'){if(!process.env.ADMIN_API_KEY||req.headers['x-ultron-admin-key']!==process.env.ADMIN_API_KEY)return json(401,{error:'Unauthorized'});return json(200,await ledger());}
+  if(path==='/'&&(req.method==='GET'||req.method==='HEAD')){try{const body=await readFile(new URL('./public/index.html',import.meta.url));res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-cache'});return res.end(req.method==='HEAD'?undefined:body);}catch{return json(503,{ok:false,message:'Storefront unavailable'});}}
+  return json(404,{ok:false,message:'Not found'});
+ }catch(e){console.error('request',path,e);return json(500,{error:'Request failed'});}
 });}
-if(process.argv[1]===fileURLToPath(import.meta.url)){const port=Number(process.env.PORT||3000);if(!Number.isInteger(port)||port<1||port>65535)throw Error('Invalid PORT');createApp().listen(port,'0.0.0.0',()=>console.log('ULTRON storefront listening'));}
-
+if(process.argv[1]===fileURLToPath(import.meta.url)){
+ const port=Number(process.env.PORT||3000);if(!Number.isInteger(port)||port<1||port>65535)throw Error('Invalid PORT');
+ createApp().listen(port,'0.0.0.0',()=>{console.log('ULTRON storefront listening');startAgents()});
+}
