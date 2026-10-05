@@ -1,3 +1,4 @@
+import {buildAgentPlan,riskReview} from './orchestrator.mjs';
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import {dirname} from 'node:path';
 
@@ -61,6 +62,12 @@ export async function runAgentCycle({ledger,baseUrl}){
  const state=await loadState();
  const snap=snapshotLedger(ledger);
  const offer=chooseOffer(snap);
+ const opportunities=[
+   {id:'rev-'+offer.product,kind:'revenue',title:'Promote '+offer.product+' offer',source:'payment-ledger',confidence:snap.completed>0?0.82:0.68,expectedValueUsd:offer.product==='full'?2500:offer.product==='lead'?750:250,riskScore:15,evidence:[offer.reason]},
+   {id:'market-research-cycle',kind:'market-research',title:'Market research simulation cycle',source:'internal-research',confidence:0.65,expectedValueUsd:0,riskScore:35,evidence:['Research and simulation only; no live execution connector']}
+ ];
+ const orchestration=buildAgentPlan({opportunities,ledgerSnapshot:snap,marketContext:{mode:'SIMULATION_ONLY'}});
+ const reviewed=opportunities.map(x=>riskReview(x,{equityUsd:0,dailyPnlPct:0}));
  const now=new Date();
  const day=now.toISOString().slice(0,10);
  const alreadyToday=state.insights.some(x=>String(x.publishedAt||'').startsWith(day));
@@ -81,9 +88,14 @@ export async function runAgentCycle({ledger,baseUrl}){
    ConversionAgent:{status:'running',lastAction:'Primary offer set to '+offer.product},
    PaymentAgent:{status:'running',lastAction:`Observed ${snap.completed} completed orders totaling $${snap.revenueUsd.toFixed(2)}`},
    AnalyticsAgent:{status:'running',lastAction:`Observed ${snap.orders} orders and ${snap.events} verified payment events`},
-   GuardrailAgent:{status:'running',lastAction:'Checked generated owned-site copy for prohibited earnings claims and unsafe outreach patterns'}
+   GuardrailAgent:{status:'running',lastAction:'Checked generated owned-site copy for prohibited earnings claims and unsafe outreach patterns'},
+   RevenueOpportunityAgent:{status:'running',lastAction:'Ranked '+orchestration.revenue.queue.length+' authorized revenue opportunities'},
+   MarketResearchAgent:{status:'running',lastAction:'Prepared '+orchestration.market.queue.length+' simulation-only research opportunities'},
+   RiskAgent:{status:'running',lastAction:'Reviewed '+reviewed.length+' opportunities; live trading remains disabled'},
+   IndependentReviewerAgent:{status:'running',lastAction:'Financial commitments and external publishing require an authorized connector/review gate'},
+   PerformanceAgent:{status:'running',lastAction:'Recorded payment-ledger snapshot for feedback'}
  };
- state.runs.unshift({at:now.toISOString(),snapshot:snap,offer,published});state.runs=state.runs.slice(0,MAX_RUNS);
+ state.runs.unshift({at:now.toISOString(),snapshot:snap,offer,published,orchestration,reviewed});state.runs=state.runs.slice(0,MAX_RUNS);
  await saveState(state);return state;
 }
 export async function agentState(){return loadState()}
