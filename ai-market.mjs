@@ -1,4 +1,4 @@
-// ULTRON AI Market Network — 200,000,000 lazily generated digital SKUs plus validated flagship offers.
+// ULTRON AI Market Network — 700,000,000 lazily generated digital SKUs plus validated flagship offers.
 // Products are generated on demand; no giant in-memory inventory is allocated.
 if(typeof globalThis.crypto!=='undefined'&&typeof globalThis.crypto.randomBytes!=='function')globalThis.crypto.randomBytes=(n)=>Buffer.from(globalThis.crypto.getRandomValues(new Uint8Array(n)));
 export const AI_MARKET_RULES=Object.freeze({currency:'USD',minPrice:1,maxPrice:10000,fulfillment:'digital-after-verified-payment',accounting:'verified-payments-only',prohibited:['copyright-infringement','counterfeit-content','deceptive-claims','fake-reviews','fabricated-revenue','spam','phishing','unauthorized-charges']});
@@ -51,6 +51,26 @@ const FEATURED=Object.freeze([
    targetBuyer:'local service businesses',
    featured:'missed-lead-recovery',
    description:'A practical system for responding to missed calls and leads, qualifying demand, recovering bookings and measuring response-to-booking performance. Includes scripts, workflow maps, QA checks and a KPI scorecard.'
+ }),
+ Object.freeze({
+   id:'ai-revenue-audit-500',storeId:'businessex',name:'AI Revenue Leak Audit',price:500,tier:'professional',category:'business-audit',targetBuyer:'SMBs with a visible revenue or workflow bottleneck',featured:'millionaire-sprint',
+   description:'Fixed-scope diagnostic: current-state workflow map, evidence-backed bottleneck analysis, automation opportunities, ROI scenarios and a prioritized 90-day implementation roadmap.'
+ }),
+ Object.freeze({
+   id:'ai-automation-sprint-2500',storeId:'automationplus',name:'AI Automation Sprint',price:2500,tier:'premium',category:'automation',targetBuyer:'operations-heavy SMBs',featured:'millionaire-sprint',
+   description:'Design, build and test one bounded AI-enabled workflow with requirements, implementation artifact, QA plan and handoff runbook.'
+ }),
+ Object.freeze({
+   id:'ai-revenue-ops-7500',storeId:'crmops',name:'AI Revenue Operations Build',price:7500,tier:'enterprise',category:'crm',targetBuyer:'service businesses with lead intake, qualification and follow-up friction',featured:'millionaire-sprint',
+   description:'Connected lead-intake, qualification, follow-up, handoff and measurement implementation for one business line, with explicit scope and acceptance criteria.'
+ }),
+ Object.freeze({
+   id:'ai-business-os-10000',storeId:'aiimplementation',name:'AI Business OS Implementation',price:10000,tier:'enterprise',category:'ai-services',targetBuyer:'SMBs and agencies needing a bounded multi-agent operating layer',featured:'millionaire-sprint',
+   description:'Premium implementation of a defined multi-agent business workflow with audit, architecture, implementation, QA, human approval controls, analytics and handoff.'
+ }),
+ Object.freeze({
+   id:'ai-optimization-1500',storeId:'analyticslab',name:'AI Optimization Month',price:1500,tier:'premium',category:'analytics',targetBuyer:'existing AI implementation customers',featured:'millionaire-sprint',
+   description:'Thirty days of measured workflow optimization, QA, performance review, one controlled improvement cycle and an outcome report.'
  })
 ]);
 const FEATURED_MAP=new Map(FEATURED.map(p=>[p.id,p]));
