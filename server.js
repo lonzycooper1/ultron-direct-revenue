@@ -1,6 +1,7 @@
 import {answerQuestion} from './support.js';
 import {runAgentCycle,agentState,insightBySlug,renderInsightsIndex,renderInsight} from './agents.mjs';
 import {runMicroTool} from './revenue-engines.mjs';
+import {assertCaptureMatches,buildFulfillment,renderFulfillmentHtml,verifyPayPalRuntime} from './payment-runtime.mjs';
 import {createServer} from 'node:http';
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import {dirname} from 'node:path';
@@ -17,10 +18,11 @@ const PAYPAL_CLIENT_SECRET=process.env.PAYPAL_CLIENT_SECRET||'';
 const PAYPAL_WEBHOOK_ID=process.env.PAYPAL_WEBHOOK_ID||'';
 const PUBLIC_BASE_URL=(process.env.PUBLIC_BASE_URL||'').replace(/\/$/,'');
 const LEDGER_PATH=process.env.ORDER_LEDGER_PATH||'/data/orders.json';
-const PAYPAL_LIVE_READY=Boolean(PAYPAL_CLIENT_ID&&PAYPAL_CLIENT_SECRET&&PUBLIC_BASE_URL);
+const PAYPAL_LIVE_READY=Boolean(PAYPAL_CLIENT_ID&&PAYPAL_CLIENT_SECRET&&PAYPAL_WEBHOOK_ID&&PUBLIC_BASE_URL);
 const AGENT_AUTORUN=process.env.AGENT_AUTORUN!=='false';
 const AGENT_INTERVAL_MINUTES=Math.max(15,Number(process.env.AGENT_INTERVAL_MINUTES||60));
-let tokenCache={token:null,expiresAt:0},writeQueue=Promise.resolve(),agentTimer=null;
+let tokenCache={token:null,expiresAt:0},writeQueue=Promise.resolve(),agentTimer=null,paymentTimer=null;
+let paymentRuntimeState={ok:false,apiAuthorized:false,webhookEndpointVerified:false,captureEventsSubscribed:false,checkedAt:null,error:'Payment runtime not checked yet'};
 
 async function ledger(){try{return JSON.parse(await readFile(LEDGER_PATH,'utf8'))}catch{return {orders:{},events:[]}}}
 async function saveLedger(mut){writeQueue=writeQueue.then(async()=>{const l=await ledger();mut(l);await mkdir(dirname(LEDGER_PATH),{recursive:true});await writeFile(LEDGER_PATH,JSON.stringify(l,null,2))}).catch(e=>console.error('ledger',e));return writeQueue}
@@ -58,11 +60,58 @@ async function verifyPayPalWebhook(req,event){
  const body={auth_algo:req.headers['paypal-auth-algo'],cert_url:req.headers['paypal-cert-url'],transmission_id:req.headers['paypal-transmission-id'],transmission_sig:req.headers['paypal-transmission-sig'],transmission_time:req.headers['paypal-transmission-time'],webhook_id:PAYPAL_WEBHOOK_ID,webhook_event:event};
  const r=await paypal('/v1/notifications/verify-webhook-signature','POST',body);return r.verification_status==='SUCCESS'
 }
+async function runPaymentSelfTest(reason='scheduled'){
+ try{
+  paymentRuntimeState=await verifyPayPalRuntime({paypal,webhookId:PAYPAL_WEBHOOK_ID,publicBaseUrl:PUBLIC_BASE_URL});
+  console.log('ULTRON payment self-test',reason,paymentRuntimeState.ok?'READY':'BLOCKED',paymentRuntimeState.checkedAt,paymentRuntimeState.error||'');
+  return paymentRuntimeState;
+ }catch(e){
+  paymentRuntimeState={ok:false,apiAuthorized:false,webhookEndpointVerified:false,captureEventsSubscribed:false,checkedAt:new Date().toISOString(),error:String(e?.message||e)};
+  console.error('payment-self-test',e);return paymentRuntimeState;
+ }
+}
+async function ensureFulfillment(id,capture){
+ let out=null;
+ await saveLedger(l=>{
+  const order=l.orders[id];
+  if(!order)throw Error('Unknown local order');
+  assertCaptureMatches(order,capture);
+  if(!order.fulfillment)order.fulfillment=buildFulfillment(order,capture);
+  order.status='COMPLETED';
+  order.captureId=capture.id||order.captureId||null;
+  order.capturedAmount=capture.amount?.value||order.capturedAmount||null;
+  order.capturedCurrency=capture.amount?.currency_code||order.capturedCurrency||null;
+  order.capturedAt=order.capturedAt||new Date().toISOString();
+  out=order.fulfillment;
+ });
+ return out;
+}
+async function reconcileCompletedCaptureEvent(event){
+ const capture=event?.resource||null;
+ const orderId=capture?.supplementary_data?.related_ids?.order_id||null;
+ if(!orderId||!capture)return {matched:false};
+ const l=await ledger();
+ if(!l.orders?.[orderId])return {matched:false};
+ const fulfillment=await ensureFulfillment(orderId,capture);
+ return {matched:true,orderId,fulfillment};
+}
+async function fulfillmentByToken(token){
+ if(!/^[a-f0-9]{48}$/.test(String(token||'')))return null;
+ const l=await ledger();
+ for(const order of Object.values(l.orders||{}))if(order?.fulfillment?.token===token)return order.fulfillment;
+ return null;
+}
+
 async function runAgents(reason='scheduled'){
  try{const s=await runAgentCycle({ledger:await ledger(),baseUrl:PUBLIC_BASE_URL||'https://ultron-direct-revenue-production.up.railway.app'});console.log('ULTRON agents cycle',reason,s.metrics?.lastCycleAt);return s}
  catch(e){console.error('agent-cycle',e);return null}
 }
 function startAgents(){
+ if(!paymentTimer){
+  setTimeout(()=>runPaymentSelfTest('startup'),1500);
+  paymentTimer=setInterval(()=>runPaymentSelfTest('scheduled'),60*60*1000);
+  paymentTimer.unref?.();
+ }
  if(!AGENT_AUTORUN||agentTimer)return;
  setTimeout(()=>runAgents('startup'),5000);
  agentTimer=setInterval(()=>runAgents('scheduled'),AGENT_INTERVAL_MINUTES*60*1000);
@@ -85,7 +134,7 @@ export function createApp(){return createServer(async(req,res)=>{
   }
   if(path==='/blog/booking-guide'&&req.method==='GET'){try{const body=await readFile(new URL('./public/booking-guide.html',import.meta.url));res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-cache'});return res.end(body);}catch{return json(503,{error:'Guide unavailable'});}}
   if(path==='/booking-kit-cover.jpg'&&req.method==='GET'){try{const body=await readFile(new URL('./public/booking-kit-cover.jpg',import.meta.url));res.writeHead(200,{'Content-Type':'image/jpeg','Cache-Control':'public, max-age=3600'});return res.end(body);}catch{return json(404,{error:'Image unavailable'});}}
-  if(path==='/health'&&req.method==='GET'){const a=await agentState();return json(200,{ok:true,environment:'production-only',storefront:'ready',paymentReady:PAYPAL_LIVE_READY,paypal:{mode:'live',apiBase:PAYPAL_BASE,credentialsConfigured:Boolean(PAYPAL_CLIENT_ID&&PAYPAL_CLIENT_SECRET),webhookConfigured:Boolean(PAYPAL_WEBHOOK_ID)},agents:{autorun:AGENT_AUTORUN,intervalMinutes:AGENT_INTERVAL_MINUTES,lastCycleAt:a.metrics?.lastCycleAt||null,cycles:a.metrics?.cycles||0,insightsPublished:a.metrics?.insightsPublished||0},sandboxFallback:false});}
+  if(path==='/health'&&req.method==='GET'){const a=await agentState();return json(200,{ok:true,environment:'production-only',storefront:'ready',paymentReady:PAYPAL_LIVE_READY&&paymentRuntimeState.ok,paypal:{mode:'live',apiBase:PAYPAL_BASE,credentialsConfigured:Boolean(PAYPAL_CLIENT_ID&&PAYPAL_CLIENT_SECRET),webhookConfigured:Boolean(PAYPAL_WEBHOOK_ID),runtime:paymentRuntimeState},agents:{autorun:AGENT_AUTORUN,intervalMinutes:AGENT_INTERVAL_MINUTES,lastCycleAt:a.metrics?.lastCycleAt||null,cycles:a.metrics?.cycles||0,insightsPublished:a.metrics?.insightsPublished||0},sandboxFallback:false});}
   if(path==='/api/revenue-bots'&&req.method==='GET'){const a=await agentState();return json(200,{ok:true,suite:a.revenueBotSuite||null,metrics:a.metrics||{}});}
   if(path.startsWith('/api/tools/')&&req.method==='POST'){
    if(!(req.headers['content-type']||'').startsWith('application/json'))return json(415,{error:'Use application/json'});
@@ -100,15 +149,16 @@ export function createApp(){return createServer(async(req,res)=>{
    if(report==='opportunity-scorecard')return json(200,{ok:true,report,lastRun:a.runs?.[0]?.orchestration||null,asOf:a.metrics?.lastCycleAt||null});
    return json(404,{error:'Unknown report'});
   }
-  if(path==='/api/payment-status'&&req.method==='GET')return json(200,{provider:'PayPal',mode:'live',apiAuthorized:PAYPAL_LIVE_READY,webhookConfigured:Boolean(PAYPAL_WEBHOOK_ID),sandboxFallback:false});
+  if(path==='/api/payment-status'&&req.method==='GET')return json(200,{provider:'PayPal',mode:'live',configured:PAYPAL_LIVE_READY,apiAuthorized:paymentRuntimeState.apiAuthorized,webhookConfigured:Boolean(PAYPAL_WEBHOOK_ID),webhookEndpointVerified:paymentRuntimeState.webhookEndpointVerified,captureEventsSubscribed:paymentRuntimeState.captureEventsSubscribed,ready:PAYPAL_LIVE_READY&&paymentRuntimeState.ok,lastCheckedAt:paymentRuntimeState.checkedAt,error:paymentRuntimeState.error,sandboxFallback:false});
   if(path==='/api/agent-status'&&req.method==='GET'){const a=await agentState();return json(200,{ok:true,metrics:a.metrics,agents:a.agents,recentRuns:a.runs?.slice(0,10)||[],campaignQueue:a.campaignQueue?.slice(0,10)||[]});}
   if(path==='/api/agent-run'&&req.method==='POST'){if(!process.env.ADMIN_API_KEY||req.headers['x-ultron-admin-key']!==process.env.ADMIN_API_KEY)return json(401,{error:'Unauthorized'});const a=await runAgents('manual');return json(a?200:500,a?{ok:true,metrics:a.metrics}:{ok:false});}
   if(path==='/insights'&&req.method==='GET'){const body=await renderInsightsIndex();res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'public, max-age=300'});return res.end(body);}
   if(path.startsWith('/insights/')&&req.method==='GET'){const slug=decodeURIComponent(path.slice('/insights/'.length));const item=await insightBySlug(slug);if(!item)return json(404,{error:'Insight not found'});const body=renderInsight(item);res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'public, max-age=300'});return res.end(body);}
   if(path==='/buy'&&req.method==='GET'){if(!PAYPAL_LIVE_READY)return json(503,{error:'Live PayPal authorization is not configured'});const key=url.searchParams.get('product')||'';const o=await createPayPalOrder(key);res.writeHead(303,{Location:o.approve,'Cache-Control':'no-store'});return res.end();}
-  if(path==='/paypal/return'&&req.method==='GET'){if(!PAYPAL_LIVE_READY)return json(503,{error:'Live PayPal authorization is not configured'});const id=url.searchParams.get('token')||'';const x=await capturePayPalOrder(id);if(!x.capture||x.capture.status!=='COMPLETED')return json(409,{error:'PayPal capture not completed'});await runAgents('completed-payment');res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});return res.end('<!doctype html><meta charset="utf-8"><title>Payment received</title><style>body{font-family:system-ui;background:#090c10;color:#fff;padding:40px}main{max-width:700px;margin:auto;background:#141920;padding:28px;border-radius:16px}a{color:#6ee77a}</style><main><h1>Payment received</h1><p>Status: COMPLETED</p><p>Amount: '+String(x.capture.amount?.value||'')+' '+String(x.capture.amount?.currency_code||'USD')+'</p><p>PayPal capture ID: '+String(x.capture.id||'')+'</p><p><a href="/">Return to storefront</a></p></main>');}
+  if(path==='/paypal/return'&&req.method==='GET'){if(!PAYPAL_LIVE_READY)return json(503,{error:'Live PayPal authorization is not configured'});const id=url.searchParams.get('token')||'';const x=await capturePayPalOrder(id);if(!x.capture||x.capture.status!=='COMPLETED')return json(409,{error:'PayPal capture not completed'});const fulfillment=await ensureFulfillment(id,x.capture);await runAgents('completed-payment');res.writeHead(303,{Location:'/fulfillment?token='+encodeURIComponent(fulfillment.token),'Cache-Control':'no-store'});return res.end();}
+  if(path==='/fulfillment'&&req.method==='GET'){const f=await fulfillmentByToken(url.searchParams.get('token')||'');if(!f)return json(404,{error:'Fulfillment not found'});res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});return res.end(renderFulfillmentHtml(f));}
   if(path==='/paypal/cancel'&&req.method==='GET'){res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});return res.end('<!doctype html><meta charset="utf-8"><title>Payment canceled</title><h1>Payment canceled</h1><p>No charge was completed. <a href="/">Return</a>.</p>');}
-  if((path==='/webhooks/paypal'||path==='/api/paypal/webhook')&&req.method==='POST'){let raw='';for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>512000)return json(413,{error:'Webhook too large'})}let event;try{event=JSON.parse(raw)}catch{return json(400,{error:'Invalid JSON'})}if(!(await verifyPayPalWebhook(req,event)))return json(400,{error:'Webhook verification failed'});await saveLedger(l=>{l.events.unshift({id:event.id||null,type:event.event_type||null,resourceId:event.resource?.id||null,at:new Date().toISOString()});l.events=l.events.slice(0,5000)});if(/PAYMENT\.CAPTURE\.COMPLETED|CHECKOUT\.ORDER\.COMPLETED/.test(event.event_type||''))setTimeout(()=>runAgents('paypal-webhook'),10);return json(200,{ok:true});}
+  if((path==='/webhooks/paypal'||path==='/api/paypal/webhook')&&req.method==='POST'){let raw='';for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>512000)return json(413,{error:'Webhook too large'})}let event;try{event=JSON.parse(raw)}catch{return json(400,{error:'Invalid JSON'})}if(!(await verifyPayPalWebhook(req,event)))return json(400,{error:'Webhook verification failed'});await saveLedger(l=>{l.events.unshift({id:event.id||null,type:event.event_type||null,resourceId:event.resource?.id||null,at:new Date().toISOString()});l.events=l.events.slice(0,5000)});let reconciled=null;if((event.event_type||'')==='PAYMENT.CAPTURE.COMPLETED')reconciled=await reconcileCompletedCaptureEvent(event);if(/PAYMENT\.CAPTURE\.COMPLETED|CHECKOUT\.ORDER\.COMPLETED/.test(event.event_type||''))setTimeout(()=>runAgents('paypal-webhook'),10);return json(200,{ok:true,reconciled:Boolean(reconciled?.matched)});}
   if(path==='/api/orders'&&req.method==='GET'){if(!process.env.ADMIN_API_KEY||req.headers['x-ultron-admin-key']!==process.env.ADMIN_API_KEY)return json(401,{error:'Unauthorized'});return json(200,await ledger());}
   if(path==='/'&&(req.method==='GET'||req.method==='HEAD')){try{const body=await readFile(new URL('./public/index.html',import.meta.url));res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-cache'});return res.end(req.method==='HEAD'?undefined:body);}catch{return json(503,{ok:false,message:'Storefront unavailable'});}}
   return json(404,{ok:false,message:'Not found'});
