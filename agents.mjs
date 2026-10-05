@@ -1,4 +1,5 @@
 import {buildAgentPlan,riskReview} from './orchestrator.mjs';
+import {buildRevenueBotSuite} from './revenue-engines.mjs';
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import {dirname} from 'node:path';
 
@@ -67,6 +68,8 @@ export async function runAgentCycle({ledger,baseUrl}){
    {id:'market-research-cycle',kind:'market-research',title:'Market research simulation cycle',source:'internal-research',confidence:0.65,expectedValueUsd:0,riskScore:35,evidence:['Research and simulation only; no live execution connector']}
  ];
  const orchestration=buildAgentPlan({opportunities,ledgerSnapshot:snap,marketContext:{mode:'SIMULATION_ONLY'}});
+ const affiliatePrograms=[];
+ const revenueBotSuite=buildRevenueBotSuite({baseUrl,theme:'small-business automation',vertical:'local service businesses',affiliatePrograms});
  const reviewed=opportunities.map(x=>riskReview(x,{equityUsd:0,dailyPnlPct:0}));
  const now=new Date();
  const day=now.toISOString().slice(0,10);
@@ -93,9 +96,16 @@ export async function runAgentCycle({ledger,baseUrl}){
    MarketResearchAgent:{status:'running',lastAction:'Prepared '+orchestration.market.queue.length+' simulation-only research opportunities'},
    RiskAgent:{status:'running',lastAction:'Reviewed '+reviewed.length+' opportunities; live trading remains disabled'},
    IndependentReviewerAgent:{status:'running',lastAction:'Financial commitments and external publishing require an authorized connector/review gate'},
-   PerformanceAgent:{status:'running',lastAction:'Recorded payment-ledger snapshot for feedback'}
+   PerformanceAgent:{status:'running',lastAction:'Recorded payment-ledger snapshot for feedback'},
+   DigitalProductBot:{status:'running',lastAction:'Generated product/listing blueprint for marketplace queue'},
+   LeadGenBot:{status:'running',lastAction:'Prepared qualification and personalized outreach queue; no unsolicited bulk sending'},
+   AffiliateContentBot:{status:revenueBotSuite.bots.find(b=>b.agent==='AffiliateContentBot')?.status||'waiting',lastAction:'Prepared affiliate content system; requires approved affiliate program links'},
+   MicroSaaSBot:{status:'running',lastAction:'Maintained owned API tools for utility-based monetization'},
+   DataResearchBot:{status:'running',lastAction:'Prepared internal-data reporting products from verified ULTRON state'},
+   MarketResearchBot:{status:'running',lastAction:'Maintained simulation-only market research workflow'}
  };
- state.runs.unshift({at:now.toISOString(),snapshot:snap,offer,published,orchestration,reviewed});state.runs=state.runs.slice(0,MAX_RUNS);
+ state.revenueBotSuite=revenueBotSuite;
+ state.runs.unshift({at:now.toISOString(),snapshot:snap,offer,published,orchestration,reviewed,revenueBotSummary:revenueBotSuite.summary});state.runs=state.runs.slice(0,MAX_RUNS);
  await saveState(state);return state;
 }
 export async function agentState(){return loadState()}
