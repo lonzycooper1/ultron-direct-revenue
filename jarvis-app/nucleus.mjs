@@ -3,11 +3,12 @@ import {dirname} from 'node:path';
 import crypto from 'node:crypto';
 import {CAPABILITY_PACK as OCT05_CAPABILITY_PACK,LOCAL_MODEL_RESOURCES,capabilityMission} from './capability-pack.mjs';
 import {caseStudyMasteryManifest,buildRevenuePortfolio,interpretOwnerDirective,OWNER_OPERATING_CONTRACT,MASTERY_PRINCIPLES} from './business-mastery.mjs';
+import {MILLIONAIRE_SPRINT,sprintPlan,sprintPace,scenarioMath} from './millionaire-sprint.mjs';
 
 const STATE_PATH=process.env.JARVIS_NUCLEUS_STATE_PATH||'/data/jarvis-nucleus.json';
 const MAX_EVENTS=2000,MAX_MISSIONS=500,MAX_OUTCOMES=1000;
 
-export const NUCLEUS_VERSION='2.0.0';
+export const NUCLEUS_VERSION='2.2.0';
 export const NUCLEUS_POLICY=Object.freeze({
   externalFinancialActions:'explicit-human-approval',
   liveTrading:'one-order-human-approval-only',
@@ -86,7 +87,10 @@ export const NUCLEUS_SKILLS=Object.freeze([
   {id:'creator-opportunity-feed',name:'Creator Opportunity Feed',division:'creator',agent:'UGCOpportunityAgent'},
   {id:'opportunity-fit',name:'Opportunity Fit Scoring',division:'creator',agent:'BrandBriefMatcher'},
   {id:'portfolio-proof',name:'Portfolio Proof Builder',division:'creator',agent:'PortfolioProofAgent'},
-  {id:'autonomous-build-queue',name:'Autonomous Software Build Queue',division:'builder',agent:'RapidSoftwareFactory'}
+  {id:'autonomous-build-queue',name:'Autonomous Software Build Queue',division:'builder',agent:'RapidSoftwareFactory'},
+  {id:'millionaire-sprint',name:'End-of-Year Verified Revenue Sprint',division:'market',agent:'MillionaireSprintAgent'},
+  {id:'high-ticket-offer',name:'High-Ticket Productized AI Offers',division:'market',agent:'HighTicketOfferAgent'},
+  {id:'renewal-expansion',name:'Renewal Referral and Expansion',division:'market',agent:'RenewalAgent'}
 ]);
 
 function baseState(){
@@ -100,7 +104,7 @@ function baseState(){
     outcomes:[],
     events:[],
     skillStats:Object.fromEntries(NUCLEUS_SKILLS.map(s=>[s.id,{runs:0,successes:0,failures:0,lastUsedAt:null,score:0.5}])),
-    modelRouter:{lastHealthCheckAt:null,providers:{}},ownerGoal:OWNER_OPERATING_CONTRACT.stretchObjective,businessMastery:caseStudyMasteryManifest(),revenuePortfolio:buildRevenuePortfolio({verifiedRevenueUsd:0,completedOrders:0})
+    modelRouter:{lastHealthCheckAt:null,providers:{}},ownerGoal:OWNER_OPERATING_CONTRACT.stretchObjective,businessMastery:caseStudyMasteryManifest(),revenuePortfolio:buildRevenuePortfolio({verifiedRevenueUsd:0,completedOrders:0}),millionaireSprint:sprintPlan({verifiedRevenueUsd:0,completedOrders:0})
   };
 }
 let state=null,writeChain=Promise.resolve();
@@ -223,7 +227,7 @@ export async function nucleusSnapshot(){
   const ranked=Object.entries(state.skillStats).sort((a,b)=>b[1].score-a[1].score).slice(0,15).map(([id,v])=>({id,...v}));
   return {
     id:state.nucleusId,version:NUCLEUS_VERSION,status:'online',lastTickAt:state.lastTickAt,heartbeatCount:state.heartbeatCount,
-    policy:NUCLEUS_POLICY,capabilityPack:OCT05_CAPABILITY_PACK,localModelResources:LOCAL_MODEL_RESOURCES,ownerOperatingContract:OWNER_OPERATING_CONTRACT,businessMastery:caseStudyMasteryManifest(),masteryPrinciples:MASTERY_PRINCIPLES,revenuePortfolio:state.revenuePortfolio,
+    policy:NUCLEUS_POLICY,capabilityPack:OCT05_CAPABILITY_PACK,localModelResources:LOCAL_MODEL_RESOURCES,ownerOperatingContract:OWNER_OPERATING_CONTRACT,businessMastery:caseStudyMasteryManifest(),masteryPrinciples:MASTERY_PRINCIPLES,revenuePortfolio:state.revenuePortfolio,millionaireSprint:state.millionaireSprint||sprintPlan({verifiedRevenueUsd:0,completedOrders:0}),millionaireSprintDefinition:MILLIONAIRE_SPRINT,millionaireSprintScenarios:scenarioMath(),
     skills:{count:NUCLEUS_SKILLS.length,registry:NUCLEUS_SKILLS,topRanked:ranked},
     memory:{missions:state.missions.length,outcomes:state.outcomes.length,events:state.events.length,statePath:'persistent-volume'},
     recentMissions:state.missions.slice(0,20),recentOutcomes:state.outcomes.slice(0,20),recentEvents:state.events.slice(0,50),
