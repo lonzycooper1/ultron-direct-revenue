@@ -1,4 +1,6 @@
 import crypto from 'node:crypto';
+import {lookup} from 'node:dns/promises';
+import {isIP} from 'node:net';
 import {securityManifest,redactSecrets,agentSecurityProfile} from './agent-security.mjs';
 
 export const OMNI_VERSION='1.0.0';
@@ -16,6 +18,9 @@ export const OMNI_CAPABILITIES=Object.freeze([
  {id:'code',name:'Code generation, review & debugging',category:'builder',provider:'OpenAI Responses or local model',needs:['model']},
  {id:'compute',name:'Python/data analysis & calculations',category:'analysis',provider:'OpenAI code_interpreter',needs:['openai']},
  {id:'image-generation',name:'Image generation/editing',category:'creative',provider:'OpenAI image_generation',needs:['openai']},
+ {id:'audio-transcription',name:'Audio transcription',category:'multimodal',provider:'OpenAI transcription API',needs:['openai']},
+ {id:'speech-generation',name:'Text-to-speech',category:'multimodal',provider:'OpenAI speech API',needs:['openai']},
+ {id:'artifact-generation',name:'Reports, charts and generated files',category:'creative',provider:'OpenAI code_interpreter + JARVIS outputs',needs:['openai']},
  {id:'structured-writing',name:'Emails, reports, plans, copy & structured drafts',category:'writing',provider:'OpenAI Responses or local model',needs:['model']},
  {id:'translation',name:'Translation & rewriting',category:'writing',provider:'OpenAI Responses or local model',needs:['model']},
  {id:'memory',name:'Persistent mission memory',category:'core',provider:'JARVIS nucleus',needs:[]},
@@ -229,14 +234,54 @@ export async function invokeOpenAIOmni({prompt='',mode='reason',files=[],images=
  };
 }
 
+function privateIp(ip){
+ if(!isIP(ip))return true;
+ if(ip==='127.0.0.1'||ip==='0.0.0.0'||ip==='::1')return true;
+ if(ip.startsWith('10.')||ip.startsWith('192.168.')||ip.startsWith('169.254.'))return true;
+ const m=ip.match(/^172\.(\d+)\./);if(m&&Number(m[1])>=16&&Number(m[1])<=31)return true;
+ if(ip.startsWith('100.64.')||ip.startsWith('198.18.')||ip.startsWith('198.19.'))return true;
+ if(ip.startsWith('fc')||ip.startsWith('fd')||ip.startsWith('fe80:'))return true;
+ return false;
+}
+async function assertPublicHost(u){
+ const host=u.hostname.toLowerCase();
+ if(host==='localhost'||host.endsWith('.localhost'))throw Error('local/private targets are not allowed');
+ const answers=await lookup(host,{all:true,verbatim:true});
+ if(!answers.length||answers.some(x=>privateIp(x.address)))throw Error('local/private targets are not allowed');
+}
 export async function fetchUrlForModel(url){
  const u=new URL(url);
  if(!['http:','https:'].includes(u.protocol))throw Error('only http(s) URLs are allowed');
- if(['localhost','127.0.0.1','0.0.0.0','::1'].includes(u.hostname))throw Error('local/private targets are not allowed');
+ await assertPublicHost(u);
  const r=await fetch(u,{headers:{'user-agent':'ULTRON-JARVIS/1.0','accept':'text/html,text/plain,application/json'},redirect:'follow',signal:AbortSignal.timeout(15000)});
+ const finalUrl=new URL(r.url);await assertPublicHost(finalUrl);
  const type=r.headers.get('content-type')||'';
  const text=await r.text();
  return {url:r.url,status:r.status,ok:r.ok,contentType:type,text:clean(text,60000)};
+}
+
+export async function transcribeAudio({filename='audio.webm',mimeType='audio/webm',base64='',language}={}){
+ if(!openaiConfigured())throw Error('OPENAI_API_KEY is not configured');
+ if(!base64)throw Error('audio base64 required');
+ const bytes=Buffer.from(base64,'base64');if(bytes.length>25*1024*1024)throw Error('audio input exceeds 25 MB JARVIS limit');
+ const form=new FormData();
+ form.append('file',new Blob([bytes],{type:mimeType}),clean(filename,255));
+ form.append('model',process.env.OPENAI_TRANSCRIBE_MODEL||'gpt-transcribe');
+ if(language)form.append('language',clean(language,20));
+ const r=await fetch('https://api.openai.com/v1/audio/transcriptions',{method:'POST',headers:{authorization:'Bearer '+process.env.OPENAI_API_KEY},body:form,signal:AbortSignal.timeout(180000)});
+ const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(clean(d?.error?.message||('transcription '+r.status),1000));
+ return {ok:true,text:redactSecrets(String(d.text||'')),model:d.model||process.env.OPENAI_TRANSCRIBE_MODEL||'gpt-transcribe'};
+}
+export async function generateSpeech({text='',voice='marin',format='mp3',instructions=''}={}){
+ if(!openaiConfigured())throw Error('OPENAI_API_KEY is not configured');
+ const input=clean(text,4096);if(!input)throw Error('text required');
+ const allowedFormats=['mp3','opus','aac','flac','wav','pcm'];if(!allowedFormats.includes(format))format='mp3';
+ const body={model:process.env.OPENAI_TTS_MODEL||'gpt-4o-mini-tts',voice:clean(voice,80)||'marin',input,response_format:format};
+ if(instructions)body.instructions=clean(instructions,1000);
+ const r=await fetch('https://api.openai.com/v1/audio/speech',{method:'POST',headers:{authorization:'Bearer '+process.env.OPENAI_API_KEY,'content-type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(180000)});
+ if(!r.ok){const t=await r.text();throw Error(clean(t||('speech '+r.status),1000))}
+ const buf=Buffer.from(await r.arrayBuffer());
+ return {ok:true,format,mimeType:format==='mp3'?'audio/mpeg':'audio/'+format,base64:buf.toString('base64'),bytes:buf.length,model:body.model,voice:body.voice};
 }
 
 export function omniManifest(){
