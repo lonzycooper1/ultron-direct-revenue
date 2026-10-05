@@ -1,0 +1,8 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {SECURITY_LAYERS,SECURITY_STACK_A,SECURITY_STACK_B,securityManifest,agentSecurityProfile,classifyAction,auditChainEntry,redactSecrets} from './agent-security.mjs';
+
+test('every security stack contains ten layers',()=>{assert.equal(SECURITY_STACK_A.length,10);assert.equal(SECURITY_STACK_B.length,10);assert.equal(SECURITY_LAYERS.length,20);assert.equal(securityManifest().totalLayers,20)});
+test('every agent profile receives all twenty security layers',()=>{const p=agentSecurityProfile('TestAgent');assert.equal(p.layers,20);assert.equal(p.stackA.length,10);assert.equal(p.stackB.length,10);assert.equal(p.defaultPermission,'deny-unless-assigned')});
+test('prohibited actions are blocked and consequential actions require approval',()=>{assert.equal(classifyAction({agent:'x',action:'steal credentials',capabilities:[]}).allowed,false);assert.equal(classifyAction({agent:'x',action:'place real-money crypto order',capabilities:['trade'],approved:false}).reason,'human-approval-required')});
+test('approved bounded action passes and replay is blocked',()=>{const id='security-test-'+Date.now();const a=classifyAction({agent:'x',action:'publish approved business post',capabilities:['publish'],approved:true,actionId:id});assert.equal(a.allowed,true);const b=classifyAction({agent:'x',action:'publish approved business post',capabilities:['publish'],approved:true,actionId:id});assert.equal(b.reason,'replay-blocked')});
+test('secret redaction and chained audit hash work',()=>{assert.match(redactSecrets('password=hello123'),/REDACTED/);const e=auditChainEntry({agent:'x',event:'test',data:{status:'ok'}});assert.equal(e.hash.length,64)});
