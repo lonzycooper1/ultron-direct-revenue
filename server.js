@@ -63,7 +63,7 @@ async function verifyPayPalWebhook(req,event){
 async function runPaymentSelfTest(reason='scheduled'){
  try{
   paymentRuntimeState=await verifyPayPalRuntime({paypal,webhookId:PAYPAL_WEBHOOK_ID,publicBaseUrl:PUBLIC_BASE_URL});
-  console.log('ULTRON payment self-test',reason,paymentRuntimeState.ok?'READY':'BLOCKED',paymentRuntimeState.checkedAt,paymentRuntimeState.error||'');
+  console.log('ULTRON payment self-test',reason,paymentRuntimeState.ok?'READY':'BLOCKED',JSON.stringify(paymentRuntimeState));
   return paymentRuntimeState;
  }catch(e){
   paymentRuntimeState={ok:false,apiAuthorized:false,webhookEndpointVerified:false,captureEventsSubscribed:false,checkedAt:new Date().toISOString(),error:String(e?.message||e)};
