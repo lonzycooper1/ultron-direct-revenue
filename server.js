@@ -60,9 +60,25 @@ async function verifyPayPalWebhook(req,event){
  const body={auth_algo:req.headers['paypal-auth-algo'],cert_url:req.headers['paypal-cert-url'],transmission_id:req.headers['paypal-transmission-id'],transmission_sig:req.headers['paypal-transmission-sig'],transmission_time:req.headers['paypal-transmission-time'],webhook_id:PAYPAL_WEBHOOK_ID,webhook_event:event};
  const r=await paypal('/v1/notifications/verify-webhook-signature','POST',body);return r.verification_status==='SUCCESS'
 }
+async function repairPayPalWebhook(){
+ if(!PAYPAL_WEBHOOK_ID||!PUBLIC_BASE_URL)return;
+ const hook=await paypal('/v1/notifications/webhooks/'+encodeURIComponent(PAYPAL_WEBHOOK_ID));
+ const desiredUrl=PUBLIC_BASE_URL+'/webhooks/paypal';
+ const names=new Set((hook.event_types||[]).map(x=>x?.name).filter(Boolean));
+ names.add('PAYMENT.CAPTURE.COMPLETED');
+ names.add('CHECKOUT.ORDER.COMPLETED');
+ const patch=[];
+ if(String(hook.url||'').replace(/\/$/,'')!==desiredUrl)patch.push({op:'replace',path:'/url',value:desiredUrl});
+ if(!(hook.event_types||[]).some(x=>x?.name==='PAYMENT.CAPTURE.COMPLETED'))patch.push({op:'replace',path:'/event_types',value:[...names].map(name=>({name}))});
+ if(patch.length)await paypal('/v1/notifications/webhooks/'+encodeURIComponent(PAYPAL_WEBHOOK_ID),'PATCH',patch);
+}
 async function runPaymentSelfTest(reason='scheduled'){
  try{
   paymentRuntimeState=await verifyPayPalRuntime({paypal,webhookId:PAYPAL_WEBHOOK_ID,publicBaseUrl:PUBLIC_BASE_URL});
+  if(!paymentRuntimeState.ok&&paymentRuntimeState.apiAuthorized){
+   await repairPayPalWebhook();
+   paymentRuntimeState=await verifyPayPalRuntime({paypal,webhookId:PAYPAL_WEBHOOK_ID,publicBaseUrl:PUBLIC_BASE_URL});
+  }
   console.log('ULTRON payment self-test',reason,paymentRuntimeState.ok?'READY':'BLOCKED',JSON.stringify(paymentRuntimeState));
   return paymentRuntimeState;
  }catch(e){
