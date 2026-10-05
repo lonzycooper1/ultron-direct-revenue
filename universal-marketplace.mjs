@@ -1,3 +1,4 @@
+import {catalogPage,featuredProducts} from './ai-market.mjs';
 import crypto from 'node:crypto';
 import {getJson,mutateJson} from './state-store.mjs';
 
@@ -174,13 +175,35 @@ export async function recordInteraction({type='view',productId='',sessionId='ano
  return mutateJson(KEY,seed(),async s=>{s.events.unshift({id:uid('evt'),type:clean(type,40),productId:clean(productId,120),sessionId:clean(sessionId,120),metadata:Object.fromEntries(Object.entries(metadata||{}).slice(0,20)),at:new Date().toISOString()});s.events=s.events.slice(0,5000);s.updatedAt=new Date().toISOString();});
 }
 export async function marketplaceState(){return getJson(KEY,seed())}
-export async function marketplaceSearch(query,limit=24){const s=await marketplaceState();return searchCatalog({query,products:Object.values(s.products),offers:Object.values(s.offers),merchants:s.merchants,limit})}
-export async function marketplaceProduct(id){const s=await marketplaceState(),p=s.products[id];if(!p)return null;const offers=Object.values(s.offers).filter(x=>x.productId===id);return {product:p,...chooseFeaturedOffer({offers,merchants:s.merchants}),recommendations:recommendProducts({productId:id,products:Object.values(s.products),events:s.events})}}
+function nativeMarketResults(query='',limit=24){
+ const regular=catalogPage({offset:0,limit:Math.max(1,Math.min(60,limit)),query});
+ const featured=featuredProducts().filter(p=>!query||[p.name,p.description,p.category,p.targetBuyer].join(' ').toLowerCase().includes(String(query).toLowerCase()));
+ return [...featured,...regular].slice(0,limit).map(p=>({
+  product:normalizeProduct({id:'native:'+p.id,title:p.name,description:p.description,brand:'ULTRON',type:p.featured?'service':'digital-download',category:p.category,tags:[p.storeId,p.tier,p.category].filter(Boolean)}),
+  featuredOffer:normalizeOffer({id:'native-offer:'+p.id,productId:'native:'+p.id,merchantId:'ultron-native',priceUsd:p.price,shippingUsd:0,availability:999999999,deliveryDays:0,fulfillmentMode:p.featured==='millionaire-sprint'?'service-delivery':'ultron-digital',verified:true}),
+  alternates:[],score:1,source:'ultron-native'
+ }));
+}
+export async function marketplaceSearch(query,limit=24){
+ const s=await marketplaceState();
+ const external=searchCatalog({query,products:Object.values(s.products),offers:Object.values(s.offers),merchants:s.merchants,limit});
+ const native=nativeMarketResults(query,limit);
+ return [...native,...external].sort((a,b)=>b.score-a.score).slice(0,Math.max(1,Math.min(100,limit)));
+}
+export async function marketplaceProduct(id){
+ const s=await marketplaceState();
+ if(String(id).startsWith('native:')){
+   const rawId=String(id).slice(7),hit=[...featuredProducts(),...catalogPage({offset:0,limit:60,query:rawId})].find(x=>x.id===rawId);
+   if(!hit)return null;
+   return nativeMarketResults(hit.name,24).find(x=>x.product.id===id)||null;
+ }
+ const p=s.products[id];if(!p)return null;const offers=Object.values(s.offers).filter(x=>x.productId===id);return {product:p,...chooseFeaturedOffer({offers,merchants:s.merchants}),recommendations:recommendProducts({productId:id,products:Object.values(s.products),events:s.events})}
+}
 export function universalMarketManifest(){
  return {
   version:UNIVERSAL_MARKET_VERSION,
   name:MARKETPLACE_POLICY.name,
-  architecture:'headless API-first event-driven marketplace domains on Railway/Postgres, designed for later independent service extraction',
+  architecture:'headless API-first event-driven marketplace domains on Railway/Postgres, designed for later independent service extraction',nativeCatalogAdapter:'700M ULTRON generated SKUs + featured offers are searched lazily without duplicating them into the marketplace state',
   domains:MARKETPLACE_DOMAINS,
   commerceTypes:COMMERCE_TYPES,
   fulfillmentModes:FULFILLMENT_MODES,
