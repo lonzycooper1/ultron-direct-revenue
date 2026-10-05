@@ -7,6 +7,7 @@ import {storeHealth} from './state-store.mjs';
 import {runAgentCycle,agentState} from './agents.mjs';
 import {wizardFromConversation,generateCandidates,critiqueCandidate,buildAcquisitionPlan,prospectToPaymentWorkflow,capabilityManifest} from './ultron2-core.mjs';
 import {saveProject,getProject,listProjects,updateProjectProgress} from './project-store.mjs';
+import {productCritiqueSystem,appFactorySystem,prospectRevenueSystem,wizardOperatingSystem,unifiedVideoArchitecture} from './video-systems.mjs';
 const BASE='https://api-m.paypal.com',CID=process.env.PAYPAL_CLIENT_ID||'',SECRET=process.env.PAYPAL_CLIENT_SECRET||'',WH=process.env.PAYPAL_WEBHOOK_ID||'',PUBLIC=(process.env.PUBLIC_BASE_URL||'').replace(/\/$/,''),READY=Boolean(CID&&SECRET&&WH&&PUBLIC);
 const WORKLOAD=Math.max(1,Math.min(10,Number(process.env.ULTRON_WORKLOAD_MULTIPLIER||3))),INTERVAL=Math.max(5,Number(process.env.AGENT_INTERVAL_MINUTES||5));
 let cache={token:null,exp:0},payment={ok:false,checkedAt:null},timer=null;
@@ -31,6 +32,11 @@ if(path==='/api/candidates'&&req.method==='POST'){let raw='';for await(const ch 
 if(path==='/api/critique'&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;const b=raw?JSON.parse(raw):{};return json(200,{ok:true,result:critiqueCandidate(b.candidate||{},b.metrics||{})})}
 if(path==='/api/acquisition-plan'&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;return json(200,{ok:true,plan:buildAcquisitionPlan(raw?JSON.parse(raw):{})})}
 if(path==='/api/sales-workflow'&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;return json(200,{ok:true,workflow:prospectToPaymentWorkflow(raw?JSON.parse(raw):{})})}
+if(path==='/api/video-systems'&&req.method==='GET')return json(200,{ok:true,architecture:unifiedVideoArchitecture()});
+if(path==='/api/video-systems/critique'&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;return json(200,{ok:true,result:productCritiqueSystem(raw?JSON.parse(raw):{})})}
+if(path==='/api/video-systems/app-factory'&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;return json(200,{ok:true,result:appFactorySystem(raw?JSON.parse(raw):{})})}
+if(path==='/api/video-systems/revenue'&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;return json(200,{ok:true,result:prospectRevenueSystem(raw?JSON.parse(raw):{})})}
+if(path==='/api/video-systems/wizard'&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;const result=wizardOperatingSystem(raw?JSON.parse(raw):{});await saveProject(result.project);return json(200,{ok:true,result})}
 if(path==='/api/search')return json(200,{ok:true,items:catalogPage({storeId:u.searchParams.get('store')||undefined,offset:Number(u.searchParams.get('offset')||0),limit:Math.min(100,Number(u.searchParams.get('limit')||20)),query:u.searchParams.get('q')||''})});
 if(path==='/market'||path.startsWith('/market/')){res.writeHead(200,{'content-type':'text/html'});return res.end(marketHtml(path==='/market'?null:decodeURIComponent(path.slice(8)),Number(u.searchParams.get('page')||1),u.searchParams.get('q')||''))}
 if(path==='/buy'){if(!READY)return json(503,{error:'PayPal not configured'});res.writeHead(303,{location:await createOrder(u.searchParams.get('product')||'')});return res.end()}
