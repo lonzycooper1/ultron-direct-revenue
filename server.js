@@ -5,6 +5,7 @@ import {assertCaptureMatches,renderFulfillmentHtml,verifyPayPalRuntime} from './
 import {ledger,saveLedger} from './ledger-store.mjs';
 import {storeHealth} from './state-store.mjs';
 import {runAgentCycle,agentState} from './agents.mjs';
+import {wizardFromConversation,generateCandidates,critiqueCandidate,buildAcquisitionPlan,prospectToPaymentWorkflow,capabilityManifest} from './ultron2-core.mjs';
 const BASE='https://api-m.paypal.com',CID=process.env.PAYPAL_CLIENT_ID||'',SECRET=process.env.PAYPAL_CLIENT_SECRET||'',WH=process.env.PAYPAL_WEBHOOK_ID||'',PUBLIC=(process.env.PUBLIC_BASE_URL||'').replace(/\/$/,''),READY=Boolean(CID&&SECRET&&WH&&PUBLIC);
 const WORKLOAD=Math.max(1,Math.min(10,Number(process.env.ULTRON_WORKLOAD_MULTIPLIER||3))),INTERVAL=Math.max(5,Number(process.env.AGENT_INTERVAL_MINUTES||5));
 let cache={token:null,exp:0},payment={ok:false,checkedAt:null},timer=null;
@@ -20,6 +21,12 @@ function marketHtml(id,page=1,q=''){const stores=marketStores(),store=id?stores.
 export function createApp(){return createServer(async(req,res)=>{const u=new URL(req.url,'http://local'),path=u.pathname,json=(s,d)=>{res.writeHead(s,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(d))};try{
 if(path==='/health'){const db=await storeHealth(),a=await agentState();return json(db.ok?200:503,{ok:db.ok,database:db,aiMarket:{ready:true,...marketStats()},paymentReady:READY&&payment.ok,agents:{lastCycleAt:a.metrics?.lastCycleAt||null,intervalMinutes:INTERVAL,workloadMultiplier:WORKLOAD}})}
 if(path==='/api/market')return json(200,{ok:true,stats:marketStats(),stores:marketStores()});
+if(path==='/api/ultron2')return json(200,{ok:true,manifest:capabilityManifest(),market:marketStats(),agentIntervalMinutes:INTERVAL,workloadMultiplier:WORKLOAD});
+if(path==='/api/wizard'&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;return json(200,{ok:true,project:wizardFromConversation(raw?JSON.parse(raw):{})})}
+if(path==='/api/candidates'&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;return json(200,{ok:true,candidates:generateCandidates(raw?JSON.parse(raw):{})})}
+if(path==='/api/critique'&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;const b=raw?JSON.parse(raw):{};return json(200,{ok:true,result:critiqueCandidate(b.candidate||{},b.metrics||{})})}
+if(path==='/api/acquisition-plan'&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;return json(200,{ok:true,plan:buildAcquisitionPlan(raw?JSON.parse(raw):{})})}
+if(path==='/api/sales-workflow'&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;return json(200,{ok:true,workflow:prospectToPaymentWorkflow(raw?JSON.parse(raw):{})})}
 if(path==='/api/search')return json(200,{ok:true,items:catalogPage({storeId:u.searchParams.get('store')||undefined,offset:Number(u.searchParams.get('offset')||0),limit:Math.min(100,Number(u.searchParams.get('limit')||20)),query:u.searchParams.get('q')||''})});
 if(path==='/market'||path.startsWith('/market/')){res.writeHead(200,{'content-type':'text/html'});return res.end(marketHtml(path==='/market'?null:decodeURIComponent(path.slice(8)),Number(u.searchParams.get('page')||1),u.searchParams.get('q')||''))}
 if(path==='/buy'){if(!READY)return json(503,{error:'PayPal not configured'});res.writeHead(303,{location:await createOrder(u.searchParams.get('product')||'')});return res.end()}
