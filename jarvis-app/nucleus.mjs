@@ -7,11 +7,12 @@ import {MILLIONAIRE_SPRINT,sprintPlan,sprintPace,scenarioMath} from './millionai
 import {securityManifest,agentSecurityProfile,auditChainEntry} from './agent-security.mjs';
 import {agentOfAgentsManifest} from './agent-of-agents.mjs';
 import {universalMarketManifest} from './universal-marketplace.mjs';
+import {omniManifest} from './omni-runtime.mjs';
 
 const STATE_PATH=process.env.JARVIS_NUCLEUS_STATE_PATH||'/data/jarvis-nucleus.json';
 const MAX_EVENTS=2000,MAX_MISSIONS=500,MAX_OUTCOMES=1000;
 
-export const NUCLEUS_VERSION='2.5.0';
+export const NUCLEUS_VERSION='2.6.0';
 export const NUCLEUS_POLICY=Object.freeze({
   externalFinancialActions:'explicit-human-approval',
   liveTrading:'one-order-human-approval-only',
@@ -106,7 +107,15 @@ export const NUCLEUS_SKILLS=Object.freeze([
   {id:'recommendations',name:'Personalized Recommendations',division:'commerce',agent:'RecommendationAgent'},
   {id:'fulfillment-router',name:'Provider-Neutral Fulfillment Router',division:'commerce',agent:'FulfillmentRouterAgent'},
   {id:'marketplace-trust',name:'Marketplace Trust and Safety',division:'commerce',agent:'MarketplaceTrustAgent'},
-  {id:'marketplace-events',name:'Marketplace Event Bus',division:'commerce',agent:'MarketplaceEventAgent'}
+  {id:'marketplace-events',name:'Marketplace Event Bus',division:'commerce',agent:'MarketplaceEventAgent'},
+  {id:'omni-reasoning',name:'Omni Reasoning and Planning',division:'core',agent:'OmniReasoningAgent'},
+  {id:'omni-research',name:'Current Web Research',division:'core',agent:'OmniResearchAgent'},
+  {id:'omni-files',name:'Multimodal File Analysis',division:'core',agent:'OmniFileAgent'},
+  {id:'omni-vision',name:'Vision and Image Understanding',division:'core',agent:'OmniVisionAgent'},
+  {id:'omni-compute',name:'Hosted Code Interpreter and Data Analysis',division:'builder',agent:'OmniComputeAgent'},
+  {id:'omni-image',name:'Image Generation and Editing',division:'media',agent:'OmniImageAgent'},
+  {id:'omni-connectors',name:'Remote MCP and Service Connectors',division:'core',agent:'OmniConnectorAgent'},
+  {id:'omni-operator',name:'Approval-Gated Computer and Browser Operations',division:'core',agent:'OmniOperatorAgent'}
 ]);
 
 function baseState(){
@@ -244,7 +253,7 @@ export async function nucleusSnapshot(){
   return {
     id:state.nucleusId,version:NUCLEUS_VERSION,status:'online',lastTickAt:state.lastTickAt,heartbeatCount:state.heartbeatCount,
     policy:NUCLEUS_POLICY,capabilityPack:OCT05_CAPABILITY_PACK,localModelResources:LOCAL_MODEL_RESOURCES,ownerOperatingContract:OWNER_OPERATING_CONTRACT,businessMastery:caseStudyMasteryManifest(),masteryPrinciples:MASTERY_PRINCIPLES,revenuePortfolio:state.revenuePortfolio,millionaireSprint:state.millionaireSprint||sprintPlan({verifiedRevenueUsd:0,completedOrders:0}),millionaireSprintDefinition:MILLIONAIRE_SPRINT,millionaireSprintScenarios:scenarioMath(),
-    security:securityManifest(),agentOfAgents:agentOfAgentsManifest(),universalMarketplace:universalMarketManifest(),skills:{count:NUCLEUS_SKILLS.length,registry:NUCLEUS_SKILLS.map(s=>({...s,security:agentSecurityProfile(s.agent)})),topRanked:ranked},
+    security:securityManifest(),agentOfAgents:agentOfAgentsManifest(),universalMarketplace:universalMarketManifest(),omni:omniManifest(),skills:{count:NUCLEUS_SKILLS.length,registry:NUCLEUS_SKILLS.map(s=>({...s,security:agentSecurityProfile(s.agent)})),topRanked:ranked},
     memory:{missions:state.missions.length,outcomes:state.outcomes.length,events:state.events.length,statePath:'persistent-volume'},
     recentMissions:state.missions.slice(0,20),recentOutcomes:state.outcomes.slice(0,20),recentEvents:state.events.slice(0,50),
     modelRouter:state.modelRouter
