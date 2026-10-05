@@ -5,7 +5,7 @@ export const OMNI_VERSION='1.0.0';
 const OPENAI_URL='https://api.openai.com/v1/responses';
 const DEFAULT_MODEL=process.env.OPENAI_MODEL||'gpt-5.6-sol';
 
-const clean=(v,max=24000)=>String(v??'').replace(/[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F]/g,' ').trim().slice(0,max);
+const clean=(v,max=24000)=>String(v??'').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,' ').trim().slice(0,max);
 const has=v=>Boolean(String(v||'').trim());
 
 export const OMNI_CAPABILITIES=Object.freeze([
