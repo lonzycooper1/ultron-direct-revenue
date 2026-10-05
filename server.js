@@ -10,6 +10,7 @@ import {saveProject,getProject,listProjects,updateProjectProgress} from './proje
 import {productCritiqueSystem,appFactorySystem,prospectRevenueSystem,wizardOperatingSystem,unifiedVideoArchitecture} from './video-systems.mjs';
 import {runBusinessOSCycle,businessOSState,businessOSManifest,opportunityMap,productIdeasForOpportunity,targetProfile,commandBridge} from './business-os.mjs';
 import {autopilotState,productionTerminal} from './autopilot-mode.mjs';
+import {answerQuestion} from './support.js';
 const BASE='https://api-m.paypal.com',CID=process.env.PAYPAL_CLIENT_ID||'',SECRET=process.env.PAYPAL_CLIENT_SECRET||'',WH=process.env.PAYPAL_WEBHOOK_ID||'',PUBLIC=(process.env.PUBLIC_BASE_URL||'').replace(/\/$/,''),READY=Boolean(CID&&SECRET&&WH&&PUBLIC);
 const WORKLOAD=Math.max(1,Math.min(10,Number(process.env.ULTRON_WORKLOAD_MULTIPLIER||3))),INTERVAL=Math.max(5,Number(process.env.AGENT_INTERVAL_MINUTES||5));
 let cache={token:null,exp:0},payment={ok:false,checkedAt:null},timer=null;
@@ -27,6 +28,9 @@ function productHtml(p){const url=`${PUBLIC}/product/${p.id}`,schema={"@context"
 function sitemap(index=0){const stores=marketStores(),chunk=10000,start=index*chunk,end=Math.min(marketStats().products,start+chunk),urls=[];for(let n=start;n<end;n++){const perStore=marketStats().productsPerStore,si=Math.floor(n/perStore),local=n%perStore+1;if(!stores[si])break;urls.push(`<url><loc>${PUBLIC}/product/${stores[si].id}-${String(local).padStart(8,'0')}</loc></url>`)}return `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.join('')}</urlset>`}
 function sitemapIndex(){const count=Math.ceil(marketStats().products/10000);return `<?xml version="1.0" encoding="UTF-8"?><sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${Array.from({length:count},(_,i)=>`<sitemap><loc>${PUBLIC}/sitemap-${i}.xml</loc></sitemap>`).join('')}</sitemapindex>`}
 export function createApp(){return createServer(async(req,res)=>{const u=new URL(req.url,'http://local'),path=u.pathname,json=(s,d)=>{res.writeHead(s,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(d))};try{
+if(path==='/'){res.writeHead(200,{'content-type':'text/html'});return res.end(shell('ULTRON','<h1>ULTRON</h1><p><a href="/market">Open AI Market</a> · <a href="/support">Support</a></p>'))}
+if(path==='/support'){res.writeHead(200,{'content-type':'text/html'});return res.end(shell('ULTRON Support','<h1>ULTRON Support</h1><p>Ask about products, checkout, delivery or refund policy through the support API.</p><p><a href="/market">Back to AI Market</a></p>'))}
+if(path==='/api/support'&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;let body;try{body=JSON.parse(raw||'{}')}catch{return json(400,{error:'invalid JSON'})}try{return json(200,{ok:true,...answerQuestion(body.question)})}catch(e){return json(400,{error:String(e?.message||e)})}}
 if(path==='/health'){const db=await storeHealth(),a=await agentState();return json(db.ok?200:503,{ok:db.ok,database:db,aiMarket:{ready:true,...marketStats()},paymentReady:READY&&payment.ok,agents:{lastCycleAt:a.metrics?.lastCycleAt||null,intervalMinutes:INTERVAL,workloadMultiplier:WORKLOAD}})}
 if(path==='/robots.txt'){res.writeHead(200,{'content-type':'text/plain'});return res.end(`User-agent: *\nAllow: /\nSitemap: ${PUBLIC}/sitemap.xml\n`)}
 if(path==='/sitemap.xml'){res.writeHead(200,{'content-type':'application/xml'});return res.end(sitemapIndex())}
