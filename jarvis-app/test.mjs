@@ -6,9 +6,10 @@ import {MILLIONAIRE_SPRINT,sprintPace} from './millionaire-sprint.mjs';
 import {CREATOR_OPPORTUNITY_COMPONENTS,scoreCreatorOpportunity} from './latest-video-components.mjs';
 import {SECURITY_LAYERS,SECURITY_STACK_A,SECURITY_STACK_B,agentSecurityProfile} from './agent-security.mjs';
 import {PROSPECT_MISSION,targetingMatrix,scoreProspect,personalizedEmailDraft} from './prospect-outreach.mjs';
+import {AGENT_OF_AGENTS_VERSION,COMMERCE_AGENTS,POD_STRATEGY,visualAgentGraph,agentOfAgentsManifest} from './agent-of-agents.mjs';
 
 test('four interfaces contract',()=>assert.equal(['web','ios','android','desktop'].length,4));
-test('nucleus has persistent control architecture and a large skill registry',()=>{assert.equal(NUCLEUS_VERSION,'2.2.0');assert.ok(NUCLEUS_SKILLS.length>=50);assert.equal(NUCLEUS_POLICY.externalFinancialActions,'explicit-human-approval')});
+test('nucleus has persistent control architecture and a large skill registry',()=>{assert.equal(NUCLEUS_VERSION,'2.4.0');assert.ok(NUCLEUS_SKILLS.length>=50);assert.equal(NUCLEUS_POLICY.externalFinancialActions,'explicit-human-approval')});
 test('all nine uploaded videos are represented in capability pack',()=>{assert.equal(VIDEO_ANALYSIS.length,9);assert.equal(CAPABILITY_PACK.videoCount,9);assert.ok(CAPABILITY_PACK.capabilities.length>=40)});
 test('financial execution remains approval gated',()=>{const p=capabilityMission({goal:'trade BTC with real money',division:'crypto'});assert.equal(p.approvalRequired,true);assert.equal(p.externalExecution,'human-approved-only')});
 test('ordinary software research can route to builder specialists without financial approval',()=>{const p=capabilityMission({goal:'build and test a local business scheduling app',division:'builder'});assert.equal(p.approvalRequired,false);assert.ok(p.specialists.includes('RapidSoftwareFactory'))});
@@ -40,4 +41,15 @@ test('personalized prospect email requires public or permissioned contact and co
   assert.equal(d.to,'info@example.com');
   assert.match(d.body,/no thanks/i);
   assert.equal(d.compliance.privateDataUsed,false);
+});
+
+test('JARVIS includes second-layer Agent-of-Agents commerce architecture',()=>{
+  assert.equal(AGENT_OF_AGENTS_VERSION,'2.0.0');
+  assert.equal(Object.keys(COMMERCE_AGENTS).length,4);
+  assert.equal(agentOfAgentsManifest().security.totalLayers,20);
+  assert.equal(POD_STRATEGY.preferredLaunchOrder[0],'digital-download');
+  const g=visualAgentGraph();
+  assert.ok(g.nodes.some(x=>x.id==='ceo'));
+  assert.ok(g.nodes.some(x=>x.id==='editor'));
+  assert.ok(g.edges.some(x=>x.from==='MediaBuyerAgent'&&x.to==='editor'));
 });
