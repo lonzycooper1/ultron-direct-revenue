@@ -136,6 +136,9 @@ function citations(d){
 function codeOutputs(d){
  return (d?.output||[]).filter(x=>x?.type==='code_interpreter_call').map(x=>({id:x.id,status:x.status,code:x.code||null,outputs:x.outputs||[]}));
 }
+function webSearchOutputs(d){
+ return (d?.output||[]).filter(x=>x?.type==='web_search_call').map(x=>({id:x.id,status:x.status,action:x.action?.type||null}));
+}
 
 function customMcpTools(){
  if(!customBridgeConfigured())return [];
@@ -287,6 +290,7 @@ export async function invokeOpenAIOmni({prompt='',mode='reason',files=[],images=
    approvalRequests:approvalRequests(d),
    images:imageOutputs(d),
    codeInterpreter:codeOutputs(d),
+   webSearch:webSearchOutputs(d),
    usage:totalUsage,
    status:d?.status||'completed'
  };
