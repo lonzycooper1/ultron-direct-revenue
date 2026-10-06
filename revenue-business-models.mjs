@@ -8,6 +8,14 @@ export const BUYER_PROBLEMS=Object.freeze([
  {id:'knowledge-monetization',problem:'Experts have useful knowledge but no packaged product, checkout, delivery system or validation loop.',buyers:['consultants','creators','coaches','operators'],solutions:['digital products','courses','templates','guides','paid audits'],score:.76}
 ]);
 
+export const PLATFORM_FACTS=Object.freeze([
+ {fact:'Salesforce reports three out of four small businesses are investing in AI in its latest SMB trends recap.',source:'https://www.salesforce.com/ap/blog/ai-and-the-future-of-small-business/'},
+ {fact:'Salesforce reports strong customer expectations for personalized experiences, making customer response and service quality a practical SMB problem area.',source:'https://www.salesforce.com/small-business/smb-trends/'},
+ {fact:'PayPal supports recurring billing through Catalog Products, Billing Plans and Subscriptions APIs.',source:'https://developer.paypal.com/platforms/subscriptions/'},
+ {fact:'PayPal Invoicing API supports creating, sending and managing invoices from a backend.',source:'https://developer.paypal.com/api/invoicing/'},
+ {fact:'For U.S. Shopify merchants, PayPal is integrated as PayPal Wallet through Shopify Payments rather than a separate PayPal Express gateway.',source:'https://help.shopify.com/en/manual/payments/paypal'}
+]);
+
 export const BUSINESS_MODELS=Object.freeze({
  contentAgency:{
   name:'AI-Assisted Content & Copywriting Agency',model:'productized-service-plus-retainer',
@@ -48,4 +56,4 @@ export function executionPlan({goal='',preferred='',capitalUsd=0,weeklyHours=20}
   'use permissioned acquisition','count only verified customer payments','fulfill the promised scope','measure conversion, margin, support, refunds and retention'
  ],principle:'Solve a real paid problem first; AI lowers production and operating cost but does not create genuine demand by itself.'};
 }
-export function revenueFrameworkManifest(){return {version:REVENUE_FRAMEWORK_VERSION,businessModels:BUSINESS_MODELS,buyerProblems:rankBuyerProblems(),defaultPlan:executionPlan({})}}
+export function revenueFrameworkManifest(){return {version:REVENUE_FRAMEWORK_VERSION,businessModels:BUSINESS_MODELS,buyerProblems:rankBuyerProblems(),platformFacts:PLATFORM_FACTS,defaultPlan:executionPlan({})}}
