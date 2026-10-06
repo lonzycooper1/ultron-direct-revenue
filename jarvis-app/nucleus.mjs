@@ -9,11 +9,14 @@ import {agentOfAgentsManifest} from './agent-of-agents.mjs';
 import {universalMarketManifest} from './universal-marketplace.mjs';
 import {omniManifest} from './omni-runtime.mjs';
 import {tiktokVideoBatchManifest,videoBusinessMission,TIKTOK_CAPABILITIES} from './tiktok-video-batch-1005.mjs';
+import {missionControlManifest,buildAgentTeam} from './mission-control-runtime.mjs';
+import {workflowManifest,compileWorkflow} from './agent-workflow-runtime.mjs';
+import {revenueFrameworkManifest,executionPlan as revenueExecutionPlan} from './revenue-business-models.mjs';
 
 const STATE_PATH=process.env.JARVIS_NUCLEUS_STATE_PATH||'/data/jarvis-nucleus.json';
 const MAX_EVENTS=2000,MAX_MISSIONS=500,MAX_OUTCOMES=1000;
 
-export const NUCLEUS_VERSION='2.9.0';
+export const NUCLEUS_VERSION='3.0.0';
 export const NUCLEUS_POLICY=Object.freeze({
   externalFinancialActions:'explicit-human-approval',
   liveTrading:'one-order-human-approval-only',
@@ -136,7 +139,20 @@ export const NUCLEUS_SKILLS=Object.freeze([
   {id:'video-presell',name:'Ethical Pre-Sale Validation',division:'market',agent:'PresellValidationAgent'},
   {id:'video-free-funnel',name:'Free-Tool Funnel Design',division:'market',agent:'FreeToolFunnelAgent'},
   {id:'video-entry-audit',name:'Entry Audit Offer',division:'services',agent:'EntryAuditAgent'},
-  {id:'video-revenue-claim-check',name:'Social Revenue Claim Verification',division:'core',agent:'RevenueClaimVerifierAgent'}
+  {id:'video-revenue-claim-check',name:'Social Revenue Claim Verification',division:'core',agent:'RevenueClaimVerifierAgent'},
+  {id:'agent-template-store',name:'Reusable Agent Template Store',division:'core',agent:'AgentTemplateStoreAgent'},
+  {id:'operations-manager',name:'Operations Manager Delegation',division:'core',agent:'OperationsManagerAgent'},
+  {id:'mission-control-observability',name:'Mission Control Observability',division:'core',agent:'MissionControlAgent'},
+  {id:'agent-budget-router',name:'Per-Agent Model and Budget Router',division:'core',agent:'AgentBudgetRouterAgent'},
+  {id:'workflow-compiler',name:'Natural-Language Workflow Compiler',division:'builder',agent:'WorkflowCompilerAgent'},
+  {id:'workflow-validator',name:'Workflow Graph Validator',division:'builder',agent:'WorkflowValidatorAgent'},
+  {id:'workflow-guardrails',name:'Workflow Guardrail Nodes',division:'security',agent:'WorkflowGuardrailAgent'},
+  {id:'event-channel-router',name:'Approved Event and Channel Router',division:'core',agent:'EventChannelRouterAgent'},
+  {id:'agent-knowledge-skills',name:'Scoped Agent Knowledge and Skills',division:'core',agent:'AgentKnowledgeAgent'},
+  {id:'revenue-model-selector',name:'Revenue Business Model Selector',division:'market',agent:'RevenueModelSelectorAgent'},
+  {id:'content-agency',name:'AI-Assisted Content Agency',division:'services',agent:'ContentAgencyAgent'},
+  {id:'niche-ai-software',name:'Niche AI Software and Workflow Offers',division:'builder',agent:'NicheSoftwareAgent'},
+  {id:'digital-product-business',name:'Digital Product and Education Offers',division:'market',agent:'DigitalProductBusinessAgent'}
 ]);
 
 function baseState(){
@@ -282,7 +298,7 @@ export async function nucleusSnapshot(){
   return {
     id:state.nucleusId,version:NUCLEUS_VERSION,status:'online',lastTickAt:state.lastTickAt,heartbeatCount:state.heartbeatCount,
     policy:NUCLEUS_POLICY,capabilityPack:OCT05_CAPABILITY_PACK,localModelResources:LOCAL_MODEL_RESOURCES,ownerOperatingContract:OWNER_OPERATING_CONTRACT,businessMastery:caseStudyMasteryManifest(),masteryPrinciples:MASTERY_PRINCIPLES,revenuePortfolio:state.revenuePortfolio,millionaireSprint:state.millionaireSprint||sprintPlan({verifiedRevenueUsd:0,completedOrders:0}),millionaireSprintDefinition:MILLIONAIRE_SPRINT,millionaireSprintScenarios:scenarioMath(),
-    security:securityManifest(),agentOfAgents:agentOfAgentsManifest(),universalMarketplace:universalMarketManifest(),omni:omniManifest(),tiktokVideoBatch:tiktokVideoBatchManifest(),videoCapabilities:TIKTOK_CAPABILITIES,skills:{count:NUCLEUS_SKILLS.length,registry:NUCLEUS_SKILLS.map(s=>({...s,security:agentSecurityProfile(s.agent)})),topRanked:ranked},
+    security:securityManifest(),agentOfAgents:agentOfAgentsManifest(),universalMarketplace:universalMarketManifest(),omni:omniManifest(),tiktokVideoBatch:tiktokVideoBatchManifest(),videoCapabilities:TIKTOK_CAPABILITIES,missionControl:missionControlManifest(),workflowRuntime:workflowManifest(),revenueFramework:revenueFrameworkManifest(),skills:{count:NUCLEUS_SKILLS.length,registry:NUCLEUS_SKILLS.map(s=>({...s,security:agentSecurityProfile(s.agent)})),topRanked:ranked},
     memory:{missions:state.missions.length,outcomes:state.outcomes.length,events:state.events.length,statePath:'persistent-volume'},
     recentMissions:state.missions.slice(0,20),recentOutcomes:state.outcomes.slice(0,20),recentEvents:state.events.slice(0,50),
     modelRouter:state.modelRouter
