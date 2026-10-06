@@ -14,7 +14,7 @@ export const NUCLEUS_ORGANS={
  reflexes:{name:'Incident Response',purpose:'Retries safe work, isolates failures, rolls back bad releases and escalates blockers.'},
  learning:{name:'Evaluation & Learning Loop',purpose:'Backtests predictions, scores outcomes, calibrates confidence and promotes only measured improvements.'}
 };
-export function nucleusManifest(){return{version:'1.0',status:'ONLINE',objective:'Observe -> reason -> plan -> act within permissions -> measure -> learn',organs:NUCLEUS_ORGANS,principles:['one shared event vocabulary','evidence before confidence','outcomes feed memory','consequential actions require policy/approval','health and economics are first-class signals']}}
+export function nucleusManifest(){return{version:'1.0',status:'ONLINE',objective:'Observe -> reason -> plan -> act within permissions -> measure -> learn',organs:NUCLEUS_ORGANS,principles:['one shared event vocabulary','evidence before confidence','outcomes feed memory','consequential actions require policy/approval','health and economics are first-class signals','no feature earns scale without measured evidence of improved qualified attention, conversion, retention, contribution profit, reliability, or learning']}}
 export function vitalSnapshot({services=[],business={},trading={},memory={}}={}){
  const online=services.filter(x=>x.online).length,total=services.length||1,servicePct=online/total*100;
  const stale=services.filter(x=>x.lastSeenAt&&Date.now()-Date.parse(x.lastSeenAt)>10*60e3).map(x=>x.name);
@@ -44,7 +44,7 @@ export const SYSTEM_360={
   reliability:{role:'health, retries, rollback, backup and disaster recovery',outputs:['SLO','incident','recovery']},
   governance:{role:'audit trail, approvals and human control',outputs:['decision log','approval state','accountability']}
 };
-export function system360Manifest(){return{version:'1.0',status:'ACTIVE',loop:['GOAL','SENSE','THINK','PLAN','SIMULATE','AUTHORIZE','ACT','VERIFY','MEASURE','LEARN','REMEMBER','OPTIMIZE','REPEAT'],systems:SYSTEM_360,completionDefinition:{technical:'all critical services healthy, observable and recoverable',economic:'revenue and costs are verified rather than projected',learning:'predictions are scored against outcomes',governance:'consequential actions remain attributable and approval-gated'},northStar:'maximize verified durable net value per unit of time, capital and risk — never fabricated activity'}}
+export function system360Manifest(){return{version:'1.0',status:'ACTIVE',loop:['GOAL','SENSE','THINK','PLAN','SIMULATE','AUTHORIZE','ACT','VERIFY','MEASURE','LEARN','REMEMBER','OPTIMIZE','REPEAT'],systems:SYSTEM_360,completionDefinition:{technical:'all critical services healthy, observable and recoverable',economic:'revenue and costs are verified rather than projected',learning:'predictions are scored against outcomes',governance:'consequential actions remain attributable and approval-gated'},northStar:'maximize verified durable net value per unit of time, capital and risk — never fabricated activity',scaleRule:'No feature earns scale because it sounds impressive. It earns scale only when measured evidence shows improved qualified attention, conversion, retention, contribution profit, reliability, or learning.'}}
 
 export const OPENAI_CAPACITY_POLICY={
   tiers:{
