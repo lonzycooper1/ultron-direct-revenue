@@ -8,11 +8,12 @@ import {securityManifest,agentSecurityProfile,auditChainEntry} from './agent-sec
 import {agentOfAgentsManifest} from './agent-of-agents.mjs';
 import {universalMarketManifest} from './universal-marketplace.mjs';
 import {omniManifest} from './omni-runtime.mjs';
+import {tiktokVideoBatchManifest,videoBusinessMission,TIKTOK_CAPABILITIES} from './tiktok-video-batch-1005.mjs';
 
 const STATE_PATH=process.env.JARVIS_NUCLEUS_STATE_PATH||'/data/jarvis-nucleus.json';
 const MAX_EVENTS=2000,MAX_MISSIONS=500,MAX_OUTCOMES=1000;
 
-export const NUCLEUS_VERSION='2.8.0';
+export const NUCLEUS_VERSION='2.9.0';
 export const NUCLEUS_POLICY=Object.freeze({
   externalFinancialActions:'explicit-human-approval',
   liveTrading:'one-order-human-approval-only',
@@ -121,7 +122,21 @@ export const NUCLEUS_SKILLS=Object.freeze([
   {id:'quality-verifier',name:'Second-Pass Response Verifier',division:'core',agent:'QualityVerifierAgent'},
   {id:'long-context',name:'Rolling Long-Context Memory Synthesis',division:'core',agent:'ContextMemoryAgent'},
   {id:'voice-input',name:'Voice Transcription Input',division:'media',agent:'VoiceInputAgent'},
-  {id:'voice-output',name:'Text-to-Speech Output',division:'media',agent:'VoiceOutputAgent'}
+  {id:'voice-output',name:'Text-to-Speech Output',division:'media',agent:'VoiceOutputAgent'},
+  {id:'video-paid-problem-mining',name:'Paid Problem Mining',division:'market',agent:'PaidProblemMinerAgent'},
+  {id:'video-rapid-guide',name:'Rapid Guide Factory',division:'market',agent:'RapidGuideFactoryAgent'},
+  {id:'video-product-packaging',name:'Digital Product Packaging',division:'market',agent:'ProductPackagingAgent'},
+  {id:'video-marketplace-launch',name:'Marketplace Launch Staging',division:'commerce',agent:'MarketplaceLaunchAgent'},
+  {id:'video-marketing-calendar',name:'Organic Marketing Calendar',division:'media',agent:'MarketingCalendarAgent'},
+  {id:'video-tool-discovery',name:'Runtime Tool Discovery Broker',division:'core',agent:'ToolDiscoveryBrokerAgent'},
+  {id:'video-low-maintenance',name:'Low-Maintenance Opportunity Scoring',division:'market',agent:'LowMaintenanceOpportunityAgent'},
+  {id:'video-licensed-curation',name:'Rights-Safe Resource Curation',division:'market',agent:'LicensedCurationAgent'},
+  {id:'video-create-once',name:'Create-Once Product Design',division:'market',agent:'CreateOnceProductAgent'},
+  {id:'video-knowledge-sprint',name:'Seven-Day Knowledge Product Sprint',division:'market',agent:'KnowledgeProductSprintAgent'},
+  {id:'video-presell',name:'Ethical Pre-Sale Validation',division:'market',agent:'PresellValidationAgent'},
+  {id:'video-free-funnel',name:'Free-Tool Funnel Design',division:'market',agent:'FreeToolFunnelAgent'},
+  {id:'video-entry-audit',name:'Entry Audit Offer',division:'services',agent:'EntryAuditAgent'},
+  {id:'video-revenue-claim-check',name:'Social Revenue Claim Verification',division:'core',agent:'RevenueClaimVerifierAgent'}
 ]);
 
 function baseState(){
@@ -217,11 +232,19 @@ export async function invokeLocalModel({provider='ollama',prompt='',system=''}={
 
 export async function planMission({goal='',division='general',context={}}={}){
   await initNucleus();
-  const plan=capabilityMission({goal,division});
+  const basePlan=capabilityMission({goal,division});
+  const videoPlan=videoBusinessMission({goal});
+  const plan={
+    ...basePlan,
+    specialists:[...new Set([...(basePlan.specialists||[]),...(videoPlan.specialists||[])])],
+    stages:[...new Set([...(basePlan.stages||[]),...(videoPlan.stages||[])])],
+    approvalRequired:Boolean(basePlan.approvalRequired||videoPlan.approvalRequired),
+    videoPatternStrategy:videoPlan.strategy
+  };
   const mission={
     id:crypto.randomUUID(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),
     goal:plan.goal,division:plan.division,status:plan.approvalRequired?'planned-awaiting-consequential-action':'planned',ownerIntent:interpretOwnerDirective(plan.goal),
-    approvalRequired:plan.approvalRequired,specialists:plan.specialists,skillIds:skillIdsForMission(plan),stages:plan.stages,
+    approvalRequired:plan.approvalRequired,specialists:plan.specialists,skillIds:skillIdsForMission(plan),stages:plan.stages,videoPatternStrategy:plan.videoPatternStrategy,
     currentStage:0,context:Object.fromEntries(Object.entries(context||{}).slice(0,20).map(([k,v])=>[String(k).slice(0,80),String(v).slice(0,1000)])),
     evidence:[],artifacts:[],metrics:{},security:agentSecurityProfile(plan.specialists?.[0]||'JARVIS-Nucleus'),history:[{at:new Date().toISOString(),event:'planned'}]
   };
@@ -259,7 +282,7 @@ export async function nucleusSnapshot(){
   return {
     id:state.nucleusId,version:NUCLEUS_VERSION,status:'online',lastTickAt:state.lastTickAt,heartbeatCount:state.heartbeatCount,
     policy:NUCLEUS_POLICY,capabilityPack:OCT05_CAPABILITY_PACK,localModelResources:LOCAL_MODEL_RESOURCES,ownerOperatingContract:OWNER_OPERATING_CONTRACT,businessMastery:caseStudyMasteryManifest(),masteryPrinciples:MASTERY_PRINCIPLES,revenuePortfolio:state.revenuePortfolio,millionaireSprint:state.millionaireSprint||sprintPlan({verifiedRevenueUsd:0,completedOrders:0}),millionaireSprintDefinition:MILLIONAIRE_SPRINT,millionaireSprintScenarios:scenarioMath(),
-    security:securityManifest(),agentOfAgents:agentOfAgentsManifest(),universalMarketplace:universalMarketManifest(),omni:omniManifest(),skills:{count:NUCLEUS_SKILLS.length,registry:NUCLEUS_SKILLS.map(s=>({...s,security:agentSecurityProfile(s.agent)})),topRanked:ranked},
+    security:securityManifest(),agentOfAgents:agentOfAgentsManifest(),universalMarketplace:universalMarketManifest(),omni:omniManifest(),tiktokVideoBatch:tiktokVideoBatchManifest(),videoCapabilities:TIKTOK_CAPABILITIES,skills:{count:NUCLEUS_SKILLS.length,registry:NUCLEUS_SKILLS.map(s=>({...s,security:agentSecurityProfile(s.agent)})),topRanked:ranked},
     memory:{missions:state.missions.length,outcomes:state.outcomes.length,events:state.events.length,statePath:'persistent-volume'},
     recentMissions:state.missions.slice(0,20),recentOutcomes:state.outcomes.slice(0,20),recentEvents:state.events.slice(0,50),
     modelRouter:state.modelRouter
