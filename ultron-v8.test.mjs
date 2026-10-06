@@ -4,7 +4,7 @@ import {unifiedManifest} from './ultron-unified-company.mjs';
 import {compileOpportunity} from './ultron-revenue-controller-v8.mjs';
 import {capitalPosition,creditCycleContext,financialFoodChain} from './ultron-financial-system-v8.mjs';
 test('v8 has exactly 100 systems',()=>{assert.equal(V8_SYSTEMS.length,100);assert.equal(new Set(V8_SYSTEMS.map(x=>x.index)).size,100)});
-test('unified Company OS is v8',()=>assert.equal(unifiedManifest().version,'8.0.0'));
+test('unified Company OS includes v8 inside v9',()=>assert.equal(unifiedManifest().version,'9.0.0'));
 test('flywheel exposes weakest stage',()=>{const r=flywheelScore({demandCreation:80,acquisition:70,conversion:60,fulfillment:90,customerOutcome:80,retention:20,referral:50,margin:70,reinvestment:60,learning:80});assert.equal(r.weakest.stage,'retention');assert.ok(r.score>0)});
 test('website factory is validation gated',()=>{assert.equal(websiteFactory({validated:false,validationScore:90}).status,'BLOCKED_VALIDATION');assert.equal(websiteFactory({name:'Test',validated:true,validationScore:80}).status,'READY_TO_BUILD')});
 test('product factory requires evidence and severity',()=>{assert.equal(productFactory({severity:80,evidence:[]}).status,'NO_PRODUCT_YET');assert.equal(productFactory({name:'p',severity:80,evidence:['buyer interviews']}).status,'CANDIDATE')});
