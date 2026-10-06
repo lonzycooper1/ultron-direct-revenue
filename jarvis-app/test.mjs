@@ -13,9 +13,13 @@ import {automationManifest} from './automations.mjs';
 import {chatManifest} from './chat-runtime.mjs';
 import {feedbackManifest} from './feedback-runtime.mjs';
 import {qualityManifest} from './quality-runtime.mjs';
+import {tiktokVideoBatchManifest,TIKTOK_VIDEO_ANALYSIS} from './tiktok-video-batch-1005.mjs';
+import {missionControlManifest,buildAgentTeam,AGENT_TEMPLATES} from './mission-control-runtime.mjs';
+import {workflowManifest,referenceEmailDigestWorkflow,compileWorkflow,validateWorkflow,simulateWorkflow} from './agent-workflow-runtime.mjs';
+import {revenueFrameworkManifest,chooseBusinessModel,executionPlan} from './revenue-business-models.mjs';
 
 test('four interfaces contract',()=>assert.equal(['web','ios','android','desktop'].length,4));
-test('nucleus has persistent control architecture and a large skill registry',()=>{assert.equal(NUCLEUS_VERSION,'2.8.0');assert.ok(NUCLEUS_SKILLS.length>=50);assert.equal(NUCLEUS_POLICY.externalFinancialActions,'explicit-human-approval')});
+test('nucleus has persistent control architecture and a large skill registry',()=>{assert.equal(NUCLEUS_VERSION,'3.0.0');assert.ok(NUCLEUS_SKILLS.length>=50);assert.equal(NUCLEUS_POLICY.externalFinancialActions,'explicit-human-approval')});
 test('all nine uploaded videos are represented in capability pack',()=>{assert.equal(VIDEO_ANALYSIS.length,9);assert.equal(CAPABILITY_PACK.videoCount,9);assert.ok(CAPABILITY_PACK.capabilities.length>=40)});
 test('financial execution remains approval gated',()=>{const p=capabilityMission({goal:'trade BTC with real money',division:'crypto'});assert.equal(p.approvalRequired,true);assert.equal(p.externalExecution,'human-approved-only')});
 test('ordinary software research can route to builder specialists without financial approval',()=>{const p=capabilityMission({goal:'build and test a local business scheduling app',division:'builder'});assert.equal(p.approvalRequired,false);assert.ok(p.specialists.includes('RapidSoftwareFactory'))});
@@ -131,4 +135,50 @@ test('quality verifier and long-context chat are enabled',()=>{
  assert.equal(c.longTermSummary,true);
  assert.equal(c.feedbackAdaptation,true);
  assert.equal(c.qualityVerifier.default,process.env.JARVIS_QUALITY_MODE||'high');
+});
+
+
+test('latest seven-video batch is encoded including agent ecosystem and graph builder',()=>{
+ const m=tiktokVideoBatchManifest();
+ assert.equal(TIKTOK_VIDEO_ANALYSIS.length,7);
+ assert.equal(m.videoCount,7);
+ assert.ok(m.capabilities.some(x=>x.id==='operations-manager'));
+ assert.ok(m.capabilities.some(x=>x.id==='workflow-compiler'));
+ assert.ok(m.agentEcosystem.design.some(x=>/operations manager/i.test(x)));
+ assert.ok(m.graphWorkflow.nodeTypes.includes('mcp'));
+ assert.ok(m.graphWorkflow.nodeTypes.includes('approval'));
+});
+test('agent store builds a lean manager-led specialist team with security',()=>{
+ const m=missionControlManifest();
+ assert.ok(Object.keys(AGENT_TEMPLATES).length>=8);
+ const t=buildAgentTeam({goal:'Research a niche, build an AI workflow, market it and support customers',budgetUsd:100});
+ assert.equal(t.manager,'OperationsManager');
+ assert.ok(t.agents.some(x=>x.template==='ResearchScout'));
+ assert.ok(t.agents.some(x=>x.template==='SoftwareBuilder'||x.template==='WorkflowEngineer'));
+ assert.ok(t.agents.every(x=>x.security.layers===20));
+ assert.ok(m.panels.some(x=>x.id==='blockers'));
+ assert.ok(m.panels.some(x=>x.id==='economics'));
+});
+test('workflow runtime compiles typed graphs and blocks consequential output without approval',()=>{
+ const ref=referenceEmailDigestWorkflow();
+ assert.equal(validateWorkflow(ref).valid,true);
+ const g=compileWorkflow({goal:'Get unread email, summarize it and send the digest to Discord with guardrails'});
+ const v=validateWorkflow(g);
+ assert.equal(v.valid,true);
+ assert.ok(g.nodes.some(x=>x.type==='agent'));
+ assert.ok(g.nodes.some(x=>x.type==='approval'));
+ assert.ok(g.nodes.some(x=>x.type==='output'));
+ const sim=simulateWorkflow(g,{});
+ assert.equal(sim.externalActionsExecuted,false);
+ assert.ok(sim.steps.some(x=>x.action==='pause-for-owner'));
+ assert.ok(workflowManifest().nodeTypes.includes('loop'));
+});
+test('revenue OS selects content agency software and digital product models',()=>{
+ const m=revenueFrameworkManifest();
+ assert.equal(Object.keys(m.businessModels).length,3);
+ assert.equal(chooseBusinessModel({goal:'write monthly email and social content'}).key,'contentAgency');
+ assert.equal(chooseBusinessModel({goal:'build a SaaS automation workflow'}).key,'aiSoftware');
+ assert.equal(chooseBusinessModel({goal:'sell an ebook and template download'}).key,'digitalProducts');
+ const p=executionPlan({goal:'build automation for a local service business'});
+ assert.ok(p.stages.some(x=>/verified customer payments/i.test(x)));
 });
