@@ -177,6 +177,7 @@ function internalFunctionTools(){
 }
 function buildTools(mode,{connectors=[]}={}){
  const tools=[];
+ if(mode==='quality')return tools;
  if(mode==='research'||mode==='deep-research')tools.push({type:'web_search'});
  if(['compute','data','code-run','deep-research'].includes(mode))tools.push({type:'code_interpreter',container:{type:'auto'}});
  if(['image','image-edit'].includes(mode))tools.push({type:'image_generation',action:'auto'});
