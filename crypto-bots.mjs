@@ -14,7 +14,7 @@ export const CRYPTO_BOT_RULES=Object.freeze({
 export const CRYPTO_AGENTS=Object.freeze([
  'CryptoMarketDataAgent','CryptoSignalAgent','CryptoMomentumAgent','CryptoVolatilityAgent','CryptoRegimeAgent','CryptoLiquidityAgent',
  'CryptoRelativeStrengthAgent','CryptoMeanReversionAgent','CryptoBreakoutAgent','CryptoMacroAgent','CryptoCatalystAgent','CryptoSentimentAgent',
- 'CryptoRiskAgent','CryptoScenarioAgent','CryptoPortfolioResearchAgent','PublicFilingsResearchAgent','StrategyExperimentAgent','TradePreflightAgent','BotExplainabilityAgent','CryptoExecutionProposalAgent','CryptoBacktestAgent','CryptoBenchmarkAgent','CryptoBiasCheckAgent','CryptoAuditAgent','CryptoDriftAgent','CryptoKillSwitchAgent'
+ 'CryptoRiskAgent','CryptoScenarioAgent','CryptoPortfolioResearchAgent','PublicFilingsResearchAgent','StrategyExperimentAgent','TradePreflightAgent','BotExplainabilityAgent','CryptoExecutionProposalAgent','CryptoBacktestAgent','CryptoBenchmarkAgent','CryptoBiasCheckAgent','CryptoAuditAgent','CryptoDriftAgent','CryptoKillSwitchAgent','RSIStrategyAgent','EMACrossoverAgent','OpportunityRankerAgent','PortfolioRiskAgent','ProposalDraftAgent','ExecutionGuardAgent'
 ]);
 const mean=x=>x.length?x.reduce((a,b)=>a+b,0)/x.length:0;
 const sd=x=>{const m=mean(x);return Math.sqrt(mean(x.map(v=>(v-m)**2)))};
