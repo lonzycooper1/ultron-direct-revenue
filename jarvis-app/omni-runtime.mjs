@@ -258,11 +258,12 @@ async function runInternalFunction(name,args={}){
 }
 function functionCalls(d){return (d?.output||[]).filter(x=>x?.type==='function_call')}
 
-export async function invokeOpenAIOmni({prompt='',mode='reason',files=[],images=[],connectors=[],instructions=''}={}){
+export async function invokeOpenAIOmni({prompt='',mode='reason',files=[],images=[],connectors=[],instructions='',history=[]}={}){
  if(!openaiConfigured())throw Error('OPENAI_API_KEY is not configured');
  const user=clean(prompt,40000);if(!user)throw Error('prompt required');
  const tools=buildTools(mode,{connectors});
- let input=[{role:'user',content:buildContent(user,{files,images})}],d=null,totalUsage=null;
+ const prior=(history||[]).slice(-24).filter(x=>x&&['user','assistant'].includes(x.role)&&x.content).map(x=>({role:x.role,content:[{type:x.role==='assistant'?'output_text':'input_text',text:clean(x.content,12000)}]}));
+ let input=[...prior,{role:'user',content:buildContent(user,{files,images})}],d=null,totalUsage=null;
  for(let turn=0;turn<5;turn++){
    const body={model:DEFAULT_MODEL,instructions:POLICY+' '+clean(instructions,6000),input,tools,store:false};
    const r=await fetch(OPENAI_URL,{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+openaiKey()},body:JSON.stringify(body),signal:AbortSignal.timeout(180000)});
