@@ -29,3 +29,19 @@ export function executiveCycle({goal='Increase verified net value safely',observ
  const opportunities=observations.filter(x=>x.type==='opportunity').sort((a,b)=>(b.expectedValue||0)-(a.expectedValue||0));
  return{at:now(),goal,observe:{count:observations.length,blockers:blockers.length},orient:{topBlockers:blockers.slice(0,5),topOpportunities:opportunities.slice(0,5)},decide:{priority:blockers[0]?'resolve-blocker':opportunities[0]?'pursue-highest-expected-value':'collect-more-evidence'},act:{mode:'permissioned-workflow',approvalRequiredFor:['live financial orders','paid spend','publishing as owner','refunds','account/security changes']},learn:{required:true,comparePredictionToOutcome:true,calibrateConfidence:true},metrics};
 }
+
+export const SYSTEM_360={
+  command:{role:'goal intake and mission decomposition',outputs:['mission','constraints','success metrics']},
+  perception:{role:'authorized data ingestion and normalization',outputs:['observations','freshness','provenance']},
+  cognition:{role:'reasoning, forecasting, critique and planning',outputs:['ranked plan','alternatives','uncertainty']},
+  coordination:{role:'agent graph, queues, dependencies and ownership',outputs:['tasks','handoffs','deadlines']},
+  execution:{role:'permissioned tools and workflows',outputs:['artifacts','safe actions','approval requests']},
+  commerce:{role:'demand, offers, checkout, fulfillment and support',outputs:['leads','orders','deliveries']},
+  finance:{role:'verified economics and resource allocation',outputs:['revenue','cost','margin','runway']},
+  memory:{role:'episodic, semantic and outcome memory',outputs:['lessons','precedents','retrieval']},
+  evaluation:{role:'tests, backtests, experiments and scorecards',outputs:['quality','calibration','promotion decision']},
+  security:{role:'identity, authorization, anomaly and policy enforcement',outputs:['allow','deny','escalate']},
+  reliability:{role:'health, retries, rollback, backup and disaster recovery',outputs:['SLO','incident','recovery']},
+  governance:{role:'audit trail, approvals and human control',outputs:['decision log','approval state','accountability']}
+};
+export function system360Manifest(){return{version:'1.0',status:'ACTIVE',loop:['GOAL','SENSE','THINK','PLAN','SIMULATE','AUTHORIZE','ACT','VERIFY','MEASURE','LEARN','REMEMBER','OPTIMIZE','REPEAT'],systems:SYSTEM_360,completionDefinition:{technical:'all critical services healthy, observable and recoverable',economic:'revenue and costs are verified rather than projected',learning:'predictions are scored against outcomes',governance:'consequential actions remain attributable and approval-gated'},northStar:'maximize verified durable net value per unit of time, capital and risk — never fabricated activity'}}
