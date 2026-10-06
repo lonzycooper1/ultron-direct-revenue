@@ -17,6 +17,7 @@ import {expansionManifest,contentMission,businessOpportunityMission,cryptoResear
 import {acquisitionPlan,outreachDraft} from './audience-acquisition.mjs';
 import {revenueLoopStatus,flagshipOffer,DEMAND_EVIDENCE} from './revenue-loop.mjs';
 import {OCT05_CAPABILITY_PACK,OCT05_VIDEO_ANALYSIS,LOCAL_MODEL_RESOURCES} from './video-batch-1005.mjs';
+import {oct06Manifest,capitalReadinessPlan,valuationRequirement,economicAgentDecision,institutionalReadinessScore} from './video-batch-1006.mjs';
 import {caseStudyMasteryManifest,buildRevenuePortfolio,interpretOwnerDirective,OWNER_OPERATING_CONTRACT} from './chatgpt-business-mastery.mjs';
 import {MILLIONAIRE_SPRINT,sprintPlan,sprintPace,scenarioMath} from './millionaire-sprint.mjs';
 import {PROSPECT_MISSION,targetingMatrix,scoreProspect,personalizedEmailDraft,prospectMissionStatus} from './prospect-outreach.mjs';
@@ -71,7 +72,37 @@ function acquisitionPage(nicheId='services'){
  </script>`,`<meta name="description" content="${esc(n.headline)}. Free response-gap diagnostic for ${esc(n.label)} businesses."><link rel="canonical" href="${PUBLIC}/solutions/${nicheId}-ai-lead-response">`);
 }
 export function createApp(){return createServer(async(req,res)=>{const u=new URL(req.url,'http://local'),path=u.pathname,json=(s,d)=>{res.writeHead(s,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(d))};try{
-if(path==='/'){res.writeHead(200,{'content-type':'text/html'});return res.end(shell('ULTRON','<h1>ULTRON</h1><p><a href="/free-response-gap-scan">Free Response-Gap Scan</a> · <a href="/market">Open AI Market</a> · <a href="/solutions/ai-implementation">AI implementation offers</a> · <a href="/solutions/revenue-frameworks">Revenue frameworks</a> · <a href="/revenue-loop">Revenue Loop</a> · <a href="/api/prospect-mission">1,000 Prospect Mission</a> · <a href="/api/security">20-Layer Security</a> · <a href="/agent-of-agents">Agent-of-Agents</a> · <a href="/everything">Everything Market</a> · <a href="/support">Support</a></p>'))}
+if(path==='/'){res.writeHead(200,{'content-type':'text/html'});return res.end(shell('ULTRON','<h1>ULTRON</h1><p><a href="/free-response-gap-scan">Free Response-Gap Scan</a> · <a href="/market">Open AI Market</a> · <a href="/solutions/ai-implementation">AI implementation offers</a> · <a href="/solutions/revenue-frameworks">Revenue frameworks</a> · <a href="/revenue-loop">Revenue Loop</a> · <a href="/api/prospect-mission">1,000 Prospect Mission</a> · <a href="/api/security">20-Layer Security</a> · <a href="/agent-of-agents">Agent-of-Agents</a> · <a href="/capital-readiness">Institutional Power</a> · <a href="/everything">Everything Market</a> · <a href="/support">Support</a></p>'))}
+
+if(path==='/capital-readiness'){
+ const target=Math.max(1,Number(u.searchParams.get('target')||1000000000));
+ const multiple=Math.max(.1,Number(u.searchParams.get('multiple')||10));
+ const p=capitalReadinessPlan({targetValuation:target,revenueMultiple:multiple});
+ const v=p.valuation;
+ const phases=p.phases.map(x=>`<article><h3>${esc(x.horizon)} — ${esc(x.goal)}</h3><ul>${x.actions.map(a=>`<li>${esc(a)}</li>`).join('')}</ul></article>`).join('');
+ res.writeHead(200,{'content-type':'text/html','cache-control':'no-store'});
+ return res.end(shell('ULTRON Institutional Power',`<nav><a href="/">← ULTRON</a><a href="/api/video-batch-1006">Upgrade JSON</a></nav><h1>ULTRON Institutional Power</h1><p>Build real enterprise value, lender readiness and financing optionality from verified business fundamentals.</p><section><article><h2>Illustrative valuation target</h2><b>${Number(v.targetValuation).toLocaleString()}</b><p>At an illustrative ${v.illustrativeRevenueMultiple}× revenue multiple, the implied annual revenue requirement is <strong>${Number(v.requiredAnnualRevenue).toLocaleString()}</strong> (~${Number(v.requiredMonthlyRevenue).toLocaleString()}/month).</p><small>${esc(v.note)}</small></article><article><h2>Financing principle</h2><p>${esc(p.financingPrinciple)}</p><p>No fabricated valuation, assets, customers, contracts, ownership or credit applications.</p></article></section><h2>Execution roadmap</h2><section>${phases}</section>`));
+}
+if(path==='/api/video-batch-1006'&&req.method==='GET')return json(200,{ok:true,manifest:oct06Manifest()});
+if(path==='/api/capital-readiness'&&req.method==='GET'){
+ const target=Math.max(1,Number(u.searchParams.get('target')||1000000000));
+ const multiple=Math.max(.1,Number(u.searchParams.get('multiple')||10));
+ return json(200,{ok:true,plan:capitalReadinessPlan({targetValuation:target,revenueMultiple:multiple}),valuation:valuationRequirement({targetValuation:target,revenueMultiple:multiple})});
+}
+if(path==='/api/economic-agent'&&req.method==='GET')return json(200,{ok:true,result:economicAgentDecision({
+ verifiedRevenue:Number(u.searchParams.get('revenue')||0),grossProfit:Number(u.searchParams.get('grossProfit')||0),
+ computeCost:Number(u.searchParams.get('compute')||0),toolCost:Number(u.searchParams.get('tools')||0),
+ acquisitionCost:Number(u.searchParams.get('acquisition')||0),refundCost:Number(u.searchParams.get('refunds')||0),
+ otherDirectCost:Number(u.searchParams.get('other')||0)
+})});
+if(path==='/api/institutional-readiness'&&req.method==='GET')return json(200,{ok:true,result:institutionalReadinessScore({
+ recurringRevenue:Number(u.searchParams.get('recurringRevenue')||0),grossMargin:Number(u.searchParams.get('grossMargin')||0),
+ growthRate:Number(u.searchParams.get('growthRate')||0),retention:Number(u.searchParams.get('retention')||0),
+ auditedOrReviewedFinancials:u.searchParams.get('financials')==='1',cleanCapTable:u.searchParams.get('capTable')==='1',
+ governance:u.searchParams.get('governance')==='1',contractedBacklog:Number(u.searchParams.get('backlog')||0),
+ concentrationRisk:Number(u.searchParams.get('concentrationRisk')||100),dataRoomComplete:u.searchParams.get('dataRoom')==='1'
+})});
+
 if(path==='/free-response-gap-scan'){res.writeHead(200,{'content-type':'text/html','cache-control':'public,max-age=300'});return res.end(acquisitionPage('services'))}
 if(/^\/solutions\/(hvac|plumbing|roofing|medspa|auto|services)-ai-lead-response$/.test(path)){const id=path.match(/^\/solutions\/([a-z]+)-ai-lead-response$/)[1];res.writeHead(200,{'content-type':'text/html','cache-control':'public,max-age=300'});return res.end(acquisitionPage(id))}
 if(path==='/api/acquisition'&&req.method==='GET')return json(200,{ok:true,manifest:acquisitionManifest(),summary:await leadSummary()});
