@@ -313,3 +313,12 @@ test('market watch is an installable whole-market iPhone UI',()=>{
   for(const needle of ['Stocks & ETFs','Crypto','Trend Watch','Small / low-price stock lab','Favorites','Market baskets','ULTRON Trading Tutor'])assert.ok(p.toLowerCase().includes(needle.toLowerCase()));
   assert.match(p,/real-money orders remain separately approval-gated/i);
 });
+
+
+test('rendered market-watch browser script parses',()=>{
+  const p=marketWatchPage();
+  const a=p.indexOf('<script>'),b=p.indexOf('</script>',a);
+  assert.ok(a>=0&&b>a);
+  const js=p.slice(a+8,b);
+  assert.doesNotThrow(()=>new Function(js));
+});
