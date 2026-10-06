@@ -24,6 +24,8 @@ import {securityManifest,agentSecurityProfile} from './agent-security.mjs';
 import {agentOfAgentsManifest,agentOfAgentsState,createCommerceMission,decideApproval,visualAgentGraph} from './agent-of-agents.mjs';
 import {universalMarketManifest,marketplaceState,marketplaceSearch,marketplaceProduct,registerMerchant,upsertProduct,upsertOffer,recordInteraction} from './universal-marketplace.mjs';
 import {podManifest,createPodOrder} from './pod-adapters.mjs';
+import {revenueFrameworkManifest,executionPlan} from './revenue-business-models.mjs';
+import {paypalBusinessBillingManifest,billingState,verifyBusinessBilling,ensureDefaultRetainer,createSubscriptionApproval,createDraftInvoice,sendInvoice} from './paypal-business-billing.mjs';
 const BASE='https://api-m.paypal.com',CID=process.env.PAYPAL_CLIENT_ID||'',SECRET=process.env.PAYPAL_CLIENT_SECRET||'',WH=process.env.PAYPAL_WEBHOOK_ID||'',PUBLIC=(process.env.PUBLIC_BASE_URL||'').replace(/\/$/,''),READY=Boolean(CID&&SECRET&&WH&&PUBLIC);
 const WORKLOAD=Math.max(1,Math.min(10,Number(process.env.ULTRON_WORKLOAD_MULTIPLIER||3))),INTERVAL=Math.max(5,Number(process.env.AGENT_INTERVAL_MINUTES||5));
 let cache={token:null,exp:0},payment={ok:false,checkedAt:null},timer=null;
