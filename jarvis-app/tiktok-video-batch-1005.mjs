@@ -134,7 +134,9 @@ export const VIDEO_PROMPT_LIBRARY=Object.freeze({
  knowledgeSprint:`Create a 7-day launch plan that turns verified expertise about the topic into a digital product under the selected price ceiling. Include format, buyer promise, pricing test, proof asset, checkout, delivery, QA and daily validation milestones.`,
  ethicalPresell:`Design a pre-sale validation campaign that clearly says the product is in development, states the delivery date, explains refund terms and uses only genuine deadlines or early-bird pricing. Do not fabricate scarcity, testimonials, customers, urgency or engagement.`,
  freeToolFunnel:`Design the smallest legitimate funnel using free or already-owned tools: buyer-intent hook -> useful proof/demo -> product page -> verified checkout -> automatic delivery -> follow-up -> analytics. Keep setup under the requested time ceiling where feasible.`,
- entryAudit:`Create a fixed-scope paid diagnostic that finds measurable workflow or revenue leakage, documents evidence, estimates ranges rather than guaranteed ROI, and leads to a separately scoped implementation offer only when the audit supports it.`
+ entryAudit:`Create a fixed-scope paid diagnostic that finds measurable workflow or revenue leakage, documents evidence, estimates ranges rather than guaranteed ROI, and leads to a separately scoped implementation offer only when the audit supports it.`,
+ agentEcosystem:`Design a lean agent ecosystem around the owner goal. Start with an Operations Manager, add only required specialists, assign model tiers, cost ceilings, heartbeat/event triggers, scoped tools, custom instructions, output contracts and approval gates. Include one test mission and a safe disable/remove path for every agent.`,
+ graphWorkflow:`Compile the owner goal into a typed workflow graph using only needed nodes from trigger, connector, agent, MCP, guardrail, condition, bounded loop, memory, transform, approval, subagent and output. Validate the graph, insert owner approval before consequential actions, and produce a dry-run trace before live execution.`
 });
 
 export const TIKTOK_CAPABILITIES=Object.freeze([
@@ -151,7 +153,16 @@ export const TIKTOK_CAPABILITIES=Object.freeze([
  {id:'presell-validation',agent:'PresellValidationAgent',purpose:'Validate demand through disclosed pre-sales or waitlists without fake scarcity.'},
  {id:'free-tool-funnel',agent:'FreeToolFunnelAgent',purpose:'Create minimal funnels from owned/free tools and verified-payment delivery.'},
  {id:'entry-audit',agent:'EntryAuditAgent',purpose:'Offer a low-friction paid diagnostic that can lead to justified higher-ticket implementation.'},
- {id:'revenue-claim-verifier',agent:'RevenueClaimVerifierAgent',purpose:'Treat social earnings screenshots/claims as hypotheses until verified by independent evidence.'}
+ {id:'revenue-claim-verifier',agent:'RevenueClaimVerifierAgent',purpose:'Treat social earnings screenshots/claims as hypotheses until verified by independent evidence.'},
+ {id:'agent-template-store',agent:'AgentTemplateStoreAgent',purpose:'Create reusable role templates with model tier, cost ceiling, heartbeat, tools, instructions and approval gates.'},
+ {id:'operations-manager',agent:'OperationsManagerAgent',purpose:'Decompose owner goals and delegate bounded tasks to the smallest useful specialist team.'},
+ {id:'mission-control-observability',agent:'MissionControlAgent',purpose:'Expose tasks, decisions, blockers, outputs, budgets, unit economics and system health.'},
+ {id:'agent-budget-router',agent:'AgentBudgetRouterAgent',purpose:'Use economical models for routine work and reserve deeper reasoning for complex work.'},
+ {id:'workflow-compiler',agent:'WorkflowCompilerAgent',purpose:'Compile natural-language goals into typed workflow graphs.'},
+ {id:'workflow-validator',agent:'WorkflowValidatorAgent',purpose:'Validate graph structure, connector scopes, bounded loops and approval placement before execution.'},
+ {id:'workflow-guardrails',agent:'WorkflowGuardrailAgent',purpose:'Apply injection, secret, schema, PII and policy checks inside workflow graphs.'},
+ {id:'event-channel-router',agent:'EventChannelRouterAgent',purpose:'Route approved workflow results to configured email, Discord, Slack or other channels.'},
+ {id:'agent-knowledge-skills',agent:'AgentKnowledgeAgent',purpose:'Attach scoped knowledge, skills and lessons to agents without giving every agent every tool.'}
 ]);
 
 export const TOOL_DISCOVERY_ARCHITECTURE=Object.freeze({
@@ -166,6 +177,31 @@ export const TOOL_DISCOVERY_ARCHITECTURE=Object.freeze({
   'feed verified tool results back into the model loop before the next decision'
  ],
  implementation:'JARVIS Omni connector broker pattern; compatible with MCP/connector adapters when authorized'
+});
+
+export const AGENT_ECOSYSTEM_ARCHITECTURE=Object.freeze({
+ inspiration:'Uploaded agent-store / AI ecosystem video',
+ design:[
+  'operations manager decomposes approved goals and delegates bounded tasks',
+  'specialists are selected from reusable templates instead of being permanently active',
+  'per-agent model tiers, budget ceilings, heartbeats/events, tool scopes and custom instructions',
+  'mission control exposes tasks, decisions, blockers, outputs, budgets, economics and health',
+  'setup receipts show files/configuration changed, test result and safe pause/edit/remove controls',
+  'financial specialist remains advisory unless owner explicitly approves consequential execution'
+ ]
+});
+
+export const GRAPH_WORKFLOW_ARCHITECTURE=Object.freeze({
+ inspiration:'Uploaded graph-agent / n8n-style workflow video',
+ nodeTypes:['trigger','connector','agent','mcp','guardrail','condition','loop','memory','transform','approval','subagent','output'],
+ design:[
+  'compile common workflows from natural-language goals',
+  'mix deterministic nodes with model-driven agent nodes',
+  'validate graphs and bound loops before running',
+  'dry-run external actions before live execution',
+  'require approval nodes before consequential writes',
+  'persist run receipts, outputs, errors and blockers'
+ ]
 });
 
 export const VIDEO_BATCH_GUARDRAILS=Object.freeze([
@@ -227,7 +263,9 @@ export function tiktokVideoBatchManifest(){
   capabilities:TIKTOK_CAPABILITIES,
   prompts:VIDEO_PROMPT_LIBRARY,
   toolDiscovery:TOOL_DISCOVERY_ARCHITECTURE,
+  agentEcosystem:AGENT_ECOSYSTEM_ARCHITECTURE,
+  graphWorkflow:GRAPH_WORKFLOW_ARCHITECTURE,
   guardrails:VIDEO_BATCH_GUARDRAILS,
-  synthesis:'JARVIS now treats these videos as reusable business patterns: paid-problem discovery, rapid legitimate productization, marketplace leverage, runtime tool discovery, ethical pre-sale validation, automated fulfillment and verified learning.'
+  synthesis:'JARVIS now treats all seven videos as reusable patterns: paid-problem discovery, rapid productization, marketplace leverage, runtime tool discovery, ethical pre-sale validation, lean manager-to-specialist agent ecosystems, declarative workflow graphs, guarded external actions, automated fulfillment and verified learning.'
  };
 }
