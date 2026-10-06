@@ -231,3 +231,48 @@ test('Omni exposes late-night pack capabilities',()=>{
  for(const id of ['visual-direction','evidence-radar','prompt-injection-defense','public-filings-intel','strategy-experiment','trade-preflight'])assert.ok(ids.includes(id));
  assert.equal(omniManifest().lateNightVideoPack.videoCount,9);
 });
+
+
+test('final nine-video upgrade captures the transferable patterns',()=>{
+ assert.ok(VIDEO_FINDINGS.length>=9);
+ const ids=VIDEO_FINDINGS.map(x=>x.id);
+ for(const id of ['v1-autonomous-company-layer','v2-self-improving-strategy','v5-open-financial-research','v7-creative-variant-engine','v8-adversarial-ai-defense','v10-mcp-market-bridge'])assert.ok(ids.includes(id));
+ const m=videoUpgradeManifest();
+ assert.equal(m.analyzedRecordings,9);
+ assert.match(m.boundary,/paper research/i);
+});
+test('strategy lab is leakage-aware and paper-first',()=>{
+ const s=strategyLabSpec({rebalanceDays:30,holdCount:10});
+ assert.equal(s.mode,'research-and-paper-only');
+ assert.ok(s.antiOverfit.includes('point-in-time data'));
+ assert.ok(s.antiOverfit.includes('walk-forward evaluation'));
+ assert.match(s.liveTrading,/owner-approved/i);
+});
+test('research crawler independently verifies public signals',()=>{
+ const p=crawlerResearchPlan({query:'new public company catalyst'});
+ const names=p.agents.map(x=>x.name);
+ for(const n of ['Discoverer','SourceVerifier','Skeptic','Calculator','AuditAgent'])assert.ok(names.includes(n));
+ assert.ok(p.rules.some(x=>/primary source/i.test(x)));
+});
+test('creative lab produces five directions and keeps rights checks',()=>{
+ const c=creativeDirections({asset:'one campaign image',goal:'qualified buyer attention'});
+ assert.equal(c.directions.length,5);
+ assert.match(c.rights,/original|licensed/i);
+});
+test('adversarial safety lab protects tool-using agents',()=>{
+ const s=adversarialSafetyPlan();
+ assert.ok(s.tests.some(x=>/prompt injection/i.test(x)));
+ assert.ok(s.controls.includes('least privilege'));
+ assert.ok(s.controls.includes('consequential-action confirmation'));
+});
+test('overnight operator remains bounded and approval-gated',()=>{
+ const o=overnightMission({goal:'improve acquisition overnight',budgetUsd:10,maxHours:8});
+ assert.equal(o.mode,'bounded-overnight-operator');
+ assert.ok(o.mustPauseFor.includes('spending'));
+ assert.ok(o.mustPauseFor.includes('real-money trades'));
+});
+test('public portfolio research uses delayed public filings rather than insider data',()=>{
+ const p=publicPortfolioResearchPlan({manager:'Example Fund'});
+ assert.ok(p.sources.some(x=>/SEC EDGAR 13F/i.test(x)));
+ assert.ok(p.warnings.some(x=>/delayed/i.test(x)));
+});
