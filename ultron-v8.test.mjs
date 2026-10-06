@@ -1,6 +1,8 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {V8_SYSTEMS,v8Manifest,flywheelScore,websiteFactory,productFactory,demandFactory,revenueTruth,capacityGate,businessFactory,moneyCycleIntelligence} from './ultron-autonomous-revenue-v8.mjs';
 import {unifiedManifest} from './ultron-unified-company.mjs';
+import {compileOpportunity} from './ultron-revenue-controller-v8.mjs';
+import {capitalPosition,creditCycleContext,financialFoodChain} from './ultron-financial-system-v8.mjs';
 test('v8 has exactly 100 systems',()=>{assert.equal(V8_SYSTEMS.length,100);assert.equal(new Set(V8_SYSTEMS.map(x=>x.index)).size,100)});
 test('unified Company OS is v8',()=>assert.equal(unifiedManifest().version,'8.0.0'));
 test('flywheel exposes weakest stage',()=>{const r=flywheelScore({demandCreation:80,acquisition:70,conversion:60,fulfillment:90,customerOutcome:80,retention:20,referral:50,margin:70,reinvestment:60,learning:80});assert.equal(r.weakest.stage,'retention');assert.ok(r.score>0)});
@@ -11,3 +13,8 @@ test('revenue truth distinguishes captured external',()=>assert.equal(revenueTru
 test('capacity gate blocks overload',()=>assert.equal(capacityGate({demand:20,fulfillmentCapacity:10,supportCapacity:10,quality:90,refundRate:1}).status,'CAPACITY_BLOCK'));
 test('business factory incubates before validation',()=>assert.equal(businessFactory({validated:false,validationScore:10,problemSeverity:10,evidence:[]}).status,'INCUBATE'));
 test('money-cycle engine is contextual analysis only',()=>{const r=moneyCycleIntelligence({interestRates:3,liquidity:80});assert.equal(r.regime,'EXPANSION');assert.match(r.authority,/approval|authorized/i)});
+
+test('opportunity compiler wires product site demand and business',()=>{const r=compileOpportunity({name:'Validated offer',problem:'costly problem',validated:true,validationScore:85,problemSeverity:85,evidence:['real buyer evidence']});assert.equal(r.site.status,'READY_TO_BUILD');assert.equal(r.product.status,'CANDIDATE');assert.equal(r.demand.status,'READY');assert.equal(r.business.status,'SANDBOX_READY')});
+test('capital position never equates contribution with bank payout availability',()=>{const r=capitalPosition({capturedRevenue:1000,refunds:100,directCosts:200,operatingCosts:100,obligations:100,reserveTarget:200,currentReserves:50});assert.equal(r.contributionProfit,600);assert.ok(r.rule.includes('not bank balance'))});
+test('credit context cannot authorize financial actions',()=>{const r=creditCycleContext({policyRate:3,liquidity:80,financialStress:20});assert.equal(r.phase,'EXPANSION');assert.ok(r.notAuthorityFor.includes('automatic borrowing'))});
+test('financial food chain positions ULTRON around value not pretending to be bank',()=>assert.match(financialFoodChain().positioning,/not pretend to be a bank/i));
