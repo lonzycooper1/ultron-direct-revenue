@@ -182,3 +182,49 @@ test('revenue OS selects content agency software and digital product models',()=
  const p=executionPlan({goal:'build automation for a local service business'});
  assert.ok(p.stages.some(x=>/verified customer payments/i.test(x)));
 });
+
+
+test('all seven newest TikTok uploads are encoded as reusable JARVIS patterns',()=>{
+ assert.equal(TIKTOK_VIDEO_ANALYSIS.length,7);
+ const ids=TIKTOK_CAPABILITIES.map(x=>x.id);
+ for(const id of ['agent-store','mission-control','workflow-compiler','workflow-guardrails'])assert.ok(ids.includes(id));
+ const p=videoBusinessMission({goal:'build an n8n-style agent workflow with MCP guardrails and mission control'});
+ assert.ok(p.specialists.includes('WorkflowEngineerAgent'));
+ assert.ok(p.specialists.includes('OperationsManagerAgent'));
+});
+test('graph workflow engine compiles typed guarded approval-gated workflows',()=>{
+ const g=compileWorkflow({goal:'read unread email, summarize it, guard it, then send the digest to Discord'});
+ const v=validateWorkflow(g);
+ assert.equal(v.valid,true);
+ assert.ok(g.nodes.some(x=>x.type==='agent'));
+ assert.ok(g.nodes.some(x=>x.type==='guardrail'));
+ assert.ok(g.nodes.some(x=>x.type==='approval'));
+ assert.ok(g.nodes.some(x=>x.type==='output'&&x.config.channel==='discord'));
+ const dry=simulateWorkflow(g,{example:true});
+ assert.equal(dry.externalActionsExecuted,false);
+ assert.ok(dry.steps.some(x=>x.action==='pause-for-owner'));
+ const ref=referenceEmailDigestWorkflow();
+ assert.equal(validateWorkflow(ref).valid,true);
+});
+test('agent store builds lean managed teams with budgets model tiers and financial boundaries',()=>{
+ const m=missionControlManifest();
+ assert.ok(m.templateCount>=8);
+ const team=buildAgentTeam({goal:'research demand, build an AI app, market it, automate support and track unit economics',budgetUsd:80});
+ assert.equal(team.manager,'OperationsManager');
+ assert.ok(team.agents.some(x=>x.template==='SoftwareBuilder'));
+ assert.ok(team.agents.some(x=>x.template==='GrowthContent'));
+ assert.ok(team.agents.some(x=>x.template==='FinanceAnalyst'));
+ assert.ok(team.agents.every(x=>x.security.layers===20));
+ assert.equal(configureAgent('FinanceAnalyst').advisoryOnly,true);
+});
+test('revenue mastery covers content agency AI software digital products and PayPal cashflow',()=>{
+ const m=revenueMasteryManifest();
+ assert.deepEqual(Object.keys(m.models).sort(),['aiSoftware','contentAgency','digitalProducts'].sort());
+ assert.match(m.paypal.oneTime,/Orders API/);
+ assert.match(m.paypal.recurring,/Billing Plan/);
+ assert.equal(chooseRevenueTrack('build a niche SaaS automation'),'aiSoftware');
+ assert.equal(chooseRevenueTrack('sell an ebook template'),'digitalProducts');
+ const r=revenueMission({goal:'monthly content and email marketing service'});
+ assert.equal(r.selectedTrack,'contentAgency');
+ assert.ok(r.stages.includes('VERIFIED_PAYMENT'));
+});
