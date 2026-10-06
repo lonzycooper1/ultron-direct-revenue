@@ -61,6 +61,17 @@ await initNucleus();
 await initAutomations();
 await initChats();
 await initFeedback();
+if(process.env.JARVIS_VIDEO_TRANSCRIBE_ONCE==='true'){
+  (async()=>{
+    try{
+      const count=Math.max(0,Math.min(40,Number(process.env.JARVIS_VIDEO_AUDIO_COUNT||0)));
+      let b64='';
+      for(let i=1;i<=count;i++)b64+=process.env['JARVIS_VIDEO_AUDIO_'+String(i).padStart(2,'0')]||'';
+      const result=await transcribeAudio({filename:process.env.JARVIS_VIDEO_FILENAME||'video.ogg',mimeType:'audio/ogg',base64:b64});
+      console.log('JARVIS uploaded-video transcript',JSON.stringify({id:process.env.JARVIS_VIDEO_ID||'video',text:result.text}));
+    }catch(e){console.log('JARVIS uploaded-video transcript',JSON.stringify({id:process.env.JARVIS_VIDEO_ID||'video',error:String(e?.message||e).slice(0,500)}))}
+  })();
+}
 if(process.env.JARVIS_CHAT_SMOKE_TEST==='true'){
   (async()=>{
     let smokeChat=null;
