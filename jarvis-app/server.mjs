@@ -26,8 +26,8 @@ if(process.env.JARVIS_OMNI_SMOKE_TEST==='true'){
       console.log('JARVIS omni reason smoke',JSON.stringify({ok:true,provider:reason.provider,model:reason.model,status:reason.status,matched:/JARVIS OMNI ONLINE/i.test(reason.text||'')}));
     }catch(e){console.log('JARVIS omni reason smoke',JSON.stringify({ok:false,error:String(e?.message||e).slice(0,240)}))}
     try{
-      const research=await invokeOpenAIOmni({prompt:'Use web search to identify the official OpenAI website. Reply with only the site name.',mode:'research'});
-      console.log('JARVIS omni research smoke',JSON.stringify({ok:true,provider:research.provider,model:research.model,status:research.status,citationCount:(research.citations||[]).length,hasText:Boolean(research.text)}));
+      const research=await invokeOpenAIOmni({prompt:'You must use web search. Find one current page on the official OpenAI website and reply with its page title only.',mode:'research',instructions:'For this smoke test, perform a web search before answering.'});
+      console.log('JARVIS omni research smoke',JSON.stringify({ok:true,provider:research.provider,model:research.model,status:research.status,webSearchCalls:(research.webSearch||[]).length,citationCount:(research.citations||[]).length,hasText:Boolean(research.text)}));
     }catch(e){console.log('JARVIS omni research smoke',JSON.stringify({ok:false,error:String(e?.message||e).slice(0,240)}))}
   })().catch(e=>console.error('JARVIS omni smoke fatal',String(e?.message||e)));
 }
