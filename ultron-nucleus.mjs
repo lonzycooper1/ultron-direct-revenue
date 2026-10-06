@@ -45,3 +45,22 @@ export const SYSTEM_360={
   governance:{role:'audit trail, approvals and human control',outputs:['decision log','approval state','accountability']}
 };
 export function system360Manifest(){return{version:'1.0',status:'ACTIVE',loop:['GOAL','SENSE','THINK','PLAN','SIMULATE','AUTHORIZE','ACT','VERIFY','MEASURE','LEARN','REMEMBER','OPTIMIZE','REPEAT'],systems:SYSTEM_360,completionDefinition:{technical:'all critical services healthy, observable and recoverable',economic:'revenue and costs are verified rather than projected',learning:'predictions are scored against outcomes',governance:'consequential actions remain attributable and approval-gated'},northStar:'maximize verified durable net value per unit of time, capital and risk — never fabricated activity'}}
+
+export const OPENAI_CAPACITY_POLICY={
+  tiers:{
+    Build:{models:{'Astra/Sol/Terra':{rpm:5000,tpm:1000000},Luna:{rpm:5000,tpm:2000000}}},
+    Launch:{models:{'Astra/Sol/Terra':{rpm:10000,tpm:4000000},Luna:{rpm:10000,tpm:10000000}}},
+    Grow:{models:{'Astra/Sol/Terra':{rpm:15000,tpm:40000000},Luna:{rpm:30000,tpm:180000000}}}
+  },
+  source:'OpenAI tier update 2026-10-06',
+  strategy:{
+    routing:'Reserve higher-reasoning models for executive/complex work; route high-volume routine work to faster lower-cost models.',
+    scheduler:'Token-bucket queues by model and workload; smooth bursts instead of firing every agent simultaneously.',
+    backpressure:'Honor Retry-After/429, exponential backoff with jitter, and pause noncritical work before critical work.',
+    budgets:'Enforce per-mission token and dollar budgets independently of rate limits.',
+    cache:'Reuse stable system context and deterministic intermediate artifacts; avoid repeated context.',
+    observability:'Track RPM, TPM, latency, 429s, spend, tokens per successful outcome and model-level error rate.',
+    scaling:'Detect configured tier from runtime limits where available; never assume email tier equals actual organization limits.'
+  }
+};
+export function openAICapacityPlan({tier='Build'}={}){const t=OPENAI_CAPACITY_POLICY.tiers[tier]||OPENAI_CAPACITY_POLICY.tiers.Build;return{tier,limits:t,policy:OPENAI_CAPACITY_POLICY.strategy,allocation:{executiveReasoningPct:10,specialistWorkPct:25,highVolumeWorkerPct:55,reservePct:10},note:'Capacity limits are ceilings, not targets. Actual organization/model limits and spend controls govern.'}}
