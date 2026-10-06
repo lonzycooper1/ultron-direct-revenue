@@ -19,6 +19,8 @@ import {workflowManifest,referenceEmailDigestWorkflow,compileWorkflow,validateWo
 import {revenueFrameworkManifest,chooseBusinessModel,executionPlan} from './revenue-business-models.mjs';
 import {lateNightVideoManifest,LATE_NIGHT_VIDEO_ANALYSIS,strategyExperimentLab,tradePreflight,leadDiscoveryPlan,visualDirectionBrief,inspectUntrustedText} from './late-night-video-pack.mjs';
 import {VIDEO_FINDINGS,videoUpgradeManifest,overnightMission,strategyLabSpec,crawlerResearchPlan,creativeDirections,adversarialSafetyPlan,publicPortfolioResearchPlan} from './video-upgrade-1006.mjs';
+import {MARKET_UPGRADE,TUTOR,analyzeBars,lowPriceRisk,manifest as marketIntelManifest} from './market-intelligence.mjs';
+import {marketWatchPage} from './market-watch-page.mjs';
 
 test('four interfaces contract',()=>assert.equal(['web','ios','android','desktop'].length,4));
 test('nucleus has persistent control architecture and a large skill registry',()=>{assert.equal(NUCLEUS_VERSION,'3.1.0');assert.ok(NUCLEUS_SKILLS.length>=50);assert.equal(NUCLEUS_POLICY.externalFinancialActions,'explicit-human-approval')});
@@ -276,4 +278,37 @@ test('public portfolio research uses delayed public filings rather than insider 
  const p=publicPortfolioResearchPlan({manager:'Example Fund'});
  assert.ok(p.sources.some(x=>/SEC EDGAR 13F/i.test(x)));
  assert.ok(p.warnings.some(x=>/delayed/i.test(x)));
+});
+
+test('whole-market upgrade reflects uploaded brokerage-discovery video patterns',()=>{
+  const m=marketIntelManifest();
+  assert.equal(MARKET_UPGRADE.version,'2.0.0');
+  for(const x of ['Stocks & ETFs','Favorites','Top Gainers','Top Losers'])assert.ok(MARKET_UPGRADE.observed.includes(x));
+  assert.ok(m.upgrade.capabilities.includes('low-price stock lab'));
+  assert.ok(m.upgrade.capabilities.includes('day mode'));
+  assert.ok(TUTOR.length>=10);
+  assert.match(m.upgrade.execution,/research-only/i);
+});
+
+test('market signal engine stays research-only and confidence-gated',()=>{
+  const bars=Array.from({length:80},(_,i)=>({close:100+i*.6+Math.sin(i/4),volume:1000+i*20}));
+  const r=analyzeBars(bars,'day');
+  assert.equal(r.ready,true);
+  assert.equal(r.execution,'NONE');
+  assert.equal(r.ownerApprovalRequired,true);
+  assert.ok(['BUY','SELL','HOLD'].includes(r.action));
+  assert.ok(r.confidence>=0&&r.confidence<=1);
+});
+
+test('low-price stock lab flags risk rather than treating cheap price as value',()=>{
+  const r=lowPriceRisk({price:2.5,marketCap:150000000,avgVolume:120000});
+  assert.equal(r.risk,'HIGH');
+  assert.ok(r.flags.some(x=>/sub-\$5/i.test(x)));
+  assert.ok(r.flags.some(x=>/micro-cap/i.test(x)));
+});
+
+test('market watch is an installable whole-market iPhone UI',()=>{
+  const p=marketWatchPage();
+  for(const needle of ['Stocks & ETFs','Crypto','Movers','Small / low-price stock lab','ULTRON Trading Tutor'])assert.ok(p.toLowerCase().includes(needle.toLowerCase()));
+  assert.match(p,/real-money orders remain separately approval-gated/i);
 });
