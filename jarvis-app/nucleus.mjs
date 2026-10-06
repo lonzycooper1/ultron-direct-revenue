@@ -12,11 +12,12 @@ import {tiktokVideoBatchManifest,videoBusinessMission,TIKTOK_CAPABILITIES} from 
 import {missionControlManifest,buildAgentTeam} from './mission-control-runtime.mjs';
 import {workflowManifest,compileWorkflow} from './agent-workflow-runtime.mjs';
 import {revenueFrameworkManifest,executionPlan as revenueExecutionPlan} from './revenue-business-models.mjs';
+import {lateNightVideoManifest,visualDirectionBrief,evidenceRadarMission,leadDiscoveryPlan,skillDistillationPlan,brainBridgeArchitecture,publicPortfolioResearchPlan} from './late-night-video-pack.mjs';
 
 const STATE_PATH=process.env.JARVIS_NUCLEUS_STATE_PATH||'/data/jarvis-nucleus.json';
 const MAX_EVENTS=2000,MAX_MISSIONS=500,MAX_OUTCOMES=1000;
 
-export const NUCLEUS_VERSION='3.0.0';
+export const NUCLEUS_VERSION='3.1.0';
 export const NUCLEUS_POLICY=Object.freeze({
   externalFinancialActions:'explicit-human-approval',
   liveTrading:'one-order-human-approval-only',
@@ -158,7 +159,18 @@ export const NUCLEUS_SKILLS=Object.freeze([
   {id:'revenue-model-selector',name:'Revenue Business Model Selector',division:'market',agent:'RevenueModelSelectorAgent'},
   {id:'content-agency',name:'AI-Assisted Content Agency',division:'services',agent:'ContentAgencyAgent'},
   {id:'niche-ai-software',name:'Niche AI Software and Workflow Offers',division:'builder',agent:'NicheSoftwareAgent'},
-  {id:'digital-product-business',name:'Digital Product and Education Offers',division:'market',agent:'DigitalProductBusinessAgent'}
+  {id:'digital-product-business',name:'Digital Product and Education Offers',division:'market',agent:'DigitalProductBusinessAgent'},
+  {id:'strategy-experiment-lab',name:'Self-Improving Strategy Experiment Lab',division:'crypto',agent:'StrategyExperimentAgent'},
+  {id:'public-lead-discovery',name:'City State Niche Lead Discovery',division:'market',agent:'PublicLeadDiscoveryAgent'},
+  {id:'open-source-tool-scout',name:'Open-Source Tool and Data Scout',division:'builder',agent:'OpenSourceToolScoutAgent'},
+  {id:'brain-bridge-router',name:'Model-to-Provider Brain Bridge',division:'core',agent:'BrainBridgeRouterAgent'},
+  {id:'visual-direction',name:'Professional Visual Direction',division:'media',agent:'VisualDirectorAgent'},
+  {id:'evidence-radar',name:'Continuous Public Evidence Radar',division:'core',agent:'EvidenceRadarAgent'},
+  {id:'prompt-injection-defense',name:'Prompt Injection Source-Sink Defense',division:'security',agent:'PromptInjectionDefenseAgent'},
+  {id:'public-filings-intel',name:'Public Filings and Portfolio Intelligence',division:'crypto',agent:'PublicFilingsResearchAgent'},
+  {id:'trade-preflight',name:'Explainable Trade Preflight',division:'crypto',agent:'TradePreflightAgent'},
+  {id:'bot-explainability',name:'Trading Bot Explainability and Recovery',division:'crypto',agent:'BotExplainabilityAgent'},
+  {id:'skill-distillation',name:'Video Tutorial Skill Distillation',division:'core',agent:'SkillDistillationAgent'}
 ]);
 
 function baseState(){
@@ -267,11 +279,22 @@ export async function planMission({goal='',division='general',context={}}={}){
     ?revenueExecutionPlan({goal:goalText,capitalUsd:Number(context?.capitalUsd||0),weeklyHours:Number(context?.weeklyHours||20)})
     :null;
   const agentNames=agentTeam?.agents?.map(x=>x.name)||[];
+  const lateAgents=[];
+  const addLate=x=>{if(!lateAgents.includes(x))lateAgents.push(x)};
+  if(/backtest|strategy|trading|crypto|market experiment/i.test(goalText)){addLate('StrategyExperimentAgent');addLate('TradePreflightAgent');addLate('BotExplainabilityAgent')}
+  if(/lead|prospect|city|state|niche|business list/i.test(goalText))addLate('PublicLeadDiscoveryAgent');
+  if(/open source|github|tool|alternative|data platform/i.test(goalText))addLate('OpenSourceToolScoutAgent');
+  if(/api|bridge|connector|exchange|provider adapter/i.test(goalText))addLate('BrainBridgeRouterAgent');
+  if(/design|visual|layout|presentation|slide|website|artifact/i.test(goalText))addLate('VisualDirectorAgent');
+  if(/latest|current|monitor|crawler|research|evidence/i.test(goalText))addLate('EvidenceRadarAgent');
+  if(/jailbreak|prompt injection|untrusted|security/i.test(goalText))addLate('PromptInjectionDefenseAgent');
+  if(/filing|13f|portfolio|investor|sec edgar/i.test(goalText))addLate('PublicFilingsResearchAgent');
+  if(/learn from|video|tutorial|repo|skill/i.test(goalText))addLate('SkillDistillationAgent');
   const revenueStages=revenuePlan?.stages||[];
   const consequential=/publish|post|send|spend|invoice|subscription|refund|charge|buy|purchase|deploy|connect account/i.test(goalText);
   const plan={
     ...basePlan,
-    specialists:[...new Set([...(basePlan.specialists||[]),...(videoPlan.specialists||[]),...agentNames])],
+    specialists:[...new Set([...(basePlan.specialists||[]),...(videoPlan.specialists||[]),...agentNames,...lateAgents])],
     stages:[...new Set([...(basePlan.stages||[]),...(videoPlan.stages||[]),...revenueStages])],
     approvalRequired:Boolean(basePlan.approvalRequired||videoPlan.approvalRequired||consequential),
     videoPatternStrategy:videoPlan.strategy,
@@ -285,7 +308,7 @@ export async function planMission({goal='',division='general',context={}}={}){
     goal:plan.goal,division:plan.division,status:plan.approvalRequired?'planned-awaiting-consequential-action':'planned',
     ownerIntent:interpretOwnerDirective(plan.goal),revenueTrack:plan.revenueTrack,
     approvalRequired:plan.approvalRequired,specialists:plan.specialists,skillIds:skillIdsForMission(plan),stages:plan.stages,
-    videoPatternStrategy:plan.videoPatternStrategy,agentTeam:plan.agentTeam,workflowDraft:plan.workflowDraft,revenuePlan:plan.revenuePlan,
+    videoPatternStrategy:plan.videoPatternStrategy,agentTeam:plan.agentTeam,workflowDraft:plan.workflowDraft,revenuePlan:plan.revenuePlan,lateNightVideoPack:lateNightVideoManifest(),brainBridge:brainBridgeArchitecture(),
     currentStage:0,context:Object.fromEntries(Object.entries(context||{}).slice(0,20).map(([k,v])=>[String(k).slice(0,80),String(v).slice(0,1000)])),
     evidence:[],artifacts:[],metrics:{},security:agentSecurityProfile(plan.specialists?.[0]||'JARVIS-Nucleus'),
     history:[{at:new Date().toISOString(),event:'planned'}]
@@ -324,7 +347,7 @@ export async function nucleusSnapshot(){
   return {
     id:state.nucleusId,version:NUCLEUS_VERSION,status:'online',lastTickAt:state.lastTickAt,heartbeatCount:state.heartbeatCount,
     policy:NUCLEUS_POLICY,capabilityPack:OCT05_CAPABILITY_PACK,localModelResources:LOCAL_MODEL_RESOURCES,ownerOperatingContract:OWNER_OPERATING_CONTRACT,businessMastery:caseStudyMasteryManifest(),masteryPrinciples:MASTERY_PRINCIPLES,revenuePortfolio:state.revenuePortfolio,millionaireSprint:state.millionaireSprint||sprintPlan({verifiedRevenueUsd:0,completedOrders:0}),millionaireSprintDefinition:MILLIONAIRE_SPRINT,millionaireSprintScenarios:scenarioMath(),
-    security:securityManifest(),agentOfAgents:agentOfAgentsManifest(),universalMarketplace:universalMarketManifest(),omni:omniManifest(),tiktokVideoBatch:tiktokVideoBatchManifest(),videoCapabilities:TIKTOK_CAPABILITIES,missionControl:missionControlManifest(),workflowRuntime:workflowManifest(),revenueFramework:revenueFrameworkManifest(),skills:{count:NUCLEUS_SKILLS.length,registry:NUCLEUS_SKILLS.map(s=>({...s,security:agentSecurityProfile(s.agent)})),topRanked:ranked},
+    security:securityManifest(),agentOfAgents:agentOfAgentsManifest(),universalMarketplace:universalMarketManifest(),omni:omniManifest(),tiktokVideoBatch:tiktokVideoBatchManifest(),videoCapabilities:TIKTOK_CAPABILITIES,lateNightVideoPack:lateNightVideoManifest(),visualDirection:visualDirectionBrief({artifactType:'web/storefront/JARVIS UI',topic:'ULTRON'}),evidenceRadar:evidenceRadarMission({topic:'ULTRON current market and platform changes'}),leadDiscovery:leadDiscoveryPlan({city:'Houston',state:'TX',niche:'AI implementation buyers',target:1000}),skillDistillation:skillDistillationPlan({source:'uploaded late-night screen recordings'}),brainBridge:brainBridgeArchitecture(),publicFilings:publicPortfolioResearchPlan({}),missionControl:missionControlManifest(),workflowRuntime:workflowManifest(),revenueFramework:revenueFrameworkManifest(),skills:{count:NUCLEUS_SKILLS.length,registry:NUCLEUS_SKILLS.map(s=>({...s,security:agentSecurityProfile(s.agent)})),topRanked:ranked},
     memory:{missions:state.missions.length,outcomes:state.outcomes.length,events:state.events.length,statePath:'persistent-volume'},
     recentMissions:state.missions.slice(0,20),recentOutcomes:state.outcomes.slice(0,20),recentEvents:state.events.slice(0,50),
     modelRouter:state.modelRouter
