@@ -1,0 +1,15 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {V7_SYSTEMS,v7Manifest} from './ultron-strategic-edge-v7.mjs';
+import {strategicAttention,businessPhysics,metricIntegrity,goodhartCheck,forecastCalibration,revenueQuality,missionFeasibility,knowledgeBoundary} from './ultron-v7-core-functions.mjs';
+import {observation,intelligenceRecord,FACTORY_FLOW} from './ultron-proprietary-intelligence-v7.mjs';
+test('v7 has exactly 80 systems',()=>{assert.equal(V7_SYSTEMS.length,80);assert.equal(new Set(V7_SYSTEMS.map(x=>x.index)).size,80)});
+test('v7 master hierarchy includes payment fulfillment and proprietary intelligence',()=>{const m=v7Manifest();assert.equal(m.version,'7.0.0');assert.ok(m.architecture.includes('PAYPAL AND FULFILLMENT'));assert.ok(m.architecture.includes('PROPRIETARY INTELLIGENCE'))});
+test('strategic attention ranks higher value evidence-aware work first',()=>{const r=strategicAttention([{id:'a',expectedValue:100,urgency:80,confidence:80,informationGain:70,compoundingValue:80,cost:1,risk:10,complexity:10,opportunityCost:0},{id:'b',expectedValue:10,urgency:20,confidence:20,informationGain:20,compoundingValue:20,cost:5,risk:80,complexity:80,opportunityCost:5}]);assert.equal(r[0].id,'a')});
+test('business physics caps fulfillment',()=>{const r=businessPhysics({leads:100,conversion:.5,avgOrder:100,fulfillmentCapacity:10,marginPct:50});assert.equal(r.fulfilledOrders,10);assert.equal(r.capacityConstrained,true);assert.equal(r.revenueUsd,1000)});
+test('metric provenance refuses incomplete lineage',()=>{assert.equal(metricIntegrity({source:'ledger'}).pass,false);assert.equal(metricIntegrity({rawEvent:'payment.captured',source:'paypal',transformation:'sum',timestamp:'2026-10-06'}).pass,true)});
+test('Goodhart guard detects metric gaming',()=>assert.equal(goodhartCheck({metricImproved:true,objectiveImproved:false}).detected,true));
+test('forecast calibration is empirical',()=>assert.equal(forecastCalibration([{probability:.7,outcome:true},{probability:.7,outcome:false}]).count,2));
+test('revenue quality returns bounded grade',()=>assert.ok(['A','B','C','D'].includes(revenueQuality({margin:80,refundRate:2,recurrence:70,concentrationRisk:20,fulfillmentBurden:20,collectionReliability:95,retention:80}).grade)));
+test('mission feasibility distinguishes current feasibility',()=>assert.equal(missionFeasibility({physical:true,legal:true,capacity:90,funding:90,timing:90,dependencies:90}).status,'ACHIEVABLE_NOW'));
+test('missing evidence stays explicit',()=>assert.equal(knowledgeBoundary({evidence:[],required:1}).status,'NO_CURRENT_EVIDENCE'));
+test('proprietary intelligence requires provenance fields',()=>{const o=observation({});assert.equal(o.status,'NO_CURRENT_EVIDENCE');assert.equal(FACTORY_FLOW.at(-1),'civilization memory');assert.ok(intelligenceRecord({observation:o}).observation)});
