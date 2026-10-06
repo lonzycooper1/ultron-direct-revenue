@@ -29,7 +29,7 @@ export const OMNI_CAPABILITIES=Object.freeze([
  {id:'web-fetch',name:'Direct URL retrieval & summarization',category:'research',provider:'JARVIS HTTPS fetch + model',needs:['model']},
  {id:'github',name:'Repository/code operations',category:'connector',provider:'remote MCP/webhook adapter',needs:['connector']},
  {id:'railway',name:'Deployment & runtime operations',category:'connector',provider:'remote MCP/webhook adapter',needs:['connector']},
- {id:'shopify',name:'Store/catalog/order operations',category:'connector',provider:'ULTRON commerce bridge',needs:[]},
+ {id:'shopify',name:'Direct Shopify Admin operations',category:'connector',provider:'JARVIS Shopify connector bridge',needs:['connector']},
  {id:'gmail',name:'Email read/draft/send workflows',category:'connector',provider:'OpenAI connector/MCP',needs:['openai','gmail_oauth']},
  {id:'calendar',name:'Calendar read/schedule workflows',category:'connector',provider:'OpenAI connector/MCP',needs:['openai','calendar_oauth']},
  {id:'drive',name:'Drive file search/read workflows',category:'connector',provider:'OpenAI connector/MCP',needs:['openai','drive_oauth']},
