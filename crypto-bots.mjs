@@ -7,7 +7,7 @@ export const CRYPTO_BOT_RULES=Object.freeze({
  liveOrders:false,
  withdrawals:false,
  custody:false,
- instruments:['BTC-USD','ETH-USD'],
+ instruments:['BTC-USD','ETH-USD','SOL-USD','XRP-USD','ADA-USD','DOGE-USD','AVAX-USD','LINK-USD','DOT-USD','LTC-USD','BCH-USD','XLM-USD','UNI-USD','AAVE-USD','SUI-USD','NEAR-USD','ATOM-USD','FIL-USD'],
  minConfidence:0.65,
  prohibited:['unilateral-real-money-orders','withdrawals','leverage-escalation','borrowed-funds','fabricated-performance','guaranteed-returns']
 });
