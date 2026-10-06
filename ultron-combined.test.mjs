@@ -4,7 +4,7 @@ import {v6Manifest as v6} from './ultron-discovery-economy-v6.mjs';
 import {v7Manifest as v7} from './ultron-strategic-edge-v7.mjs';
 import {unifiedManifest} from './ultron-unified-company.mjs';
 import {SYSTEM_CONTRACTS,evaluateSystem} from './ultron-v7-capability-runtime.mjs';
-test('5 6 7 manifests compose',()=>{assert.equal(v5().version,'5.0.0');assert.equal(v6().version,'6.0.0');assert.equal(v7().version,'7.0.0');assert.equal(unifiedManifest().version,'8.0.0')});
+test('5 6 7 remain composed inside current mainframe',()=>{assert.equal(v5().version,'5.0.0');assert.equal(v6().version,'6.0.0');assert.equal(v7().version,'7.0.0');assert.equal(unifiedManifest().version,'9.0.0')});
 test('all 80 v7 systems have executable contracts',()=>{assert.equal(SYSTEM_CONTRACTS.length,80);for(const s of SYSTEM_CONTRACTS)assert.equal(evaluateSystem(s.id,{}).status,'NO_CURRENT_EVIDENCE')});
 test('evidence contract evaluates only provenance-backed input',()=>{const r=evaluateSystem('v7-1',{evidence:[{source:'public-source',observedAt:new Date().toISOString(),permission:'public',confidence:80,freshness:90}],outcomeHistory:70});assert.equal(r.status,'EVALUATED')});
 test('approval gate stops consequential capability execution',()=>{const r=evaluateSystem('v7-80',{evidence:[{source:'ledger',observedAt:new Date().toISOString(),permission:'authorized',confidence:90}],approvalRequired:true,approved:false});assert.equal(r.status,'APPROVAL_REQUIRED')});
