@@ -71,6 +71,18 @@ const FEATURED=Object.freeze([
  Object.freeze({
    id:'ai-optimization-1500',storeId:'analyticslab',name:'AI Optimization Month',price:1500,tier:'premium',category:'analytics',targetBuyer:'existing AI implementation customers',featured:'millionaire-sprint',
    description:'Thirty days of measured workflow optimization, QA, performance review, one controlled improvement cycle and an outcome report.'
+ }),
+ Object.freeze({
+   id:'content-growth-sprint-1250',storeId:'content',name:'Content Growth Sprint',price:1250,tier:'premium',category:'content',targetBuyer:'small businesses that need consistent on-brand content and lifecycle copy',featured:'revenue-framework',
+   description:'A fixed-scope 30-day content and copy package with brand voice brief, editorial plan, edited assets, QA and performance handoff.'
+ }),
+ Object.freeze({
+   id:'niche-ai-tool-sprint-3500',storeId:'software',name:'Niche AI Tool Sprint',price:3500,tier:'enterprise',category:'software',targetBuyer:'SMBs with one repetitive workflow or customer experience bottleneck',featured:'revenue-framework',
+   description:'Requirements, prototype, connector/API scaffolding, tests, approval controls and handoff for one bounded AI-enabled tool or workflow MVP.'
+ }),
+ Object.freeze({
+   id:'digital-product-launch-750',storeId:'courseware',name:'Digital Product Launch Pack',price:750,tier:'premium',category:'education',targetBuyer:'experts and operators with validated knowledge to package',featured:'revenue-framework',
+   description:'One original digital product package with outline, production assets, listing copy, checkout/delivery plan, QA, rights review and launch assets.'
  })
 ]);
 const FEATURED_MAP=new Map(FEATURED.map(p=>[p.id,p]));
