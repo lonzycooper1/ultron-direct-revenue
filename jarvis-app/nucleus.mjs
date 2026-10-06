@@ -12,7 +12,7 @@ import {omniManifest} from './omni-runtime.mjs';
 const STATE_PATH=process.env.JARVIS_NUCLEUS_STATE_PATH||'/data/jarvis-nucleus.json';
 const MAX_EVENTS=2000,MAX_MISSIONS=500,MAX_OUTCOMES=1000;
 
-export const NUCLEUS_VERSION='2.7.0';
+export const NUCLEUS_VERSION='2.8.0';
 export const NUCLEUS_POLICY=Object.freeze({
   externalFinancialActions:'explicit-human-approval',
   liveTrading:'one-order-human-approval-only',
@@ -116,7 +116,12 @@ export const NUCLEUS_SKILLS=Object.freeze([
   {id:'omni-image',name:'Image Generation and Editing',division:'media',agent:'OmniImageAgent'},
   {id:'omni-connectors',name:'Remote MCP and Service Connectors',division:'core',agent:'OmniConnectorAgent'},
   {id:'omni-operator',name:'Approval-Gated Computer and Browser Operations',division:'core',agent:'OmniOperatorAgent'},
-  {id:'omni-chat',name:'Persistent Multi-Turn Chat',division:'core',agent:'OmniConversationAgent'}
+  {id:'omni-chat',name:'Persistent Multi-Turn Chat',division:'core',agent:'OmniConversationAgent'},
+  {id:'human-feedback',name:'Owner Feedback Preference Adaptation',division:'core',agent:'HumanFeedbackAgent'},
+  {id:'quality-verifier',name:'Second-Pass Response Verifier',division:'core',agent:'QualityVerifierAgent'},
+  {id:'long-context',name:'Rolling Long-Context Memory Synthesis',division:'core',agent:'ContextMemoryAgent'},
+  {id:'voice-input',name:'Voice Transcription Input',division:'media',agent:'VoiceInputAgent'},
+  {id:'voice-output',name:'Text-to-Speech Output',division:'media',agent:'VoiceOutputAgent'}
 ]);
 
 function baseState(){
