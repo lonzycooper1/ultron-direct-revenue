@@ -140,6 +140,12 @@ export const NUCLEUS_SKILLS=Object.freeze([
   {id:'video-free-funnel',name:'Free-Tool Funnel Design',division:'market',agent:'FreeToolFunnelAgent'},
   {id:'video-entry-audit',name:'Entry Audit Offer',division:'services',agent:'EntryAuditAgent'},
   {id:'video-revenue-claim-check',name:'Social Revenue Claim Verification',division:'core',agent:'RevenueClaimVerifierAgent'},
+  {id:'agent-store-runtime',name:'Mission-Specific Agent Store',division:'core',agent:'OperationsManagerAgent'},
+  {id:'mission-control-runtime',name:'Owner Mission Control',division:'core',agent:'MissionControlAgent'},
+  {id:'workflow-graph-runtime',name:'Typed Agent Workflow Graphs',division:'core',agent:'WorkflowEngineerAgent'},
+  {id:'workflow-guardrails',name:'Workflow Guardrails and Dry Runs',division:'core',agent:'WorkflowGuardrailAgent'},
+  {id:'revenue-model-router',name:'Revenue Business Model Router',division:'market',agent:'RevenueModelRouterAgent'},
+  {id:'paypal-cashflow',name:'PayPal Cashflow Architecture',division:'market',agent:'PayPalCashflowAgent'},
   {id:'agent-template-store',name:'Reusable Agent Template Store',division:'core',agent:'AgentTemplateStoreAgent'},
   {id:'operations-manager',name:'Operations Manager Delegation',division:'core',agent:'OperationsManagerAgent'},
   {id:'mission-control-observability',name:'Mission Control Observability',division:'core',agent:'MissionControlAgent'},
@@ -250,12 +256,18 @@ export async function planMission({goal='',division='general',context={}}={}){
   await initNucleus();
   const basePlan=capabilityMission({goal,division});
   const videoPlan=videoBusinessMission({goal});
+  const revenuePlan=revenueMission({goal});
+  const agentTeam=buildAgentTeam({goal});
+  const workflowPlan=/workflow|automation|mcp|n8n|graph|connector|integration/i.test(String(goal||''))?compileWorkflow({goal}):null;
   const plan={
     ...basePlan,
-    specialists:[...new Set([...(basePlan.specialists||[]),...(videoPlan.specialists||[])])],
-    stages:[...new Set([...(basePlan.stages||[]),...(videoPlan.stages||[])])],
-    approvalRequired:Boolean(basePlan.approvalRequired||videoPlan.approvalRequired),
-    videoPatternStrategy:videoPlan.strategy
+    specialists:[...new Set([...(basePlan.specialists||[]),...(videoPlan.specialists||[]),...agentTeam.agents.map(x=>x.name)])],
+    stages:[...new Set([...(basePlan.stages||[]),...(videoPlan.stages||[]),...(revenuePlan.stages||[])])],
+    approvalRequired:Boolean(basePlan.approvalRequired||videoPlan.approvalRequired||revenuePlan.approvalGates?.length&&/publish|spend|invoice|subscription|refund|charge|send/i.test(String(goal||''))),
+    videoPatternStrategy:videoPlan.strategy,
+    revenueTrack:revenuePlan.selectedTrack,
+    agentTeam,
+    workflowPlan
   };
   const goalText=String(goal||'');
   const agentTeam=/agent|ecosystem|delegate|manager|specialist|department|team/i.test(goalText)?buildAgentTeam({goal:goalText,budgetUsd:Number(context?.budgetUsd||0)}):null;
@@ -263,7 +275,7 @@ export async function planMission({goal='',division='general',context={}}={}){
   const revenuePlan=/revenue|business|customer|buyer|sell|offer|service|subscription|content|digital product|software/i.test(goalText)?revenueExecutionPlan({goal:goalText,capitalUsd:Number(context?.capitalUsd||0),weeklyHours:Number(context?.weeklyHours||20)}):null;
   const mission={
     id:crypto.randomUUID(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),
-    goal:plan.goal,division:plan.division,status:plan.approvalRequired?'planned-awaiting-consequential-action':'planned',ownerIntent:interpretOwnerDirective(plan.goal),
+    goal:plan.goal,division:plan.division,status:plan.approvalRequired?'planned-awaiting-consequential-action':'planned',ownerIntent:interpretOwnerDirective(plan.goal),revenueTrack:plan.revenueTrack,agentTeam:plan.agentTeam,workflowPlan:plan.workflowPlan,
     approvalRequired:plan.approvalRequired,specialists:plan.specialists,skillIds:skillIdsForMission(plan),stages:plan.stages,videoPatternStrategy:plan.videoPatternStrategy,agentTeam,workflowDraft,revenuePlan,
     currentStage:0,context:Object.fromEntries(Object.entries(context||{}).slice(0,20).map(([k,v])=>[String(k).slice(0,80),String(v).slice(0,1000)])),
     evidence:[],artifacts:[],metrics:{},security:agentSecurityProfile(plan.specialists?.[0]||'JARVIS-Nucleus'),history:[{at:new Date().toISOString(),event:'planned'}]
