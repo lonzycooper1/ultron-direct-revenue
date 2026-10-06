@@ -68,9 +68,9 @@ if(process.env.JARVIS_CHAT_SMOKE_TEST==='true'){
       smokeChat=await createChat({title:'JARVIS parity smoke'});
       await sendChatMessage({chatId:smokeChat.id,prompt:'Remember the code word ORBITAL. Reply with exactly READY.',mode:'reason'});
       const memory=await sendChatMessage({chatId:smokeChat.id,prompt:'What code word did I ask you to remember? Reply with only the word.',mode:'reason'});
-      console.log('JARVIS chat memory smoke',JSON.stringify({ok:/ORBITAL/i.test(memory.message?.content||''),model:memory.message?.model||null,messageCount:(await getChat(smokeChat.id)).messages.length}));
+      console.log('JARVIS chat memory smoke',JSON.stringify({ok:/ORBITAL/i.test(memory.message?.content||''),model:memory.message?.model||null,messageCount:(await getChat(smokeChat.id)).messages.length,qualityScore:memory.message?.quality?.score??null,qualityApplied:Boolean(memory.message?.quality?.applied)}));
       const compute=await sendChatMessage({chatId:smokeChat.id,prompt:'You must use the hosted code interpreter to calculate 37 * 43. Reply with only the number.',mode:'compute'});
-      console.log('JARVIS compute smoke',JSON.stringify({ok:/1591/.test(compute.message?.content||''),model:compute.message?.model||null,codeInterpreterCalls:compute.message?.toolSummary?.codeInterpreterCalls||0}));
+      console.log('JARVIS compute smoke',JSON.stringify({ok:/1591/.test(compute.message?.content||''),model:compute.message?.model||null,codeInterpreterCalls:compute.message?.toolSummary?.codeInterpreterCalls||0,qualityScore:compute.message?.quality?.score??null}));
     }catch(e){console.log('JARVIS chat parity smoke',JSON.stringify({ok:false,error:String(e?.message||e).slice(0,240)}))}
     finally{if(smokeChat)await deleteChat(smokeChat.id).catch(()=>{})}
   })().catch(e=>console.error('JARVIS chat parity smoke fatal',String(e?.message||e)));
