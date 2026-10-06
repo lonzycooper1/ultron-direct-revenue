@@ -1,0 +1,15 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {V9_SYSTEMS,v9Manifest,prospectScore,auditBlueprint,funnelDecision,contributionProfit,resourceDecision,nicheOffers,V9_EVENTS} from './ultron-revenue-mainframe-v9.mjs';
+import {unifiedManifest} from './ultron-unified-company.mjs';
+test('v9 combines all 60 requested revenue and vision systems',()=>{assert.equal(V9_SYSTEMS.length,60);assert.equal(new Set(V9_SYSTEMS.map(x=>x.name)).size,60)});
+test('unified company manifest is v9',()=>assert.equal(unifiedManifest().version,'9.0.0'));
+test('fastest revenue ladder is wired',()=>{const m=v9Manifest();assert.equal(m.revenueLadder[0].price,99);assert.equal(m.revenueLadder[1].price,500);assert.equal(m.revenueLadder[2].price,2500);assert.equal(m.revenueLadder[3].price,7500)});
+test('prospect score requires evidence-oriented fit',()=>assert.equal(prospectScore({visibleProblem:90,buyerFit:90,contactLegitimacy:100,urgency:80,valueAtStake:90,evidenceQuality:90}).qualified,true));
+test('audit refuses missing evidence',()=>assert.equal(auditBlueprint({businessName:'X',evidence:[]}).status,'NO_CURRENT_EVIDENCE'));
+test('audit with evidence creates scoped blueprint',()=>assert.equal(auditBlueprint({businessName:'X',evidence:['public website evidence']}).status,'DRAFT_READY'));
+test('funnel routes paid customer into fulfillment',()=>assert.equal(funnelDecision({qualified:true,paymentCaptured:true}).stage,'FULFILLMENT'));
+test('funnel routes verified outcome into expansion/referral',()=>assert.equal(funnelDecision({qualified:true,paymentCaptured:true,fulfilled:true,outcomeVerified:true,satisfied:true}).stage,'EXPANSION_AND_REFERRAL'));
+test('contribution profit subtracts real cost classes',()=>assert.equal(contributionProfit({captured:1000,refunds:50,fulfillment:100,compute:25,support:25,acquisition:100,operations:100}).contributionProfit,600));
+test('resource allocator can retire negative loops',()=>assert.equal(resourceDecision([{id:'x',contributionProfit:-100,learningValue:0,customerOutcome:0,risk:50,cost:50}])[0].decision,'IMPROVE_OR_RETIRE'));
+test('niche productization creates a path and revenue ladder',()=>assert.equal(nicheOffers('HVAC').ladder.length,5));
+test('event vocabulary covers full economic loop',()=>{for(const x of ['problem.discovered','lead.created','payment.captured','fulfillment.completed','outcome.verified','profit.verified','capital.reallocated'])assert.ok(V9_EVENTS.includes(x))});
