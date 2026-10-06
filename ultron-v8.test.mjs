@@ -1,0 +1,13 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {V8_SYSTEMS,v8Manifest,flywheelScore,websiteFactory,productFactory,demandFactory,revenueTruth,capacityGate,businessFactory,moneyCycleIntelligence} from './ultron-autonomous-revenue-v8.mjs';
+import {unifiedManifest} from './ultron-unified-company.mjs';
+test('v8 has exactly 100 systems',()=>{assert.equal(V8_SYSTEMS.length,100);assert.equal(new Set(V8_SYSTEMS.map(x=>x.index)).size,100)});
+test('unified Company OS is v8',()=>assert.equal(unifiedManifest().version,'8.0.0'));
+test('flywheel exposes weakest stage',()=>{const r=flywheelScore({demandCreation:80,acquisition:70,conversion:60,fulfillment:90,customerOutcome:80,retention:20,referral:50,margin:70,reinvestment:60,learning:80});assert.equal(r.weakest.stage,'retention');assert.ok(r.score>0)});
+test('website factory is validation gated',()=>{assert.equal(websiteFactory({validated:false,validationScore:90}).status,'BLOCKED_VALIDATION');assert.equal(websiteFactory({name:'Test',validated:true,validationScore:80}).status,'READY_TO_BUILD')});
+test('product factory requires evidence and severity',()=>{assert.equal(productFactory({severity:80,evidence:[]}).status,'NO_PRODUCT_YET');assert.equal(productFactory({name:'p',severity:80,evidence:['buyer interviews']}).status,'CANDIDATE')});
+test('demand factory forbids fake demand',()=>assert.ok(demandFactory({validatedProduct:true}).prohibited.includes('fake demand')));
+test('revenue truth distinguishes captured external',()=>assert.equal(revenueTruth({capturedExternal:100,grossRevenue:100}).capturedExternal,100));
+test('capacity gate blocks overload',()=>assert.equal(capacityGate({demand:20,fulfillmentCapacity:10,supportCapacity:10,quality:90,refundRate:1}).status,'CAPACITY_BLOCK'));
+test('business factory incubates before validation',()=>assert.equal(businessFactory({validated:false,validationScore:10,problemSeverity:10,evidence:[]}).status,'INCUBATE'));
+test('money-cycle engine is contextual analysis only',()=>{const r=moneyCycleIntelligence({interestRates:3,liquidity:80});assert.equal(r.regime,'EXPANSION');assert.match(r.authority,/approval|authorized/i)});
