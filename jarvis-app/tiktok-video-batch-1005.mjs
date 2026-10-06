@@ -228,6 +228,8 @@ export function videoBusinessMission({goal='',budgetUsd=0,timeHours=0}={}){
  if(/marketplace|gumroad|etsy|shopify|upload|listing|sell/.test(g))add('MarketplaceLaunchAgent','STAGE_MARKETPLACE');
  if(/content|tiktok|youtube|social|market|promot|post/.test(g))add('MarketingCalendarAgent','BUILD_CONTENT_PLAN');
  if(/composio|tool|integration|app|connect|workflow|agent/.test(g))add('ToolDiscoveryBrokerAgent','DISCOVER_TOOLS');
+ if(/ecosystem|operations manager|agent store|agent team|specialist|department/.test(g)){add('OperationsManagerAgent','BUILD_AGENT_TEAM');add('AgentTemplateStoreAgent','CONFIGURE_AGENT_TEMPLATES');add('MissionControlAgent','OPEN_MISSION_CONTROL')}
+ if(/workflow|n8n|graph|mcp|if.?else|guardrail|loop|discord|slack/.test(g)){add('WorkflowCompilerAgent','COMPILE_WORKFLOW_GRAPH');add('WorkflowValidatorAgent','VALIDATE_WORKFLOW_GRAPH');add('WorkflowGuardrailAgent','INSERT_WORKFLOW_GUARDRAILS')}
  if(/passive|low.?maintenance|one hour|minimal/.test(g))add('LowMaintenanceOpportunityAgent','SCORE_MAINTENANCE');
  if(/curat|organize.*resource|existing.*information/.test(g))add('LicensedCurationAgent','VERIFY_RIGHTS');
  if(/create once|digital product|template|printable/.test(g))add('CreateOnceProductAgent','BUILD_REUSABLE_PRODUCT');
