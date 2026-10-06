@@ -10,6 +10,7 @@ import {AGENT_OF_AGENTS_VERSION,COMMERCE_AGENTS,POD_STRATEGY,visualAgentGraph,ag
 import {UNIVERSAL_MARKET_VERSION,UNIVERSAL_MARKET_SUMMARY,universalMarketManifest} from './universal-marketplace.mjs';
 import {OMNI_VERSION,OMNI_CAPABILITIES,omniStatus,planOmniTask,omniManifest,inferOmniMode} from './omni-runtime.mjs';
 import {automationManifest} from './automations.mjs';
+import {chatManifest} from './chat-runtime.mjs';
 
 test('four interfaces contract',()=>assert.equal(['web','ios','android','desktop'].length,4));
 test('nucleus has persistent control architecture and a large skill registry',()=>{assert.equal(NUCLEUS_VERSION,'2.6.0');assert.ok(NUCLEUS_SKILLS.length>=50);assert.equal(NUCLEUS_POLICY.externalFinancialActions,'explicit-human-approval')});
@@ -103,4 +104,13 @@ test('JARVIS automation engine is persistent and bounded',()=>{
  assert.ok(m.supportedSchedules.includes('once'));
  assert.ok(m.supportedSchedules.includes('interval >=60 minutes'));
  assert.equal(m.maxTasks,200);
+});
+
+test('JARVIS chat runtime keeps bounded persistent multi-turn conversation history',()=>{
+ const m=chatManifest();
+ assert.equal(m.persistent,true);
+ assert.equal(m.maxChats,100);
+ assert.equal(m.maxMessagesPerChat,120);
+ assert.equal(m.historyTurnsSentToModel,24);
+ assert.match(m.attachments,/image\/file inputs supported/i);
 });
