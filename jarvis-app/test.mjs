@@ -286,6 +286,7 @@ test('whole-market upgrade reflects uploaded brokerage-discovery video patterns'
   for(const x of ['Stocks & ETFs','Favorites','Top Gainers','Top Losers'])assert.ok(MARKET_UPGRADE.observed.includes(x));
   assert.ok(m.upgrade.capabilities.includes('low-price stock lab'));
   assert.ok(m.upgrade.capabilities.includes('day mode'));
+  assert.ok(Array.isArray(m.baskets)&&m.baskets.length>=5);
   assert.ok(TUTOR.length>=10);
   assert.match(m.upgrade.execution,/research-only/i);
 });
@@ -309,6 +310,6 @@ test('low-price stock lab flags risk rather than treating cheap price as value',
 
 test('market watch is an installable whole-market iPhone UI',()=>{
   const p=marketWatchPage();
-  for(const needle of ['Stocks & ETFs','Crypto','Movers','Small / low-price stock lab','ULTRON Trading Tutor'])assert.ok(p.toLowerCase().includes(needle.toLowerCase()));
+  for(const needle of ['Stocks & ETFs','Crypto','Trend Watch','Small / low-price stock lab','Favorites','Market baskets','ULTRON Trading Tutor'])assert.ok(p.toLowerCase().includes(needle.toLowerCase()));
   assert.match(p,/real-money orders remain separately approval-gated/i);
 });
