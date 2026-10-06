@@ -165,11 +165,11 @@ function connectorTools(ids=[]){
 
 function internalFunctionTools(){
  return [
-  {type:'function',name:'ultron_market_search',description:'Search the live ULTRON Everything Market and native catalog for products, software, services, POD or merchant offers.',parameters:{type:'object',properties:{query:{type:'string'},limit:{type:'integer',minimum:1,maximum:25}},required:['query'],additionalProperties:false},strict:true},
-  {type:'function',name:'ultron_market_status',description:'Read the live ULTRON revenue/market service health and public runtime status.',parameters:{type:'object',properties:{},additionalProperties:false},strict:true},
-  {type:'function',name:'ultron_agent_of_agents_status',description:'Read the Agent-of-Agents commerce CEO runtime, active specialist team and pending approvals.',parameters:{type:'object',properties:{},additionalProperties:false},strict:true},
+  {type:'function',name:'ultron_market_search',description:'Search the live ULTRON Everything Market and native catalog for products, software, services, POD or merchant offers.',parameters:{type:'object',properties:{query:{type:'string'},limit:{type:'integer',minimum:1,maximum:25}},required:['query','limit'],additionalProperties:false},strict:true},
+  {type:'function',name:'ultron_market_status',description:'Read the live ULTRON revenue/market service health and public runtime status.',parameters:{type:'object',properties:{},required:[],additionalProperties:false},strict:true},
+  {type:'function',name:'ultron_agent_of_agents_status',description:'Read the Agent-of-Agents commerce CEO runtime, active specialist team and pending approvals.',parameters:{type:'object',properties:{},required:[],additionalProperties:false},strict:true},
   {type:'function',name:'ultron_create_commerce_mission',description:'Create a new internal commerce mission. This plans and stages work; consequential publishing, spend and refunds remain human-approved.',parameters:{type:'object',properties:{goal:{type:'string',minLength:1,maxLength:2000}},required:['goal'],additionalProperties:false},strict:true},
-  {type:'function',name:'ultron_crypto_status',description:'Read the live crypto intelligence service health. Does not place trades.',parameters:{type:'object',properties:{},additionalProperties:false},strict:true}
+  {type:'function',name:'ultron_crypto_status',description:'Read the live crypto intelligence service health. Does not place trades.',parameters:{type:'object',properties:{},required:[],additionalProperties:false},strict:true}
  ];
 }
 function buildTools(mode,{connectors=[]}={}){
