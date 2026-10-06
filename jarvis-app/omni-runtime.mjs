@@ -55,7 +55,21 @@ const CONNECTORS=Object.freeze({
 function localConfigured(){
  return has(process.env.OLLAMA_BASE_URL)||has(process.env.LMSTUDIO_BASE_URL);
 }
-function openaiConfigured(){return has(process.env.OPENAI_API_KEY)}
+let cachedOpenAIKey=null;
+function decryptConfiguredOpenAIKey(){
+ if(cachedOpenAIKey)return cachedOpenAIKey;
+ if(has(process.env.OPENAI_API_KEY)){cachedOpenAIKey=process.env.OPENAI_API_KEY;return cachedOpenAIKey}
+ if(!has(process.env.OPENAI_API_KEY_ENCRYPTED)||!has(process.env.OPENAI_API_KEY_PRIVATE_JWK))return '';
+ try{
+   const jwk=JSON.parse(process.env.OPENAI_API_KEY_PRIVATE_JWK);
+   const key=crypto.createPrivateKey({key:jwk,format:'jwk'});
+   const ciphertext=Buffer.from(process.env.OPENAI_API_KEY_ENCRYPTED,'base64url');
+   cachedOpenAIKey=crypto.privateDecrypt({key,oaepHash:'sha256'},ciphertext).toString('utf8').trim();
+   return cachedOpenAIKey;
+ }catch{return ''}
+}
+function openaiConfigured(){return has(decryptConfiguredOpenAIKey())}
+function openaiKey(){const k=decryptConfiguredOpenAIKey();if(!k)throw Error('OpenAI model credential is not configured');return k}
 function customBridgeConfigured(){return has(process.env.JARVIS_MCP_SERVERS_JSON)}
 function computerHarnessConfigured(){return has(process.env.JARVIS_COMPUTER_HARNESS_URL)}
 function realtimeConfigured(){return openaiConfigured()&&has(process.env.OPENAI_REALTIME_CLIENT_ENABLED)}
@@ -248,7 +262,7 @@ export async function invokeOpenAIOmni({prompt='',mode='reason',files=[],images=
  let input=[{role:'user',content:buildContent(user,{files,images})}],d=null,totalUsage=null;
  for(let turn=0;turn<5;turn++){
    const body={model:DEFAULT_MODEL,instructions:POLICY+' '+clean(instructions,6000),input,tools,store:false};
-   const r=await fetch(OPENAI_URL,{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+process.env.OPENAI_API_KEY},body:JSON.stringify(body),signal:AbortSignal.timeout(180000)});
+   const r=await fetch(OPENAI_URL,{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+openaiKey()},body:JSON.stringify(body),signal:AbortSignal.timeout(180000)});
    d=await r.json().catch(()=>({}));
    if(!r.ok)throw Error(clean(d?.error?.message||('OpenAI Responses API '+r.status),1000));
    totalUsage=d.usage||totalUsage;
@@ -312,7 +326,7 @@ export async function transcribeAudio({filename='audio.webm',mimeType='audio/web
  form.append('file',new Blob([bytes],{type:mimeType}),clean(filename,255));
  form.append('model',process.env.OPENAI_TRANSCRIBE_MODEL||'gpt-transcribe');
  if(language)form.append('language',clean(language,20));
- const r=await fetch('https://api.openai.com/v1/audio/transcriptions',{method:'POST',headers:{authorization:'Bearer '+process.env.OPENAI_API_KEY},body:form,signal:AbortSignal.timeout(180000)});
+ const r=await fetch('https://api.openai.com/v1/audio/transcriptions',{method:'POST',headers:{authorization:'Bearer '+openaiKey()},body:form,signal:AbortSignal.timeout(180000)});
  const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(clean(d?.error?.message||('transcription '+r.status),1000));
  return {ok:true,text:redactSecrets(String(d.text||'')),model:d.model||process.env.OPENAI_TRANSCRIBE_MODEL||'gpt-transcribe'};
 }
@@ -322,7 +336,7 @@ export async function generateSpeech({text='',voice='marin',format='mp3',instruc
  const allowedFormats=['mp3','opus','aac','flac','wav','pcm'];if(!allowedFormats.includes(format))format='mp3';
  const body={model:process.env.OPENAI_TTS_MODEL||'gpt-4o-mini-tts',voice:clean(voice,80)||'marin',input,response_format:format};
  if(instructions)body.instructions=clean(instructions,1000);
- const r=await fetch('https://api.openai.com/v1/audio/speech',{method:'POST',headers:{authorization:'Bearer '+process.env.OPENAI_API_KEY,'content-type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(180000)});
+ const r=await fetch('https://api.openai.com/v1/audio/speech',{method:'POST',headers:{authorization:'Bearer '+openaiKey(),'content-type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(180000)});
  if(!r.ok){const t=await r.text();throw Error(clean(t||('speech '+r.status),1000))}
  const buf=Buffer.from(await r.arrayBuffer());
  return {ok:true,format,mimeType:format==='mp3'?'audio/mpeg':'audio/'+format,base64:buf.toString('base64'),bytes:buf.length,model:body.model,voice:body.voice};
