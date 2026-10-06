@@ -1,0 +1,1 @@
+export const SYSTEMS=["Compounding Advantage Score","Learning Velocity Engine","Decision Quality Score","Forecast Calibration Engine","Confidence Decomposition Engine"].map((name,i)=>({id:'v7-'+(i+11),index:i+11,name,status:'ACTIVE'}));
