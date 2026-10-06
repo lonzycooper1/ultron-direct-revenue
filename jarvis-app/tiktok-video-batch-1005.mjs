@@ -146,6 +146,8 @@ export const VIDEO_BATCH_GUARDRAILS=Object.freeze([
 
 export function videoBusinessMission({goal='',budgetUsd=0,timeHours=0}={}){
  const g=String(goal||'').toLowerCase();
+ const relevant=/sell|product|guide|ebook|pdf|template|marketplace|gumroad|etsy|shopify|business|revenue|income|money|offer|customer|buyer|demand|problem|pain|passive|curat|knowledge|pre.?sell|preorder|funnel|audit|diagnostic|workflow|composio|tool|integration|tiktok|youtube|social|marketing|promot|digital/.test(g);
+ if(!relevant)return {version:TIKTOK_BATCH_VERSION,goal:String(goal||'').slice(0,2000),matched:false,specialists:[],stages:[],approvalRequired:false,externalExecution:'none',strategy:null,toolDiscovery:TOOL_DISCOVERY_ARCHITECTURE,guardrails:VIDEO_BATCH_GUARDRAILS};
  const specialists=['RevenueClaimVerifierAgent'];
  const stages=['VALIDATE_DEMAND'];
  const add=(a,s)=>{if(!specialists.includes(a))specialists.push(a);if(s&&!stages.includes(s))stages.push(s)};
