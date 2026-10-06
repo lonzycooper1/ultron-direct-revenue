@@ -1,4 +1,4 @@
-export const TIKTOK_BATCH_VERSION='2026.10.05-batch2';
+export const TIKTOK_BATCH_VERSION='2026.10.06-batch3';
 
 export const TIKTOK_VIDEO_ANALYSIS=Object.freeze([
  {
@@ -87,6 +87,41 @@ export const TIKTOK_VIDEO_ANALYSIS=Object.freeze([
   ],
   pattern:'knowledge -> 7-day product sprint -> disclosed pre-sale validation -> low-cost funnel -> automated fulfillment',
   caution:'JARVIS replaces fake FOMO with genuine deadlines, launch windows, inventory/capacity limits or transparent early-bird pricing.'
+ }
+ ,
+ {
+  id:'video-6-agent-ecosystem-store',
+  file:'v15044gf0000d9tq0pvog65igtfkaau0.mp4',
+  creator:'@tonkashops',
+  title:'HOW TO BUILD AN AI ECOSYSTEM IN 10 MINUTES',
+  transcriptBasis:'Visible on-screen UI, readable setup instructions and agent cards from the uploaded video. Structured visual breakdown, not a word-for-word audio transcript.',
+  message:[
+   'Use an Operations Manager above specialist agents rather than a flat collection of bots.',
+   'Configure each agent with a role, model tier, budget ceiling, heartbeat/event trigger, scoped tools and custom instructions.',
+   'Use product-creation agents for digital downloads and print-on-demand, and separate specialist roles for research, growth, operations and support.',
+   'Keep execution lean: wake agents for missions/events instead of burning tokens continuously.',
+   'Expose agents, tasks, decisions, blockers, outputs, budgets, unit economics and system health in one mission-control view.',
+   'Require setup receipts: files changed, test task, trigger instructions, edit/pause/remove instructions.'
+  ],
+  pattern:'owner goal -> operations manager -> smallest specialist team -> bounded tasks -> visible outputs/health/budget -> approvals -> feedback',
+  caution:'The video also depicts finance/trading-style roles. JARVIS imports the orchestration pattern only; real-money financial execution remains explicitly human-approved.'
+ },
+ {
+  id:'video-7-graph-agent-builder',
+  file:'v12044gd0000d3mr35nog65q7dkedf1g.mp4',
+  creator:'@sina.growthtech',
+  title:'HOW TO ACTUALLY BUILD AI AGENTS',
+  transcriptBasis:'Visible captions, workflow graph UI and result screens from the uploaded video. Structured visual breakdown, not a word-for-word audio transcript.',
+  message:[
+   'Express useful automations as typed graphs: trigger, connector, agent, MCP/tool, condition, guardrail, loop, memory and output.',
+   'The visible example is unread email -> summarize -> send digest to Discord.',
+   'A larger graph combines message input, transcription, central agent, model, window memory, email/calendar/contact/content agents and web search.',
+   'Compile common graphs from natural-language goals instead of requiring manual wiring for every workflow.',
+   'Validate the graph and dry-run it before any external write.',
+   'Insert an approval node before consequential sends, publishing, spend, refunds or account changes, and preserve run receipts.'
+  ],
+  pattern:'goal -> graph compiler -> connectors/agents/MCP -> conditions/guardrails/memory -> approval -> output -> run receipt',
+  caution:'Implemented clean-room; JARVIS does not copy n8n or another product’s proprietary code or UI.'
  }
 ]);
 
