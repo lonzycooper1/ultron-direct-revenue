@@ -2,6 +2,9 @@ import crypto from 'node:crypto';
 import {lookup} from 'node:dns/promises';
 import {isIP} from 'node:net';
 import {securityManifest,redactSecrets,agentSecurityProfile} from './agent-security.mjs';
+import {buildAgentTeam,missionControlManifest} from './mission-control-runtime.mjs';
+import {compileWorkflow,validateWorkflow,simulateWorkflow,workflowManifest} from './agent-workflow-runtime.mjs';
+import {executionPlan as revenueExecutionPlan,revenueFrameworkManifest} from './revenue-business-models.mjs';
 
 export const OMNI_VERSION='1.0.0';
 const OPENAI_URL='https://api.openai.com/v1/responses';
@@ -25,6 +28,9 @@ export const OMNI_CAPABILITIES=Object.freeze([
  {id:'translation',name:'Translation & rewriting',category:'writing',provider:'OpenAI Responses or local model',needs:['model']},
  {id:'memory',name:'Persistent mission memory',category:'core',provider:'JARVIS nucleus',needs:[]},
  {id:'agent-orchestration',name:'Multi-agent task decomposition & delegation',category:'core',provider:'JARVIS nucleus + Agent-of-Agents',needs:[]},
+ {id:'workflow-graphs',name:'Natural-language workflow graph compilation and dry-run validation',category:'core',provider:'JARVIS workflow runtime',needs:[]},
+ {id:'agent-store',name:'Reusable manager and specialist agent templates',category:'core',provider:'JARVIS mission control',needs:[]},
+ {id:'revenue-frameworks',name:'Content agency, AI software and digital-product revenue frameworks',category:'business',provider:'ULTRON Revenue OS',needs:[]},
  {id:'automation',name:'Scheduled/repeating task plans',category:'core',provider:'JARVIS automation queue',needs:[]},
  {id:'web-fetch',name:'Direct URL retrieval & summarization',category:'research',provider:'JARVIS HTTPS fetch + model',needs:['model']},
  {id:'github',name:'Repository/code operations',category:'connector',provider:'remote MCP/webhook adapter',needs:['connector']},
