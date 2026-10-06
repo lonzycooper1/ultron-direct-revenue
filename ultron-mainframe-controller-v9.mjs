@@ -1,0 +1,16 @@
+import {mainframeState,saveMainframeState,funnelDecision,contributionProfit,resourceDecision,event} from './ultron-revenue-mainframe-v9.mjs';
+const n=v=>Number.isFinite(Number(v))?Number(v):0;
+export async function runMainframeCycle({ledger={},agentState={},baseUrl=''}={}){
+ const s=await mainframeState(),orders=Object.values(ledger?.orders||{}),paid=orders.filter(x=>String(x?.status||'').toUpperCase()==='COMPLETED'||x?.capturedAt),fulfilled=paid.filter(x=>x.fulfillment),revenue=paid.reduce((a,x)=>a+n(x.capturedAmount||x.amount),0);
+ const qualified=n(agentState?.prospectMission?.status?.qualified||0)||n(agentState?.metrics?.qualifiedLeads||0);
+ const outcomes=(s.events||[]).filter(x=>x.type==='outcome.verified').length,retained=(s.events||[]).filter(x=>x.type==='customer.retained').length,refs=(s.events||[]).filter(x=>x.type==='referral.created').length;
+ const cp=contributionProfit({captured:revenue,refunds:n(s.costs?.refunds),fulfillment:n(s.costs?.fulfillment),compute:n(s.costs?.compute),support:n(s.costs?.support),acquisition:n(s.costs?.acquisition),operations:n(s.costs?.operations),reinvestmentRate:.2});
+ s.metrics={verifiedRevenueUsd:+revenue.toFixed(2),completedOrders:paid.length,fulfilledOrders:fulfilled.length,qualifiedLeads:qualified,verifiedOutcomes:outcomes,retainedCustomers:retained,verifiedReferrals:refs,contributionProfitUsd:cp.contributionProfit,reinvestableUsd:cp.reinvestable};
+ const bottleneck=qualified===0?'QUALIFIED_DEMAND':paid.length===0?'CHECKOUT_AND_PAYMENT':fulfilled.length<paid.length?'FULFILLMENT':outcomes<fulfilled.length?'CUSTOMER_OUTCOME':retained===0?'RETENTION':refs===0?'REFERRAL':'SCALE_WINNER';
+ const action={QUALIFIED_DEMAND:'Research public/permissioned businesses and route them to a free diagnostic.',CHECKOUT_AND_PAYMENT:'Improve personalized audit preview, offer clarity and PayPal checkout path.',FULFILLMENT:'Compile, QA and deliver all paid work before increasing acquisition.',CUSTOMER_OUTCOME:'Measure whether delivered work created the promised operational result.',RETENTION:'Offer ongoing optimization only where recurring customer value is real.',REFERRAL:'Request referrals from customers with verified positive outcomes.',SCALE_WINNER:'Allocate more owned distribution and product improvement to the best verified loop.'}[bottleneck];
+ s.controller={at:new Date().toISOString(),bottleneck,nextAction:action,fastestPath:['free diagnostic','99 entry','500 audit','2500 sprint','7500 build','1500 monthly optimization','referral'],baseUrl};
+ s.portfolio=resourceDecision((s.products||[]).map(p=>({...p,contributionProfit:n(p.contributionProfit),customerOutcome:n(p.customerOutcome),learningValue:n(p.learningValue),risk:n(p.risk),cost:n(p.cost)})));
+ s.lastFunnelDecision=funnelDecision({qualified:qualified>0,paymentCaptured:paid.length>0,fulfilled:fulfilled.length===paid.length&&paid.length>0,outcomeVerified:outcomes>0,satisfied:outcomes>0});
+ if(!(s.events||[]).some(x=>x.type==='payment.captured'&&x.payload?.verifiedRevenueUsd===revenue)&&revenue>0)s.events.unshift(event('payment-ledger','payment.captured',{verifiedRevenueUsd:revenue,completedOrders:paid.length}));
+ s.events=(s.events||[]).slice(0,1000);await saveMainframeState(s);return s;
+}
