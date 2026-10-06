@@ -1,5 +1,6 @@
 import {cryptoResearchMission,expansionManifest} from './video-expansion-pack.mjs';
 import {cryptoVideoPlan} from './video-master-pack.mjs';
+import {strategyExperimentLab,tradePreflight,brainBridgeArchitecture,publicPortfolioResearchPlan,lateNightVideoManifest} from './late-night-video-pack.mjs';
 // ULTRON Crypto Intelligence — live public-market research, evidence review and approval-gated hypotheses.
 export const CRYPTO_BOT_RULES=Object.freeze({
  mode:'live-market-research',
@@ -13,7 +14,7 @@ export const CRYPTO_BOT_RULES=Object.freeze({
 export const CRYPTO_AGENTS=Object.freeze([
  'CryptoMarketDataAgent','CryptoSignalAgent','CryptoMomentumAgent','CryptoVolatilityAgent','CryptoRegimeAgent','CryptoLiquidityAgent',
  'CryptoRelativeStrengthAgent','CryptoMeanReversionAgent','CryptoBreakoutAgent','CryptoMacroAgent','CryptoCatalystAgent','CryptoSentimentAgent',
- 'CryptoRiskAgent','CryptoScenarioAgent','CryptoPortfolioResearchAgent','CryptoExecutionProposalAgent','CryptoBacktestAgent','CryptoBenchmarkAgent','CryptoBiasCheckAgent','CryptoAuditAgent','CryptoDriftAgent','CryptoKillSwitchAgent'
+ 'CryptoRiskAgent','CryptoScenarioAgent','CryptoPortfolioResearchAgent','PublicFilingsResearchAgent','StrategyExperimentAgent','TradePreflightAgent','BotExplainabilityAgent','CryptoExecutionProposalAgent','CryptoBacktestAgent','CryptoBenchmarkAgent','CryptoBiasCheckAgent','CryptoAuditAgent','CryptoDriftAgent','CryptoKillSwitchAgent'
 ]);
 const mean=x=>x.length?x.reduce((a,b)=>a+b,0)/x.length:0;
 const sd=x=>{const m=mean(x);return Math.sqrt(mean(x.map(v=>(v-m)**2)))};
@@ -31,6 +32,6 @@ export function researchDecision({instrument,prices=[]}={}){
  if(!CRYPTO_BOT_RULES.instruments.includes(instrument))throw Error('instrument not allowed');
  const analysis=analyzePrices(prices),lastPrice=Number(prices?.at?.(-1)||0);
  const evidence=analysis.signal==='NEUTRAL'?['Signal ensemble did not clear confidence threshold.']:[`Regime: ${analysis.regime}`,`Trend score: ${analysis.trend}`,`Momentum: ${analysis.momentum}`,`Volatility: ${analysis.volatility}`];
- return {instrument,lastPrice,analysis,evidence,agents:CRYPTO_AGENTS,videoPlan:cryptoVideoPlan(),expansion:expansionManifest().crypto,researchMission:cryptoResearchMission({instrument}),mode:'live-market-research',realMoneyAction:{available:false,reason:'This runtime generates research/hypotheses only; consequential real-money actions require a separate explicit approval path.'}};
+ return {instrument,lastPrice,analysis,evidence,agents:CRYPTO_AGENTS,videoPlan:cryptoVideoPlan(),expansion:expansionManifest().crypto,lateNightVideoPack:lateNightVideoManifest(),strategyLab:strategyExperimentLab(prices),brainBridge:brainBridgeArchitecture(),publicFilings:publicPortfolioResearchPlan({subject:instrument}),researchMission:cryptoResearchMission({instrument}),mode:'live-market-research',realMoneyAction:{available:false,reason:'Research and experiment outputs never place money. Consequential real-money actions require the separate explicit one-order approval path.'}};
 }
-export function cryptoCapabilityManifest(){return {agents:CRYPTO_AGENTS,rules:CRYPTO_BOT_RULES,videoPlan:cryptoVideoPlan(),expansion:expansionManifest().crypto,researchMission:cryptoResearchMission({})}}
+export function cryptoCapabilityManifest(){return {agents:CRYPTO_AGENTS,rules:CRYPTO_BOT_RULES,videoPlan:cryptoVideoPlan(),expansion:expansionManifest().crypto,lateNightVideoPack:lateNightVideoManifest(),brainBridge:brainBridgeArchitecture(),publicFilings:publicPortfolioResearchPlan({}),preflightExample:tradePreflight({liquidityScore:.8,slippagePct:.2,topHolderConcentrationPct:10}),researchMission:cryptoResearchMission({})}}
