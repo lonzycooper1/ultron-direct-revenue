@@ -11,9 +11,11 @@ import {UNIVERSAL_MARKET_VERSION,UNIVERSAL_MARKET_SUMMARY,universalMarketManifes
 import {OMNI_VERSION,OMNI_CAPABILITIES,omniStatus,planOmniTask,omniManifest,inferOmniMode} from './omni-runtime.mjs';
 import {automationManifest} from './automations.mjs';
 import {chatManifest} from './chat-runtime.mjs';
+import {feedbackManifest} from './feedback-runtime.mjs';
+import {qualityManifest} from './quality-runtime.mjs';
 
 test('four interfaces contract',()=>assert.equal(['web','ios','android','desktop'].length,4));
-test('nucleus has persistent control architecture and a large skill registry',()=>{assert.equal(NUCLEUS_VERSION,'2.7.0');assert.ok(NUCLEUS_SKILLS.length>=50);assert.equal(NUCLEUS_POLICY.externalFinancialActions,'explicit-human-approval')});
+test('nucleus has persistent control architecture and a large skill registry',()=>{assert.equal(NUCLEUS_VERSION,'2.8.0');assert.ok(NUCLEUS_SKILLS.length>=50);assert.equal(NUCLEUS_POLICY.externalFinancialActions,'explicit-human-approval')});
 test('all nine uploaded videos are represented in capability pack',()=>{assert.equal(VIDEO_ANALYSIS.length,9);assert.equal(CAPABILITY_PACK.videoCount,9);assert.ok(CAPABILITY_PACK.capabilities.length>=40)});
 test('financial execution remains approval gated',()=>{const p=capabilityMission({goal:'trade BTC with real money',division:'crypto'});assert.equal(p.approvalRequired,true);assert.equal(p.externalExecution,'human-approved-only')});
 test('ordinary software research can route to builder specialists without financial approval',()=>{const p=capabilityMission({goal:'build and test a local business scheduling app',division:'builder'});assert.equal(p.approvalRequired,false);assert.ok(p.specialists.includes('RapidSoftwareFactory'))});
@@ -113,4 +115,20 @@ test('JARVIS chat runtime keeps bounded persistent multi-turn conversation histo
  assert.equal(m.maxMessagesPerChat,120);
  assert.equal(m.historyTurnsSentToModel,24);
  assert.match(m.attachments,/image\/file inputs supported/i);
+});
+
+
+test('human-feedback layer adapts runtime behavior without claiming base-model RLHF retraining',()=>{
+ const f=feedbackManifest();
+ assert.equal(f.baseModelWeightTraining,false);
+ assert.match(f.mode,/RLHF-inspired/i);
+ assert.ok(f.capabilities.includes('thumbs up/down'));
+ assert.ok(f.capabilities.includes('owner corrections'));
+});
+test('quality verifier and long-context chat are enabled',()=>{
+ const q=qualityManifest(),c=chatManifest();
+ assert.match(q.mode,/verifier/i);
+ assert.equal(c.longTermSummary,true);
+ assert.equal(c.feedbackAdaptation,true);
+ assert.equal(c.qualityVerifier.default,process.env.JARVIS_QUALITY_MODE||'high');
 });
