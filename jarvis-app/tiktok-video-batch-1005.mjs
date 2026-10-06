@@ -123,6 +123,40 @@ export const TIKTOK_VIDEO_ANALYSIS=Object.freeze([
   pattern:'goal -> graph compiler -> connectors/agents/MCP -> conditions/guardrails/memory -> approval -> output -> run receipt',
   caution:'Implemented clean-room; JARVIS does not copy n8n or another product’s proprietary code or UI.'
  }
+ ,
+ {
+  id:'video-6-agent-ecosystem-mission-control',
+  file:'v15044gf0000d9tq0pvog65igtfkaau0.mp4',
+  creator:'visible TikTok upload',
+  title:'AI ecosystem / agent-store mission control',
+  transcriptBasis:'Visible on-screen captions, UI panels and configuration screens from the uploaded video. No unseen spoken wording is represented as a verbatim transcript.',
+  message:[
+   'Use one operations-manager agent to delegate to specialists instead of keeping every agent active all the time.',
+   'Treat agents like installable role templates with a clear purpose, model tier, budget, heartbeat and scoped tool permissions.',
+   'Give the owner a mission-control view showing current focus, tasks, decisions, timeline, blockers, budgets, economics, outputs, system health and agent status.',
+   'Use cheaper models for repetitive work and deeper models only for complex reasoning or build tasks.',
+   'Event- or mission-driven agents are more efficient than constant busy-loop activity.'
+  ],
+  pattern:'owner goal -> operations manager -> specialist team -> scoped tools/budget -> visible outputs -> feedback',
+  caution:'The video shows an aspirational agent ecosystem. JARVIS implements the architecture without claiming autonomous access to accounts, unlimited budgets or guaranteed income.'
+ },
+ {
+  id:'video-7-graph-agent-workflows',
+  file:'v12044gd0000d3mr35nog65q7dkedf1g.mp4',
+  creator:'visible TikTok upload',
+  title:'n8n/Cursor-style AI agent workflows',
+  transcriptBasis:'Visible workflow-canvas nodes, captions and UI states from the uploaded video. The implementation is a clean-room generalized workflow architecture.',
+  message:[
+   'Represent automations as explicit graphs rather than opaque prompts.',
+   'Mix deterministic connector nodes with AI agent nodes, MCP/tool nodes, conditions, bounded loops, memory and visible outputs.',
+   'Put guardrail nodes before risky outputs and approval nodes before consequential external writes.',
+   'Compile plain-English workflow goals into typed nodes and edges, validate the graph, dry-run it, then activate it.',
+   'A representative pattern is unread email -> summarize -> guardrail -> condition -> owner approval -> Discord or internal result.'
+  ],
+  pattern:'plain-language goal -> typed graph -> validate -> dry-run -> approval -> execute -> inspect output',
+  caution:'JARVIS does not bypass provider authorization. External messages, publishing, spend and irreversible changes remain owner-approved.'
+ }
+
 ]);
 
 export const VIDEO_PROMPT_LIBRARY=Object.freeze({
@@ -154,6 +188,10 @@ export const TIKTOK_CAPABILITIES=Object.freeze([
  {id:'free-tool-funnel',agent:'FreeToolFunnelAgent',purpose:'Create minimal funnels from owned/free tools and verified-payment delivery.'},
  {id:'entry-audit',agent:'EntryAuditAgent',purpose:'Offer a low-friction paid diagnostic that can lead to justified higher-ticket implementation.'},
  {id:'revenue-claim-verifier',agent:'RevenueClaimVerifierAgent',purpose:'Treat social earnings screenshots/claims as hypotheses until verified by independent evidence.'},
+ {id:'agent-store',agent:'OperationsManagerAgent',purpose:'Build lean mission-specific teams from reusable agent templates with model tiers, budgets and scoped permissions.'},
+ {id:'mission-control',agent:'MissionControlAgent',purpose:'Show tasks, decisions, blockers, budgets, outputs, health and agent status in one owner-facing operating view.'},
+ {id:'workflow-compiler',agent:'WorkflowEngineerAgent',purpose:'Compile natural-language automation goals into typed graphs with connectors, agents, MCP, conditions, loops, memory and outputs.'},
+ {id:'workflow-guardrails',agent:'WorkflowGuardrailAgent',purpose:'Validate graph structure, prompt-injection/secret boundaries, loop limits and owner approvals before execution.'},
  {id:'agent-template-store',agent:'AgentTemplateStoreAgent',purpose:'Create reusable role templates with model tier, cost ceiling, heartbeat, tools, instructions and approval gates.'},
  {id:'operations-manager',agent:'OperationsManagerAgent',purpose:'Decompose owner goals and delegate bounded tasks to the smallest useful specialist team.'},
  {id:'mission-control-observability',agent:'MissionControlAgent',purpose:'Expose tasks, decisions, blockers, outputs, budgets, unit economics and system health.'},
@@ -217,7 +255,7 @@ export const VIDEO_BATCH_GUARDRAILS=Object.freeze([
 
 export function videoBusinessMission({goal='',budgetUsd=0,timeHours=0}={}){
  const g=String(goal||'').toLowerCase();
- const relevant=/sell|product|guide|ebook|pdf|template|marketplace|gumroad|etsy|shopify|business|revenue|income|money|offer|customer|buyer|demand|problem|pain|passive|curat|knowledge|pre.?sell|preorder|funnel|audit|diagnostic|workflow|composio|tool|integration|tiktok|youtube|social|marketing|promot|digital/.test(g);
+ const relevant=/sell|product|guide|ebook|pdf|template|marketplace|gumroad|etsy|shopify|business|revenue|income|money|offer|customer|buyer|demand|problem|pain|passive|curat|knowledge|pre.?sell|preorder|funnel|audit|diagnostic|workflow|composio|tool|integration|tiktok|youtube|social|marketing|promot|digital|agent store|mission control|n8n|graph|mcp|guardrail|heartbeat|operations manager/.test(g);
  if(!relevant)return {version:TIKTOK_BATCH_VERSION,goal:String(goal||'').slice(0,2000),matched:false,specialists:[],stages:[],approvalRequired:false,externalExecution:'none',strategy:null,toolDiscovery:TOOL_DISCOVERY_ARCHITECTURE,guardrails:VIDEO_BATCH_GUARDRAILS};
  const specialists=['RevenueClaimVerifierAgent'];
  const stages=['VALIDATE_DEMAND'];
@@ -228,6 +266,8 @@ export function videoBusinessMission({goal='',budgetUsd=0,timeHours=0}={}){
  if(/marketplace|gumroad|etsy|shopify|upload|listing|sell/.test(g))add('MarketplaceLaunchAgent','STAGE_MARKETPLACE');
  if(/content|tiktok|youtube|social|market|promot|post/.test(g))add('MarketingCalendarAgent','BUILD_CONTENT_PLAN');
  if(/composio|tool|integration|app|connect|workflow|agent/.test(g))add('ToolDiscoveryBrokerAgent','DISCOVER_TOOLS');
+ if(/agent store|mission control|operations manager|heartbeat|agent team|agent village/.test(g)){add('OperationsManagerAgent','ASSEMBLE_AGENT_TEAM');add('MissionControlAgent','BUILD_MISSION_CONTROL')}
+ if(/n8n|workflow|graph|node|mcp|condition|loop|guardrail/.test(g)){add('WorkflowEngineerAgent','COMPILE_WORKFLOW_GRAPH');add('WorkflowGuardrailAgent','VALIDATE_AND_DRY_RUN')}
  if(/ecosystem|operations manager|agent store|agent team|specialist|department/.test(g)){add('OperationsManagerAgent','BUILD_AGENT_TEAM');add('AgentTemplateStoreAgent','CONFIGURE_AGENT_TEMPLATES');add('MissionControlAgent','OPEN_MISSION_CONTROL')}
  if(/workflow|n8n|graph|mcp|if.?else|guardrail|loop|discord|slack/.test(g)){add('WorkflowCompilerAgent','COMPILE_WORKFLOW_GRAPH');add('WorkflowValidatorAgent','VALIDATE_WORKFLOW_GRAPH');add('WorkflowGuardrailAgent','INSERT_WORKFLOW_GUARDRAILS')}
  if(/passive|low.?maintenance|one hour|minimal/.test(g))add('LowMaintenanceOpportunityAgent','SCORE_MAINTENANCE');
