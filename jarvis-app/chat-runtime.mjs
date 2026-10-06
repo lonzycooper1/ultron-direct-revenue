@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import {invokeOpenAIOmni,planOmniTask,omniStatus} from './omni-runtime.mjs';
 import {feedbackGuidance} from './feedback-runtime.mjs';
 import {reviewAndImprove,qualityManifest} from './quality-runtime.mjs';
+import {videoBusinessMission} from './tiktok-video-batch-1005.mjs';
 
 const PATH=process.env.JARVIS_CHAT_STATE_PATH||'/data/jarvis-chats.json';
 const MAX_CHATS=100,MAX_MESSAGES=120,MAX_STORED_CHARS=12000;
@@ -75,7 +76,16 @@ export async function sendChatMessage({chatId,prompt='',mode='auto',files=[],ima
  try{
    const guidance=await feedbackGuidance();
    const memoryInstruction=chat.summary?'LONG-TERM CHAT MEMORY:\n'+chat.summary:'';
-   const combinedInstructions=[instructions,guidance,memoryInstruction].filter(Boolean).join('\n\n');
+   const videoPlan=videoBusinessMission({goal:userText});
+   const videoInstruction=videoPlan.matched?[
+     'UPLOADED-VIDEO BUSINESS PATTERN ENGINE:',
+     'Strategy: '+videoPlan.strategy,
+     'Specialists: '+videoPlan.specialists.join(', '),
+     'Stages: '+videoPlan.stages.join(' -> '),
+     'External execution: '+videoPlan.externalExecution,
+     'Guardrails: '+videoPlan.guardrails.join(' | ')
+   ].join('\n'):'';
+   const combinedInstructions=[instructions,guidance,memoryInstruction,videoInstruction].filter(Boolean).join('\n\n');
    result=await invokeOpenAIOmni({prompt:userText,mode:plan.mode,files,images,connectors,instructions:combinedInstructions,history});
    if((process.env.JARVIS_QUALITY_MODE||'high')==='high'&&result.text){
      quality=await reviewAndImprove({prompt:userText,draft:result.text,mode:plan.mode,feedbackGuidance:guidance});
