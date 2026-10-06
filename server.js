@@ -34,9 +34,6 @@ import {growthManifest,growthState,unitEconomics,simulate} from './ultron-growth
 import {advantageManifest,advantageState,decomposeGoal,scenario} from './ultron-advantage-os.mjs';
 import {unifiedManifest,unifiedState,economicDecision,validateProduct} from './ultron-unified-company.mjs';
 import {v6Manifest,v6State,antiDelusionCheck,problemSeverity} from './ultron-discovery-economy-v6.mjs';
-import {v7Manifest,v7State as strategicV7State} from './ultron-strategic-edge-v7.mjs';
-import {bottleneck,forecastCalibration,revenueQuality,knowledgeBoundary} from './ultron-v7-core-functions.mjs';
-import {intelligenceFactoryState} from './ultron-proprietary-intelligence-v7.mjs';
 import {state as v7State} from './ultron-v7-runtime.mjs';
 import {v7Manifest} from './ultron-v7-manifest-lite.mjs';
 const BASE='https://api-m.paypal.com',ACQ_TOKEN=process.env.ULTRON_ACQUISITION_ADMIN_TOKEN||'',CID=process.env.PAYPAL_CLIENT_ID||'',SECRET=process.env.PAYPAL_CLIENT_SECRET||'',WH=process.env.PAYPAL_WEBHOOK_ID||'',PUBLIC=(process.env.PUBLIC_BASE_URL||'').replace(/\/$/,''),READY=Boolean(CID&&SECRET&&WH&&PUBLIC);
