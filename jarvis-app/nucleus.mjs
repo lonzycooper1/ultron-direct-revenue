@@ -257,10 +257,14 @@ export async function planMission({goal='',division='general',context={}}={}){
     approvalRequired:Boolean(basePlan.approvalRequired||videoPlan.approvalRequired),
     videoPatternStrategy:videoPlan.strategy
   };
+  const goalText=String(goal||'');
+  const agentTeam=/agent|ecosystem|delegate|manager|specialist|department|team/i.test(goalText)?buildAgentTeam({goal:goalText,budgetUsd:Number(context?.budgetUsd||0)}):null;
+  const workflowDraft=/workflow|automation|mcp|connector|integration|email|discord|slack|if\/else|loop/i.test(goalText)?compileWorkflow({goal:goalText}):null;
+  const revenuePlan=/revenue|business|customer|buyer|sell|offer|service|subscription|content|digital product|software/i.test(goalText)?revenueExecutionPlan({goal:goalText,capitalUsd:Number(context?.capitalUsd||0),weeklyHours:Number(context?.weeklyHours||20)}):null;
   const mission={
     id:crypto.randomUUID(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),
     goal:plan.goal,division:plan.division,status:plan.approvalRequired?'planned-awaiting-consequential-action':'planned',ownerIntent:interpretOwnerDirective(plan.goal),
-    approvalRequired:plan.approvalRequired,specialists:plan.specialists,skillIds:skillIdsForMission(plan),stages:plan.stages,videoPatternStrategy:plan.videoPatternStrategy,
+    approvalRequired:plan.approvalRequired,specialists:plan.specialists,skillIds:skillIdsForMission(plan),stages:plan.stages,videoPatternStrategy:plan.videoPatternStrategy,agentTeam,workflowDraft,revenuePlan,
     currentStage:0,context:Object.fromEntries(Object.entries(context||{}).slice(0,20).map(([k,v])=>[String(k).slice(0,80),String(v).slice(0,1000)])),
     evidence:[],artifacts:[],metrics:{},security:agentSecurityProfile(plan.specialists?.[0]||'JARVIS-Nucleus'),history:[{at:new Date().toISOString(),event:'planned'}]
   };
