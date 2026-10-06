@@ -18,6 +18,7 @@ import {missionControlManifest,buildAgentTeam,AGENT_TEMPLATES} from './mission-c
 import {workflowManifest,referenceEmailDigestWorkflow,compileWorkflow,validateWorkflow,simulateWorkflow} from './agent-workflow-runtime.mjs';
 import {revenueFrameworkManifest,chooseBusinessModel,executionPlan} from './revenue-business-models.mjs';
 import {lateNightVideoManifest,LATE_NIGHT_VIDEO_ANALYSIS,strategyExperimentLab,tradePreflight,leadDiscoveryPlan,visualDirectionBrief,inspectUntrustedText} from './late-night-video-pack.mjs';
+import {VIDEO_FINDINGS,videoUpgradeManifest,overnightMission,strategyLabSpec,crawlerResearchPlan,creativeDirections,adversarialSafetyPlan,publicPortfolioResearchPlan} from './video-upgrade-1006.mjs';
 
 test('four interfaces contract',()=>assert.equal(['web','ios','android','desktop'].length,4));
 test('nucleus has persistent control architecture and a large skill registry',()=>{assert.equal(NUCLEUS_VERSION,'3.1.0');assert.ok(NUCLEUS_SKILLS.length>=50);assert.equal(NUCLEUS_POLICY.externalFinancialActions,'explicit-human-approval')});
