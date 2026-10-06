@@ -254,31 +254,41 @@ export async function invokeLocalModel({provider='ollama',prompt='',system=''}={
 
 export async function planMission({goal='',division='general',context={}}={}){
   await initNucleus();
+  const goalText=String(goal||'');
   const basePlan=capabilityMission({goal,division});
   const videoPlan=videoBusinessMission({goal});
-  const revenuePlan=revenueMission({goal});
-  const agentTeam=buildAgentTeam({goal});
-  const workflowPlan=/workflow|automation|mcp|n8n|graph|connector|integration/i.test(String(goal||''))?compileWorkflow({goal}):null;
+  const agentTeam=/agent|ecosystem|delegate|manager|specialist|department|team|workflow|automation|mcp|n8n|connector|integration|build|product|market|revenue|business/i.test(goalText)
+    ?buildAgentTeam({goal:goalText,budgetUsd:Number(context?.budgetUsd||0)})
+    :null;
+  const workflowDraft=/workflow|automation|mcp|n8n|graph|connector|integration|email|discord|slack|if\/else|loop|guardrail/i.test(goalText)
+    ?compileWorkflow({goal:goalText})
+    :null;
+  const revenuePlan=/revenue|business|customer|buyer|sell|offer|service|subscription|content|digital product|software|paypal|invoice/i.test(goalText)
+    ?revenueExecutionPlan({goal:goalText,capitalUsd:Number(context?.capitalUsd||0),weeklyHours:Number(context?.weeklyHours||20)})
+    :null;
+  const agentNames=agentTeam?.agents?.map(x=>x.name)||[];
+  const revenueStages=revenuePlan?.stages||[];
+  const consequential=/publish|post|send|spend|invoice|subscription|refund|charge|buy|purchase|deploy|connect account/i.test(goalText);
   const plan={
     ...basePlan,
-    specialists:[...new Set([...(basePlan.specialists||[]),...(videoPlan.specialists||[]),...agentTeam.agents.map(x=>x.name)])],
-    stages:[...new Set([...(basePlan.stages||[]),...(videoPlan.stages||[]),...(revenuePlan.stages||[])])],
-    approvalRequired:Boolean(basePlan.approvalRequired||videoPlan.approvalRequired||revenuePlan.approvalGates?.length&&/publish|spend|invoice|subscription|refund|charge|send/i.test(String(goal||''))),
+    specialists:[...new Set([...(basePlan.specialists||[]),...(videoPlan.specialists||[]),...agentNames])],
+    stages:[...new Set([...(basePlan.stages||[]),...(videoPlan.stages||[]),...revenueStages])],
+    approvalRequired:Boolean(basePlan.approvalRequired||videoPlan.approvalRequired||consequential),
     videoPatternStrategy:videoPlan.strategy,
-    revenueTrack:revenuePlan.selectedTrack,
+    revenueTrack:revenuePlan?.selectedModel?.key||null,
     agentTeam,
-    workflowPlan
+    workflowDraft,
+    revenuePlan
   };
-  const goalText=String(goal||'');
-  const agentTeam=/agent|ecosystem|delegate|manager|specialist|department|team/i.test(goalText)?buildAgentTeam({goal:goalText,budgetUsd:Number(context?.budgetUsd||0)}):null;
-  const workflowDraft=/workflow|automation|mcp|connector|integration|email|discord|slack|if\/else|loop/i.test(goalText)?compileWorkflow({goal:goalText}):null;
-  const revenuePlan=/revenue|business|customer|buyer|sell|offer|service|subscription|content|digital product|software/i.test(goalText)?revenueExecutionPlan({goal:goalText,capitalUsd:Number(context?.capitalUsd||0),weeklyHours:Number(context?.weeklyHours||20)}):null;
   const mission={
     id:crypto.randomUUID(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),
-    goal:plan.goal,division:plan.division,status:plan.approvalRequired?'planned-awaiting-consequential-action':'planned',ownerIntent:interpretOwnerDirective(plan.goal),revenueTrack:plan.revenueTrack,agentTeam:plan.agentTeam,workflowPlan:plan.workflowPlan,
-    approvalRequired:plan.approvalRequired,specialists:plan.specialists,skillIds:skillIdsForMission(plan),stages:plan.stages,videoPatternStrategy:plan.videoPatternStrategy,agentTeam,workflowDraft,revenuePlan,
+    goal:plan.goal,division:plan.division,status:plan.approvalRequired?'planned-awaiting-consequential-action':'planned',
+    ownerIntent:interpretOwnerDirective(plan.goal),revenueTrack:plan.revenueTrack,
+    approvalRequired:plan.approvalRequired,specialists:plan.specialists,skillIds:skillIdsForMission(plan),stages:plan.stages,
+    videoPatternStrategy:plan.videoPatternStrategy,agentTeam:plan.agentTeam,workflowDraft:plan.workflowDraft,revenuePlan:plan.revenuePlan,
     currentStage:0,context:Object.fromEntries(Object.entries(context||{}).slice(0,20).map(([k,v])=>[String(k).slice(0,80),String(v).slice(0,1000)])),
-    evidence:[],artifacts:[],metrics:{},security:agentSecurityProfile(plan.specialists?.[0]||'JARVIS-Nucleus'),history:[{at:new Date().toISOString(),event:'planned'}]
+    evidence:[],artifacts:[],metrics:{},security:agentSecurityProfile(plan.specialists?.[0]||'JARVIS-Nucleus'),
+    history:[{at:new Date().toISOString(),event:'planned'}]
   };
   state.missions.unshift(mission);if(state.missions.length>MAX_MISSIONS)state.missions.length=MAX_MISSIONS;
   for(const id of mission.skillIds){const s=state.skillStats[id];if(s){s.runs++;s.lastUsedAt=mission.createdAt}}
