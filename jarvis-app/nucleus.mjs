@@ -12,7 +12,7 @@ import {omniManifest} from './omni-runtime.mjs';
 const STATE_PATH=process.env.JARVIS_NUCLEUS_STATE_PATH||'/data/jarvis-nucleus.json';
 const MAX_EVENTS=2000,MAX_MISSIONS=500,MAX_OUTCOMES=1000;
 
-export const NUCLEUS_VERSION='2.6.0';
+export const NUCLEUS_VERSION='2.7.0';
 export const NUCLEUS_POLICY=Object.freeze({
   externalFinancialActions:'explicit-human-approval',
   liveTrading:'one-order-human-approval-only',
@@ -115,7 +115,8 @@ export const NUCLEUS_SKILLS=Object.freeze([
   {id:'omni-compute',name:'Hosted Code Interpreter and Data Analysis',division:'builder',agent:'OmniComputeAgent'},
   {id:'omni-image',name:'Image Generation and Editing',division:'media',agent:'OmniImageAgent'},
   {id:'omni-connectors',name:'Remote MCP and Service Connectors',division:'core',agent:'OmniConnectorAgent'},
-  {id:'omni-operator',name:'Approval-Gated Computer and Browser Operations',division:'core',agent:'OmniOperatorAgent'}
+  {id:'omni-operator',name:'Approval-Gated Computer and Browser Operations',division:'core',agent:'OmniOperatorAgent'},
+  {id:'omni-chat',name:'Persistent Multi-Turn Chat',division:'core',agent:'OmniConversationAgent'}
 ]);
 
 function baseState(){
