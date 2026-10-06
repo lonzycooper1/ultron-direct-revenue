@@ -15,6 +15,16 @@ export const MARKET_UPGRADE={
  execution:'research-only; real-money execution remains separately approval-gated'
 };
 
+export const MARKET_BASKETS=[
+ {id:'broad-market',name:'Broad U.S. Market',symbols:['SPY','QQQ','IWM','DIA'],note:'Index/ETF benchmark basket'},
+ {id:'mega-cap-tech',name:'Mega-Cap Technology',symbols:['AAPL','MSFT','NVDA','AMZN','GOOGL','META'],note:'Large liquid technology leaders'},
+ {id:'semiconductors',name:'Semiconductors',symbols:['SMH','SOXX','NVDA','AMD','AVGO','MU'],note:'Chip-cycle research basket'},
+ {id:'financials',name:'Financials',symbols:['XLF','JPM','BAC','GS','MS','WFC'],note:'Banks and capital-markets research basket'},
+ {id:'energy',name:'Energy',symbols:['XLE','XOM','CVX','COP','SLB','EOG'],note:'Energy-sector research basket'},
+ {id:'small-cap-benchmark',name:'Small-Cap Benchmarks',symbols:['IWM','IJR','VB'],note:'Use benchmarks before evaluating individual small-cap names'},
+ {id:'international',name:'International ETFs',symbols:['VEA','VWO','EFA','EEM'],note:'International equity benchmark basket'}
+];
+
 export const TUTOR=[
  ['Stocks vs ETFs vs crypto','Stocks are single-company ownership, ETFs are baskets, and crypto uses different venues/custody and often higher volatility.'],
  ['Market, limit and stop orders','Market orders prioritize execution, limit orders prioritize price, and stop orders trigger after a chosen price.'],
@@ -84,6 +94,17 @@ export async function searchUs(q='',type='all',limit=60){
  const s=String(q||'').toLowerCase(),rows=await usUniverse();
  return rows.filter(x=>(type==='all'||(type==='etf'?x.etf:!x.etf))&&(!s||x.symbol.toLowerCase().includes(s)||String(x.name).toLowerCase().includes(s))).slice(0,Math.min(200,Math.max(1,Number(limit)||60)));
 }
+export async function searchGlobal(q='',limit=40){
+ const s=String(q||'').trim();if(!s)return [];
+ const u='https://query2.finance.yahoo.com/v1/finance/search?q='+encodeURIComponent(s)+'&quotesCount='+Math.min(80,Math.max(10,Number(limit)||40))+'&newsCount=0';
+ const r=await fetch(u,{headers:{'user-agent':'Mozilla/5.0 ULTRON-private-research'},signal:AbortSignal.timeout(8000)});if(!r.ok)return [];
+ const j=await r.json();return (j?.quotes||[]).filter(x=>['EQUITY','ETF','MUTUALFUND','INDEX'].includes(String(x.quoteType||''))).map(x=>({symbol:x.symbol,name:x.longname||x.shortname||x.symbol,exchange:x.exchDisp||x.exchange||'',type:x.quoteType||'',etf:x.quoteType==='ETF',region:'global-search'})).slice(0,limit);
+}
+export async function searchStocks(q='',type='all',limit=60){
+ const [us,global]=await Promise.all([searchUs(q,type,limit),searchGlobal(q,limit).catch(()=>[])]);
+ const out=[],seen=new Set();for(const x of [...us,...global]){if(type==='etf'&&!x.etf)continue;if(type==='stock'&&x.etf)continue;const k=String(x.symbol).toUpperCase();if(!seen.has(k)){seen.add(k);out.push({...x,symbol:k})}}
+ return out.slice(0,Math.min(200,Math.max(1,Number(limit)||60)));
+}
 export async function cryptoUniverse(){
  if(Date.now()-cryptos.at<600000&&cryptos.rows.length)return cryptos.rows;
  const r=await fetch('https://api.crypto.com/exchange/v1/public/get-instruments',{headers:{accept:'application/json','user-agent':UA},signal:AbortSignal.timeout(8000)});if(!r.ok)throw Error('crypto instruments '+r.status);
@@ -128,4 +149,4 @@ export async function cryptoMovers(limit=30){
  const rows=(await r.json()).map(x=>({symbol:String(x.symbol||'').toUpperCase(),name:x.name,price:Number(x.current_price),marketCap:Number(x.market_cap),volume:Number(x.total_volume),changePct:Number(x.price_change_percentage_24h)}));
  return {provider:'CoinGecko public market discovery',gainers:[...rows].sort((a,b)=>b.changePct-a.changePct).slice(0,limit),losers:[...rows].sort((a,b)=>a.changePct-b.changePct).slice(0,limit),active:rows.slice(0,limit)};
 }
-export function manifest(){return {upgrade:MARKET_UPGRADE,tutor:TUTOR,boundaries:{research:'automatic',education:'automatic',paperTrading:'automatic',realMoney:'separate explicit approval required',guarantees:false}}}
+export function manifest(){return {upgrade:MARKET_UPGRADE,baskets:MARKET_BASKETS,tutor:TUTOR,boundaries:{research:'automatic',education:'automatic',paperTrading:'automatic',realMoney:'separate explicit approval required',guarantees:false}}}
