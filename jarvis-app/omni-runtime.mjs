@@ -178,7 +178,11 @@ function internalFunctionTools(){
   {type:'function',name:'ultron_market_status',description:'Read the live ULTRON revenue/market service health and public runtime status.',parameters:{type:'object',properties:{},required:[],additionalProperties:false},strict:true},
   {type:'function',name:'ultron_agent_of_agents_status',description:'Read the Agent-of-Agents commerce CEO runtime, active specialist team and pending approvals.',parameters:{type:'object',properties:{},required:[],additionalProperties:false},strict:true},
   {type:'function',name:'ultron_create_commerce_mission',description:'Create a new internal commerce mission. This plans and stages work; consequential publishing, spend and refunds remain human-approved.',parameters:{type:'object',properties:{goal:{type:'string',minLength:1,maxLength:2000}},required:['goal'],additionalProperties:false},strict:true},
-  {type:'function',name:'ultron_crypto_status',description:'Read the live crypto intelligence service health. Does not place trades.',parameters:{type:'object',properties:{},required:[],additionalProperties:false},strict:true}
+  {type:'function',name:'ultron_crypto_status',description:'Read the live crypto intelligence service health. Does not place trades.',parameters:{type:'object',properties:{},required:[],additionalProperties:false},strict:true},
+  {type:'function',name:'jarvis_build_agent_team',description:'Build the smallest useful manager-and-specialist team for a goal using JARVIS agent templates, budgets and approval boundaries.',parameters:{type:'object',properties:{goal:{type:'string',minLength:1,maxLength:3000}},required:['goal'],additionalProperties:false},strict:true},
+  {type:'function',name:'jarvis_compile_workflow',description:'Compile a natural-language automation goal into a typed JARVIS workflow graph with connectors, agents, MCP, guardrails, conditions, loops, memory, approvals and outputs.',parameters:{type:'object',properties:{goal:{type:'string',minLength:1,maxLength:3000}},required:['goal'],additionalProperties:false},strict:true},
+  {type:'function',name:'ultron_revenue_plan',description:'Build a verified-revenue plan using one of ULTRON’s three core models: content agency, niche AI software/workflows, or digital products.',parameters:{type:'object',properties:{goal:{type:'string',minLength:1,maxLength:3000}},required:['goal'],additionalProperties:false},strict:true},
+  {type:'function',name:'ultron_paypal_billing_status',description:'Read the live PayPal one-time, invoicing and subscription billing readiness from ULTRON.',parameters:{type:'object',properties:{},required:[],additionalProperties:false},strict:true}
  ];
 }
 function buildTools(mode,{connectors=[]}={}){
@@ -261,6 +265,10 @@ async function runInternalFunction(name,args={}){
    return serviceJson(MARKET_URL.replace(/\/$/,'')+'/api/agent-of-agents/mission',{method:'POST',body:JSON.stringify({goal:clean(args.goal,2000)})});
  }
  if(name==='ultron_crypto_status')return serviceJson(CRYPTO_URL.replace(/\/$/,'')+'/health');
+ if(name==='jarvis_build_agent_team')return {ok:true,team:buildAgentTeam({goal:clean(args.goal,3000)}),manifest:missionControlManifest()};
+ if(name==='jarvis_compile_workflow'){const graph=compileWorkflow({goal:clean(args.goal,3000)});return {ok:true,graph,validation:validateWorkflow(graph),dryRun:simulateWorkflow(graph,{})};}
+ if(name==='ultron_revenue_plan')return {ok:true,plan:revenueExecutionPlan({goal:clean(args.goal,3000)}),framework:revenueFrameworkManifest()};
+ if(name==='ultron_paypal_billing_status')return serviceJson(MARKET_URL.replace(/\/$/,'')+'/api/paypal-business-billing');
  throw Error('unknown internal function');
 }
 function functionCalls(d){return (d?.output||[]).filter(x=>x?.type==='function_call')}
