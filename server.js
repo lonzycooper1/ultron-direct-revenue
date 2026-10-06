@@ -35,6 +35,7 @@ import {advantageManifest,advantageState,decomposeGoal,scenario} from './ultron-
 import {unifiedManifest,unifiedState,economicDecision,validateProduct} from './ultron-unified-company.mjs';
 import {v6Manifest,v6State,antiDelusionCheck,problemSeverity} from './ultron-discovery-economy-v6.mjs';
 import {state as v7State} from './ultron-v7-runtime.mjs';
+import {v7Manifest} from './ultron-v7-manifest-lite.mjs';
 const BASE='https://api-m.paypal.com',ACQ_TOKEN=process.env.ULTRON_ACQUISITION_ADMIN_TOKEN||'',CID=process.env.PAYPAL_CLIENT_ID||'',SECRET=process.env.PAYPAL_CLIENT_SECRET||'',WH=process.env.PAYPAL_WEBHOOK_ID||'',PUBLIC=(process.env.PUBLIC_BASE_URL||'').replace(/\/$/,''),READY=Boolean(CID&&SECRET&&WH&&PUBLIC);
 const WORKLOAD=Math.max(1,Math.min(10,Number(process.env.ULTRON_WORKLOAD_MULTIPLIER||3))),INTERVAL=Math.max(5,Number(process.env.AGENT_INTERVAL_MINUTES||5));
 let cache={token:null,exp:0},payment={ok:false,checkedAt:null},businessBilling={productId:null,planId:null,invoiceApi:false,subscriptionApi:false,lastVerifiedAt:null,lastError:null},timer=null;
