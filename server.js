@@ -46,7 +46,7 @@ import {SPORTS_JARVIS_VERSION,SPORTS,PERSONA,DATA_POLICY,analyzeProp,rankBoard} 
 import {buildLiveBoard,mergePropLines} from './sports-live-feed.mjs';
 import {v13Dashboard,paperTradingState,executePaperOrder,markPaperPrices,upsertProspect,listProspects,createWebsiteAudit,commandCenter,customerPortal,offerCatalog,createSubscriptionCandidate,revenueReconciliation,costProfitIntelligence,createExperiment,recordExperimentResult,requestApproval,decideV13Approval,ceoObjectiveEngine,lenderDashboard,projections,sportsCommercialStatus,securityAndOpsManifest} from './ultron-v13-control.mjs';
 import {catalog as commercialCatalog,commercialDashboard,paypalCommercialEvent} from './ultron-commercial-v13.mjs';
-import {ingestLead,advanceLead,createDiagnostic,createDemo,createProposal,enqueuePaidFulfillment,recordQc,retentionCandidates,createReferral,recordTraffic,attributeRevenue,recordExpense,openTicket,addKnowledge,executiveMetrics,unitEconomics,forecast,northStar,dataRoomManifest,businessCreditReadiness,lenderPackage,osDashboard} from './ultron-commercial-os-v14.mjs';
+import {ingestLead,advanceLead,createDiagnostic,createDemo,createProposal,enqueuePaidFulfillment,recordQc,retentionCandidates,createReferral,recordTraffic,attributeRevenue,recordExpense,openTicket,addKnowledge,executiveMetrics,unitEconomics as commercialUnitEconomics,forecast,northStar,dataRoomManifest,businessCreditReadiness,lenderPackage,osDashboard} from './ultron-commercial-os-v14.mjs';
 const BASE='https://api-m.paypal.com',ACQ_TOKEN=process.env.ULTRON_ACQUISITION_ADMIN_TOKEN||'',CID=process.env.PAYPAL_CLIENT_ID||'',SECRET=process.env.PAYPAL_CLIENT_SECRET||'',WH=process.env.PAYPAL_WEBHOOK_ID||'',PUBLIC=(process.env.PUBLIC_BASE_URL||'').replace(/\/$/,''),READY=Boolean(CID&&SECRET&&WH&&PUBLIC);
 const WORKLOAD=Math.max(1,Math.min(10,Number(process.env.ULTRON_WORKLOAD_MULTIPLIER||3))),INTERVAL=Math.max(5,Number(process.env.AGENT_INTERVAL_MINUTES||5));
 let cache={token:null,exp:0},payment={ok:false,checkedAt:null},businessBilling={productId:null,planId:null,invoiceApi:false,subscriptionApi:false,lastVerifiedAt:null,lastError:null},timer=null;
@@ -113,7 +113,7 @@ if(path==='/api/v13'&&req.method==='GET')return json(200,{ok:true,...await v13Da
 if(path==='/api/commercial'&&req.method==='GET')return json(200,{ok:true,...await commercialDashboard()});
 if(path==='/api/commercial/catalog'&&req.method==='GET')return json(200,{ok:true,...await commercialCatalog()});
 if(path==='/api/os/v14'&&req.method==='GET')return json(200,{ok:true,...await osDashboard()});
-if(path==='/api/os/v14/executive'&&req.method==='GET')return json(200,{ok:true,metrics:await executiveMetrics(),unitEconomics:await unitEconomics(),forecast:await forecast(),northStar:await northStar()});
+if(path==='/api/os/v14/executive'&&req.method==='GET')return json(200,{ok:true,metrics:await executiveMetrics(),unitEconomics:await commercialUnitEconomics(),forecast:await forecast(),northStar:await northStar()});
 if(path==='/api/os/v14/lender'&&req.method==='GET')return json(200,{ok:true,dataRoom:await dataRoomManifest(),businessCredit:await businessCreditReadiness(),package:await lenderPackage()});
 if(path==='/api/os/v14/retention'&&req.method==='GET')return json(200,{ok:true,candidates:await retentionCandidates()});
 async function v14body(){let raw='';for await(const ch of req)raw+=ch;try{return JSON.parse(raw||'{}')}catch{throw Error('invalid JSON')}}
