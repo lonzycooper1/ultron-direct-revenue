@@ -17,3 +17,22 @@ export async function addCredits({customerId,units,verifiedPaymentRef}={}){units
 export async function createB2BLicense(x={}){if(!x.customerId||!x.company)throw Error('customerId and company required');return mut(s=>{const licenseId=id('lic');s.licenses[licenseId]={licenseId,customerId:x.customerId,company:x.company,annualUsd:Number(x.annualUsd||0),seats:Number(x.seats||1),status:'PROPOSED_NOT_ACTIVE',scope:x.scope||['ULTRON business workspace'],createdAt:now()};return s.licenses[licenseId]})}
 export async function configureWhiteLabel(x={}){if(!x.customerId||!x.brand)throw Error('customerId and brand required');return mut(s=>{const wid=id('wl');s.whiteLabels[wid]={id:wid,customerId:x.customerId,brand:x.brand,customDomain:x.customDomain||null,status:'DRAFT_REQUIRES_DOMAIN_VERIFICATION_AND_PAID_LICENSE',theme:x.theme||{},createdAt:now()};return s.whiteLabels[wid]})}
 export async function commercialDashboard(){const s=await state();return {version:s.version,plans:s.plans,accounts:Object.values(s.accounts).map(a=>({...a,email:a.email?'REDACTED':undefined})),meteredUnits:s.usage.reduce((n,x)=>n+x.units,0),activeApiKeys:Object.values(s.apiKeys).filter(x=>x.status==='ACTIVE').length,b2bLicenses:Object.values(s.licenses),whiteLabels:Object.values(s.whiteLabels),template:s.template,truth:{subscriptionRevenue:'count only after verified processor payment',credits:'usage entitlement, never cash',whiteLabel:'draft until contract/payment/domain evidence',railwayKickbacks:'not assumed; any referral/template incentive must be verified under current Railway terms'}}}
+
+export async function paypalCommercialEvent(event={}){
+ const type=String(event.event_type||''),r=event.resource||{},custom=String(r.custom_id||r.custom||r.invoice_id||'');
+ const parts=custom.startsWith('ULTRON:')?custom.split(':'):[];
+ if(type==='PAYMENT.CAPTURE.COMPLETED'&&parts.length>=4){
+  const [,kind,customerId,sku]=parts,ref=String(r.id||'');if(!ref)return {handled:false,reason:'capture id missing'};
+  if(kind==='PLAN')return {handled:true,kind,account:await activateEntitlement({customerId,plan:sku,verifiedPaymentRef:'paypal:'+ref,verifiedAmount:r.amount?.value})};
+  if(kind==='CREDITS')return {handled:true,kind,result:await addCredits({customerId,units:Number(sku),verifiedPaymentRef:'paypal:'+ref})};
+ }
+ if((type==='BILLING.SUBSCRIPTION.ACTIVATED'||type==='BILLING.SUBSCRIPTION.PAYMENT.COMPLETED')&&parts.length>=4){
+  const [,kind,customerId,plan]=parts;if(kind==='PLAN')return {handled:true,kind:'SUBSCRIPTION',account:await activateEntitlement({customerId,plan,verifiedPaymentRef:'paypal-subscription:'+String(r.id||r.billing_agreement_id||'verified'),verifiedAmount:r.billing_info?.last_payment?.amount?.value||0})};
+ }
+ return {handled:false,reason:'event not mapped to ULTRON commercial metadata'};
+}
+export async function commercialCheckoutSpec({customerId,type='PLAN',sku}={}){
+ const s=await state();if(!customerId||!sku)throw Error('customerId and sku required');if(type==='PLAN'&&!s.plans[sku])throw Error('unknown plan');
+ if(type==='CREDITS'&&!(Number(sku)>0))throw Error('positive credit units required');
+ return {customId:['ULTRON',type,customerId,String(sku)].join(':'),type,sku,customerId,rule:'Create/capture with PayPal; entitlement is applied only from a verified PayPal event.'}
+}
