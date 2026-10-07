@@ -1,0 +1,15 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {FLAGSHIP,CRM_STAGES,ANALYTICS_EVENTS,visibleProblemScore,diagnostic,miniAudit,productRoute,fulfillmentPlan,outcomeDecision,profit,winnerPolicy,manifest} from './ultron-hvac-flagship-v10.mjs';
+test('locks HVAC $500 flagship',()=>{assert.equal(FLAGSHIP.niche,'HVAC');assert.equal(FLAGSHIP.price,500);assert.equal(FLAGSHIP.lockedDays,7)});
+test('CRM spine contains requested lifecycle',()=>assert.deepEqual(CRM_STAGES,['DISCOVERED','RESEARCHED','QUALIFIED','DIAGNOSTIC_CREATED','CONTACTED','ENGAGED','PROPOSAL','CHECKOUT','PAID','FULFILLMENT','OUTCOME','EXPANSION','REFERRAL']));
+test('analytics covers economic events',()=>{for(const x of ['page.view','diagnostic.completed','checkout.opened','payment.captured','fulfillment.completed','outcome.verified','referral.created'])assert.ok(ANALYTICS_EVENTS.includes(x))});
+test('prospect scoring requires strong evidence fit',()=>assert.equal(visibleProblemScore({bookingGap:90,mobileGap:80,ctaGap:90,formGap:80,followupGap:90,leadResponseGap:90,evidenceQuality:90,buyerFit:90}).qualified,true));
+test('diagnostic labels revenue as scenario',()=>assert.match(diagnostic({monthlyLeads:100,responseRate:50,closeRate:20,averageJobValue:500}).label,/Scenario/));
+test('mini audit refuses evidence-free claims',()=>assert.equal(miniAudit({businessName:'HVAC Co',evidence:[]}).status,'NO_CURRENT_EVIDENCE'));
+test('product routing attaches fulfillment and next offer',()=>assert.equal(productRoute('ai-revenue-audit-500').nextOffer,'ai-automation-sprint-2500'));
+test('fulfillment waits for capture',()=>assert.equal(fulfillmentPlan({product:'ai-revenue-audit-500'}).status,'WAIT_FOR_VERIFIED_CAPTURE'));
+test('captured audit compiles fulfillment workflow',()=>assert.equal(fulfillmentPlan({product:'ai-revenue-audit-500',captureId:'x'}).steps[0],'audit job'));
+test('proof requires permission',()=>assert.match(outcomeDecision({implemented:true,verifiedImprovement:true,permissionToUseProof:false}).actions[1],/do not publish proof/i));
+test('contribution profit gates scale',()=>assert.equal(profit({compute:100,fulfillment:100},500).scale,true));
+test('winner policy retires repeated no-response loops',()=>assert.equal(winnerPolicy({experiments:3,buyerResponses:0}), 'RETIRE_OR_REPOSITION'));
+test('play manifest includes 100-prospect focus and truth rules',()=>{const m=manifest();assert.match(m.play[0],/100/);assert.ok(m.truthRules.includes('no bulk unsolicited spam'))});
