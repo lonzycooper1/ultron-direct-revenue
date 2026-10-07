@@ -1,0 +1,14 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {seedProspects,manifest,scoreProspect,intentSignals,outreachDraft,trustPacket,identityKey,sampleGate,SOURCE_POLICY,ACQUISITION_LOOP} from './ultron-customer-acquisition-v11.mjs';
+test('real public HVAC feed is seeded',()=>{assert.ok(seedProspects.length>=20);assert.ok(seedProspects.every(x=>x.sourceType==='PUBLIC'&&x.website))});
+test('first objective is real engagement',()=>assert.match(manifest().firstObjective,/real HVAC decision-maker/i));
+test('loop closes from world to new demand',()=>{assert.equal(ACQUISITION_LOOP[0],'WORLD SIGNALS');assert.equal(ACQUISITION_LOOP.at(-1),'NEW DEMAND')});
+test('private scraping and bulk unsolicited messaging are blocked',()=>{assert.ok(SOURCE_POLICY.blocked.includes('private data scraping'));assert.ok(SOURCE_POLICY.blocked.includes('bulk unsolicited messaging'))});
+test('prospect requires evidence to qualify',()=>assert.equal(scoreProspect({problemEvidence:90,buyerIntent:90,contactQuality:90,buyerFit:90,recency:90,evidenceQuality:20}).qualified,false));
+test('explicit customer intent dominates intent score',()=>assert.equal(intentSignals({customerRequestedHelp:true}).score,50));
+test('outreach blocks evidence-free messages',()=>assert.equal(outreachDraft({businessName:'X',evidence:[]}).status,'BLOCKED_NO_EVIDENCE'));
+test('outreach creates individualized draft from evidence',()=>assert.equal(outreachDraft({businessName:'X',evidence:['booking form fails']}).status,'DRAFT_READY'));
+test('trust packet admits no first-customer case study',()=>assert.equal(trustPacket().proofStatus,'FIRST-CUSTOMER_MODE_NO_CASE_STUDY'));
+test('identity resolution normalizes website domain',()=>assert.equal(identityKey({website:'https://www.Example.com/a'}),'example.com'));
+test('sample gate avoids premature offer failure',()=>assert.equal(sampleGate({exposures:10,responses:0,purchases:0}).decision,'COLLECT_MORE_DATA'));
+test('sample gate learns objections after response without purchase',()=>assert.equal(sampleGate({exposures:100,responses:2,purchases:0}).decision,'LEARN_OBJECTIONS_AND_TEST_OFFER'));
