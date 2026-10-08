@@ -58,10 +58,10 @@ export function prioritize({paid=0,interested=0,blockers=0}={}){
 }
 export function publicReadiness(data){return {version:'23.0.0',asOf:data.asOf,objective:data.objective,verifiedOrders:data.verifiedOrders,blockedCount:data.blockedCount,taskCounts:data.taskCounts,notice:'Successful software cycles are not customer revenue. No guarantee of profit.'}}
 export async function snapshot(){
- const [s,g,l,i,f,db]=await Promise.all([read(),growthState(),ledger(),Promise.resolve(readiness()),financeReport(),storeHealth()]);
+ const [s,g,l,i,f,db,sales]=await Promise.all([read(),growthState(),ledger(),Promise.resolve(readiness()),financeReport(),storeHealth(),salesOverview()]);
  const paid=Object.values(l.orders||{}).filter(o=>o.captureId&&o.capturedAt);
  const interested=Object.values(g.prospects||{}).filter(p=>p.stage==='INTERESTED').length;
- const tasks=requiredStatus({integration:i,paidOrders:paid.length,accepted:0,domainVerified:false,shopifyLive:false});
+ const tasks=requiredStatus({integration:i,paidOrders:paid.length,accepted:Number(sales.metrics?.accepted||0),domainVerified:false,shopifyLive:false});
  const blockers=tasks.filter(x=>x.status.startsWith('BLOCKED_'));
  const taskCounts={blocked:blockers.length,needsEvidence:tasks.length-blockers.length,externallyVerified:0};
  return {version:'23.0.0',asOf:now(),objective:prioritize({paid:paid.length,interested,blockers:blockers.length}),
