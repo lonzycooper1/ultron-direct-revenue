@@ -9,8 +9,8 @@ services:
     environment:
       PORT: '3000'
       NODE_ENV: production
-      DATABASE_URL: 'postgresql://ultron:ultron_local_only@postgres:5432/ultron'
-      PUBLIC_BASE_URL: 'https://configure-your-own-domain.example'
+      DATABASE_URL: 'postgresql://ultron:${DB_PASSWORD:?Set secure DB_PASSWORD}@postgres:5432/ultron'
+      PUBLIC_BASE_URL: '${PUBLIC_BASE_URL:?Set verified production HTTPS domain}'
       ULTRON_ACQUISITION_ADMIN_TOKEN: '${ULTRON_ACQUISITION_ADMIN_TOKEN:?Owner token required}'
       PAYPAL_CLIENT_ID: '${PAYPAL_CLIENT_ID:-}'
       PAYPAL_CLIENT_SECRET: '${PAYPAL_CLIENT_SECRET:-}'
@@ -23,7 +23,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ultron
-      POSTGRES_PASSWORD: 'ultron_local_only'
+      POSTGRES_PASSWORD: '${DB_PASSWORD:?Set secure DB_PASSWORD}'
       POSTGRES_DB: ultron
     volumes:
       - ultron-data:/var/lib/postgresql
