@@ -5,9 +5,10 @@ import {discoveryFallback,overview as salesOverview,safeCycle as salesCycle} fro
 import {report as financeReport} from './ultron-finance-v22.mjs';
 import {ledger} from './ledger-store.mjs';
 import {buildTrillionMission} from './ultron-trillion-mission-v25.mjs';
+import {assessCompletion500,validateCompletionEvidence} from './ultron-500-completion-v26.mjs';
 
 const KEY='ultron-v23-supervisor',now=()=>new Date().toISOString();
-const init=()=>({version:'23.0.0',lastCycle:null,history:[],ownerEvidence:{},activeAlerts:{},cycleNumber:0});
+const init=()=>({version:'23.0.0',lastCycle:null,history:[],ownerEvidence:{},activeAlerts:{},v26Evidence:{},v26WorkQueue:[],cycleNumber:0});
 const read=()=>getJson(KEY,init());
 const names=[
 'Buyer acquisition with dual authorized feeds','Owned domain and authenticated business mail','Live Gmail and HubSpot execution','500 dollar flagship audit and value ladder',
@@ -65,11 +66,12 @@ export async function snapshot(){
  const tasks=requiredStatus({integration:i,paidOrders:paid.length,accepted:Number(sales.metrics?.accepted||0),domainVerified:false,shopifyLive:false});
  const blockers=tasks.filter(x=>x.status.startsWith('BLOCKED_'));
  const taskCounts={blocked:blockers.length,needsEvidence:tasks.length-blockers.length,externallyVerified:0};
+ const completion500=assessCompletion500({verifiedRevenueUsd:f.verifiedCaptureUsd||0,verifiedOrders:paid.length,interestedBuyers:interested,operatorTasks:tasks,providerReadiness:i,serviceHealth:db,ownerEvidence:s.v26Evidence||{}});
  return {version:'23.0.0',asOf:now(),objective:prioritize({paid:paid.length,interested,blockers:blockers.length}),
  verifiedOrders:paid.length,interestedBuyers:interested,verifiedCapturedUsd:f.verifiedCaptureUsd||0,
  blockedCount:blockers.length,taskCounts,tasks,providerReadiness:i,db,
  lastCycle:s.lastCycle,cycleNumber:s.cycleNumber,recentCycles:s.history.slice(-12),
- ownerEvidenceCount:Object.keys(s.ownerEvidence||{}).length,
+ ownerEvidenceCount:Object.keys(s.ownerEvidence||{}).length,completion500,
  safety:{automaticPaidAds:false,automaticFinancialTransfers:false,unapprovedExternalEmail:false,reportedRevenueIsNotCash:true},strategicMission:buildTrillionMission({verifiedRevenueUsd:f.verifiedCaptureUsd||0,paidOrders:paid.length,interestedBuyers:interested,blockedTasks:tasks})};
 }
 export async function cycle(){
@@ -79,10 +81,11 @@ export async function cycle(){
  try{discovery=await discoveryFallback()}catch(e){discovery={status:'ERROR',error:String(e.message||e).slice(0,140)}}
  try{flywheel=await salesCycle()}catch(e){flywheel={status:'ERROR',error:String(e.message||e).slice(0,140)}}
  const snap=await snapshot();
- const rec={at:now(),objective:snap.objective,strategicTargetUsd:snap.strategicMission.targetUsd,strategicMilestone:snap.strategicMission.nextMilestone.usd,mainframeDirective:snap.strategicMission.mainframeDirective,verifiedOrders:snap.verifiedOrders,blocked:snap.blockedCount,
+ const rec={at:now(),objective:snap.objective,strategicTargetUsd:snap.strategicMission.targetUsd,strategicMilestone:snap.strategicMission.nextMilestone.usd,mainframeDirective:snap.strategicMission.mainframeDirective,completion500:{registered:snap.completion500.registeredRequirements,evidenceVerified:snap.completion500.evidenceVerifiedCount,focus:snap.completion500.focus,topAction:snap.completion500.nextActions[0]||null,ownerApprovalsRequired:snap.completion500.requiresExternalAction.length},verifiedOrders:snap.verifiedOrders,blocked:snap.blockedCount,
  discovery,flywheel,dbOk:snap.db.ok};
  await mutateJson(KEY,init(),s=>{s.lastCycle=rec;s.cycleNumber++;s.history.push(rec);if(s.history.length>48)s.history=s.history.slice(-48);
- s.activeAlerts=Object.fromEntries(snap.tasks.filter(t=>t.status.startsWith('BLOCKED_')).map(t=>[t.id,{name:t.name,status:t.status,at:rec.at}]));});
+ s.activeAlerts=Object.fromEntries(snap.tasks.filter(t=>t.status.startsWith('BLOCKED_')).map(t=>[t.id,{name:t.name,status:t.status,at:rec.at}]));
+ s.v26WorkQueue=snap.completion500.safeResearchOrImplementationCandidates.map(x=>({...x,status:'PLANNED_NOT_EXECUTED',createdOrRefreshedAt:rec.at}));});
  return {status:'SUPERVISOR_CYCLE_RECORDED',...rec};
 }
 export async function registerOwnerEvidence({taskId,url,description}={}){
@@ -92,4 +95,10 @@ export async function registerOwnerEvidence({taskId,url,description}={}){
  if(typeof description!=='string'||description.trim().length<8)throw Error('Meaningful owner evidence description required');
  await mutateJson(KEY,init(),s=>{s.ownerEvidence[id]={url,description:description.slice(0,500),recordedAt:now(),status:'OWNER_SUBMITTED_NOT_INDEPENDENTLY_VERIFIED'};});
  return {taskId:id,status:'OWNER_SUBMITTED_NOT_INDEPENDENTLY_VERIFIED'};
+}
+
+export async function register500Evidence(payload={}){
+ const validated=validateCompletionEvidence(payload);
+ await mutateJson(KEY,init(),s=>{s.v26Evidence??={};s.v26Evidence[validated.id]=validated;});
+ return {id:validated.id,status:'OWNER_SUBMITTED_PENDING_INDEPENDENT_VERIFICATION',note:'Submitting a link does not complete a requirement.'};
 }
