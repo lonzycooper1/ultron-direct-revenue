@@ -94,7 +94,7 @@ function marketHtml(id,page=1,q=''){const stores=marketStores(),store=id?stores.
 function productHtml(p){const url=`${PUBLIC}/product/${p.id}`,schema={"@context":"https://schema.org","@type":"Product",name:p.name,description:p.description,sku:p.id,category:p.category,brand:{"@type":"Brand",name:"ULTRON AI Market"},offers:{"@type":"Offer",url,priceCurrency:"USD",price:String(p.price),availability:"https://schema.org/InStock"}};return shell(p.name,`<nav><a href="/market">← AI Market</a><a href="/market/${p.storeId}">More in ${esc(p.category)}</a></nav><article><small>${esc(p.category)}</small><h1>${esc(p.name)}</h1><b>$${p.price}</b><p>${esc(p.description)}</p><h2>What you get</h2><p>An original digital implementation resource with a framework, execution worksheet, opportunity score, optimization loop and quality/compliance gate.</p><a href="/buy?product=${p.id}">Buy securely with PayPal</a></article>`,`<meta name="description" content="${esc(p.description)}"><link rel="canonical" href="${esc(url)}"><script type="application/ld+json">${JSON.stringify(schema).replace(/</g,'\\u003c')}</script>`)}
 function sitemap(index=0){const stores=marketStores(),chunk=10000,start=index*chunk,end=Math.min(marketStats().products,start+chunk),urls=[];for(let n=start;n<end;n++){const perStore=marketStats().productsPerStore,si=Math.floor(n/perStore),local=n%perStore+1;if(!stores[si])break;urls.push(`<url><loc>${PUBLIC}/product/${stores[si].id}-${String(local).padStart(8,'0')}</loc></url>`)}return `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.join('')}</urlset>`}
 function sitemapStatic(){const paths=['/flagship','/mission-control','/market','/solutions/missed-lead-recovery','/solutions/ai-implementation','/solutions/revenue-frameworks','/revenue-loop','/insights','/free-response-gap-scan',...nicheIds().map(x=>'/solutions/'+x+'-ai-lead-response')];return `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${paths.map(p=>`<url><loc>${PUBLIC}${p}</loc></url>`).join('')}</urlset>`}
-function sitemapIndex(){const count=Math.ceil(marketStats().products/10000);return `<?xml version="1.0" encoding="UTF-8"?><sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><sitemap><loc>${PUBLIC}/sitemap-static.xml</loc></sitemap>${Array.from({length:count},(_,i)=>`<sitemap><loc>${PUBLIC}/sitemap-${i}.xml</loc></sitemap>`).join('')}</sitemapindex>`}
+function sitemapIndex(){return `<?xml version="1.0" encoding="UTF-8"?><sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><sitemap><loc>${PUBLIC}/sitemap-static.xml</loc></sitemap></sitemapindex>`}
 function acquisitionPage(nicheId='services'){
  const n=nicheConfig(nicheId);
  const offer=n.offer==='missed-lead-recovery-99'?marketProduct('missed-lead-recovery-99'):marketProduct('ai-revenue-audit-500');
@@ -578,6 +578,12 @@ if(path==='/api/support'&&req.method==='POST'){let raw='';for await(const ch of 
 if(path==='/health'){const db=await storeHealth(),a=await agentState();return json(db.ok?200:503,{ok:db.ok,database:db,aiMarket:{ready:true,...marketStats()},paymentReady:READY&&payment.ok,agents:{lastCycleAt:a.metrics?.lastCycleAt||null,intervalMinutes:INTERVAL,workloadMultiplier:WORKLOAD}})}
 if(path==='/robots.txt'){res.writeHead(200,{'content-type':'text/plain'});return res.end(`User-agent: *
 Allow: /
+Disallow: /api/
+Disallow: /inbound-inbox
+Disallow: /activation-center
+Disallow: /completion-500
+Disallow: /mission-control
+Disallow: /product/
 Sitemap: ${PUBLIC}/sitemap.xml
 `)}
 if(path==='/sitemap.xml'){res.writeHead(200,{'content-type':'application/xml'});return res.end(sitemapIndex())}
