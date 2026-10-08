@@ -4,6 +4,7 @@ import {readiness} from './ultron-integration-v21.mjs';
 import {discoveryFallback,overview as salesOverview,safeCycle as salesCycle} from './ultron-sales-v22.mjs';
 import {report as financeReport} from './ultron-finance-v22.mjs';
 import {ledger} from './ledger-store.mjs';
+import {buildTrillionMission} from './ultron-trillion-mission-v25.mjs';
 
 const KEY='ultron-v23-supervisor',now=()=>new Date().toISOString();
 const init=()=>({version:'23.0.0',lastCycle:null,history:[],ownerEvidence:{},activeAlerts:{},cycleNumber:0});
@@ -56,7 +57,7 @@ export function requiredStatus({integration={},paidOrders=0,accepted=0,crmDeals=
 export function prioritize({paid=0,interested=0,blockers=0}={}){
  return paid>0?'FULFILL_PAID_ORDERS':interested>0?'RESPOND_TO_INTERESTED_BUYERS':blockers>0?'REPAIR_REVENUE_PIPELINE':'DISCOVER_AND_CONVERT_CUSTOMERS';
 }
-export function publicReadiness(data){return {version:'23.0.0',asOf:data.asOf,objective:data.objective,verifiedOrders:data.verifiedOrders,blockedCount:data.blockedCount,taskCounts:data.taskCounts,notice:'Successful software cycles are not customer revenue. No guarantee of profit.'}}
+export function publicReadiness(data){return {version:'23.0.0',asOf:data.asOf,objective:data.objective,verifiedOrders:data.verifiedOrders,blockedCount:data.blockedCount,taskCounts:data.taskCounts,strategicTargetUsd:data.strategicMission?.targetUsd||1000000000000,nextMilestoneUsd:data.strategicMission?.nextMilestone?.usd||100,notice:'Successful software cycles are not customer revenue. No guarantee of profit.'}}
 export async function snapshot(){
  const [s,g,l,i,f,db,sales]=await Promise.all([read(),growthState(),ledger(),Promise.resolve(readiness()),financeReport(),storeHealth(),salesOverview()]);
  const paid=Object.values(l.orders||{}).filter(o=>o.captureId&&o.capturedAt);
@@ -69,7 +70,7 @@ export async function snapshot(){
  blockedCount:blockers.length,taskCounts,tasks,providerReadiness:i,db,
  lastCycle:s.lastCycle,cycleNumber:s.cycleNumber,recentCycles:s.history.slice(-12),
  ownerEvidenceCount:Object.keys(s.ownerEvidence||{}).length,
- safety:{automaticPaidAds:false,automaticFinancialTransfers:false,unapprovedExternalEmail:false,reportedRevenueIsNotCash:true}};
+ safety:{automaticPaidAds:false,automaticFinancialTransfers:false,unapprovedExternalEmail:false,reportedRevenueIsNotCash:true},strategicMission:buildTrillionMission({verifiedRevenueUsd:f.verifiedCaptureUsd||0,paidOrders:paid.length,interestedBuyers:interested,blockedTasks:tasks})};
 }
 export async function cycle(){
  const old=await read(),latest=old.lastCycle?.at&&Date.parse(old.lastCycle.at)||0;
@@ -78,7 +79,7 @@ export async function cycle(){
  try{discovery=await discoveryFallback()}catch(e){discovery={status:'ERROR',error:String(e.message||e).slice(0,140)}}
  try{flywheel=await salesCycle()}catch(e){flywheel={status:'ERROR',error:String(e.message||e).slice(0,140)}}
  const snap=await snapshot();
- const rec={at:now(),objective:snap.objective,verifiedOrders:snap.verifiedOrders,blocked:snap.blockedCount,
+ const rec={at:now(),objective:snap.objective,strategicTargetUsd:snap.strategicMission.targetUsd,strategicMilestone:snap.strategicMission.nextMilestone.usd,mainframeDirective:snap.strategicMission.mainframeDirective,verifiedOrders:snap.verifiedOrders,blocked:snap.blockedCount,
  discovery,flywheel,dbOk:snap.db.ok};
  await mutateJson(KEY,init(),s=>{s.lastCycle=rec;s.cycleNumber++;s.history.push(rec);if(s.history.length>48)s.history=s.history.slice(-48);
  s.activeAlerts=Object.fromEntries(snap.tasks.filter(t=>t.status.startsWith('BLOCKED_')).map(t=>[t.id,{name:t.name,status:t.status,at:rec.at}]));});
