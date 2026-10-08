@@ -1,4 +1,5 @@
 import {growthState as growthV19State,dashboard as growthDashboard,importProspects,auditProspect,prepareSales,approveOutbox,receiveReply,sendApproved,onVerifiedCapture,markFulfilled,customerProof,expense,queueExperiment,proposeContent,backgroundTick,unsubscribe,demoHtml} from './ultron-growth-runtime-v19.mjs';
+import {operatingState,introspect,rememberReflection,runSafeJobs,registerPublicOpportunities,registerBusinessEvent,recordTrustedCapture,recordTrustedRefund,emergencyStop,operationalGate,recordQualityEvidence,addRealCost,authorizeBudget,recordCustomerSatisfaction,approveCampaignEnvelope,suppressContact,recordExperiment as registerV20Experiment,recordPartner,readinessRegistry} from './ultron-reflective-revenue-v20.mjs';
 import {createServer} from 'node:http';
 import {fileURLToPath} from 'node:url';
 import {marketProduct,marketStats,marketStores,catalogPage,buildDigitalDelivery,featuredProducts} from './ai-market.mjs';
@@ -57,7 +58,10 @@ async function token(){if(cache.token&&Date.now()<cache.exp-60000)return cache.t
 async function paypal(path,method='GET',body=null,rid=null){const h={authorization:'Bearer '+await token(),'content-type':'application/json'};if(rid)h['paypal-request-id']=rid;const r=await fetch(BASE+path,{method,headers:h,body:body?JSON.stringify(body):undefined}),d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.message||`PayPal ${r.status}`);return d}
 async function createOrder(key){const p=marketProduct(key);if(!p)throw Error('Unknown product');const amount=Number(p.price).toFixed(2),o=await paypal('/v2/checkout/orders','POST',{intent:'CAPTURE',purchase_units:[{reference_id:key,description:p.name,amount:{currency_code:'USD',value:amount}}],payment_source:{paypal:{experience_context:{user_action:'PAY_NOW',return_url:PUBLIC+'/paypal/return',cancel_url:PUBLIC+'/paypal/cancel'}}}},'create-'+key+'-'+crypto.randomUUID()),approve=(o.links||[]).find(x=>x.rel==='payer-action'||x.rel==='approve')?.href;if(!o.id||!approve)throw Error('No approval URL');await saveLedger(l=>{l.orders[o.id]={id:o.id,product:key,name:p.name,amount,currency:'USD',market:true,storeId:p.storeId,status:o.status,createdAt:new Date().toISOString()}});return approve}
 async function capture(id){const o=await paypal('/v2/checkout/orders/'+encodeURIComponent(id)+'/capture','POST',{},'capture-'+id);return o.purchase_units?.flatMap(u=>u.payments?.captures||[])[0]||null}
-async function fulfill(id,c){let out,verifiedOffer=null;await saveLedger(l=>{const o=l.orders[id];if(!o)throw Error('Unknown order');assertCaptureMatches(o,c);if(!o.fulfillment){const p=marketProduct(o.product),d=buildDigitalDelivery(p,id);o.fulfillment={token:crypto.randomBytes(24).toString('hex'),title:p.name,summary:'ULTRON digital product',sections:d.sections,createdAt:d.generatedAt}}o.status='COMPLETED';o.captureId=String(c.id||o.captureId||'');o.capturedAt=o.capturedAt||new Date().toISOString();o.capturedAmount=Number(c.amount?.value||o.amount||0);out=o.fulfillment;verifiedOffer=o.product});try{await onVerifiedCapture({orderId:id,captureId:String(c.id||''),amountUsd:Number(c.amount?.value||0),offerId:verifiedOffer,status:String(c.status||'')})}catch(e){console.error('v19 capture sync',String(e?.message||e))}return out}
+async function fulfill(id,c){let out,verifiedOffer=null;await saveLedger(l=>{const o=l.orders[id];if(!o)throw Error('Unknown order');assertCaptureMatches(o,c);if(!o.fulfillment){const p=marketProduct(o.product),d=buildDigitalDelivery(p,id);o.fulfillment={token:crypto.randomBytes(24).toString('hex'),title:p.name,summary:'ULTRON digital product',sections:d.sections,createdAt:d.generatedAt}}o.status='COMPLETED';o.captureId=String(c.id||o.captureId||'');o.capturedAt=o.capturedAt||new Date().toISOString();o.capturedAmount=Number(c.amount?.value||o.amount||0);out=o.fulfillment;verifiedOffer=o.product});try{await onVerifiedCapture({orderId:id,captureId:String(c.id||''),amountUsd:Number(c.amount?.value||0),offerId:verifiedOffer,status:String(c.status||'')})}catch(e){console.error('v19 capture sync',String(e?.message||e))}
+  try{await recordTrustedCapture({orderId:id,captureId:String(c.id||''),amountUsd:Number(c.amount?.value||0),offerId:verifiedOffer,status:String(c.status||''),currency:String(c.amount?.currency_code||'USD')})}
+  catch(e){console.error('v20 trusted capture sync',String(e?.message||e))}
+  return out}
 async function byToken(t){const l=await ledger();return Object.values(l.orders||{}).find(o=>o?.fulfillment?.token===t)?.fulfillment||null}
 async function agentBurst(){const l=await ledger();for(let i=0;i<WORKLOAD;i++)await runAgentCycle({ledger:l,baseUrl:PUBLIC});await runBusinessOSCycle({ledger:l,baseUrl:PUBLIC})}
 const esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -156,6 +160,57 @@ if(path.startsWith('/api/growth/v19/')&&req.method==='POST'){
     else return json(404,{error:'unknown v19 route'});
     return json(200,{ok:true,result});
   }catch(e){return json(400,{error:String(e?.message||e)});}
+}
+
+
+const reflectiveSnapshot=async()=>introspect({v19:await growthV19State(),legacyLedger:await ledger(),dbHealth:await storeHealth()});
+if(path==='/cognition'&&req.method==='GET'){
+ const d=await reflectiveSnapshot(),f=d.finances,e=d.evidence;
+ res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-robots-tag':'noindex'});
+ return res.end(shell('ULTRON Reflective Executive v20',
+ '<nav><a href="/">ULTRON ONE</a><a href="/growth/v19">Growth OS</a><a href="/first-sale">First Sale</a></nav>'+
+ '<h1>ULTRON Reflective Executive v20</h1><p>Self-monitoring machine-control system — not conscious, sentient, or self-aware in a human sense.</p>'+
+ '<section><article><h2>Operating mode</h2><p>'+esc(d.operatingMode)+'</p></article>'+
+ '<article><h2>Verified PayPal captures tracked by v20</h2><b>'+e.verifiedCaptureEvents+'</b></article>'+
+ '<article><h2>Collected USD events</h2><b>$'+f.grossRevenueUsd.toFixed(2)+'</b></article>'+
+ '<article><h2>Independent satisfied customers</h2><b>'+e.independentlySatisfied+'/3</b></article></section>'+
+ '<h2>Executive allocation</h2><p>'+esc(d.decisions.allocation.explanation)+'</p>'+
+ '<section>'+Object.entries(d.decisions.allocation.weights).map(([k,v])=>'<article><h3>'+esc(k)+'</h3><b>'+v+'%</b></article>').join('')+'</section>'+
+ '<h2>Present blockers</h2><ul>'+d.decisions.blockers.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>'+
+ '<h2>Implementation truth</h2><p>Capabilities are labeled active, evidence-gated, or provider-required in the private owner API. No real-money trading, unapproved outbound campaigns, transfers or autonomous spending.</p>'));
+}
+if(path==='/api/reflective/v20'&&req.method==='GET'){
+ if(!v13Owner())return json(403,{ok:false,error:'owner authorization required'});
+ return json(200,{ok:true,reflection:await reflectiveSnapshot()});
+}
+if(path==='/api/reflective/v20/queue'&&req.method==='GET'){
+ if(!v13Owner())return json(403,{error:'owner authorization required'});
+ const s=await operatingState();return json(200,{ok:true,emergency:s.emergency,events:s.eventOrder.slice(-100).map(id=>s.businessEvents[id]),
+ jobs:Object.values(s.jobs).slice(-100),opportunities:Object.values(s.opportunities).slice(-100),
+ orders:Object.values(s.orders).slice(-50),unapprovedSpendUsd:0});
+}
+if(path.startsWith('/api/reflective/v20/')&&req.method==='POST'){
+ if(!v13Owner())return json(403,{error:'owner authorization required'});
+ let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>130000)return json(413,{error:'payload too large'});}
+ let b={};try{b=JSON.parse(raw||'{}')}catch{return json(400,{error:'invalid JSON'});}
+ try{
+  let result;const action=path.slice('/api/reflective/v20/'.length);
+  if(action==='reflect'){const d=await reflectiveSnapshot();result=await rememberReflection(d);}
+  else if(action==='run-safe-jobs')result=await runSafeJobs(10);
+  else if(action==='buyer-intent')result=await registerPublicOpportunities(b.opportunities||[]);
+  else if(action==='event')result=await registerBusinessEvent(b);
+  else if(action==='stop')result=await emergencyStop({...b,owner:'Authenticated ULTRON owner'});
+  else if(action==='quality')result=await recordQualityEvidence(b);
+  else if(action==='cost')result=await addRealCost(b);
+  else if(action==='satisfaction')result=await recordCustomerSatisfaction(b);
+  else if(action==='budget')result=await authorizeBudget({...b,owner:'Authenticated ULTRON owner'});
+  else if(action==='campaign')result=await approveCampaignEnvelope({...b,owner:'Authenticated ULTRON owner'});
+  else if(action==='suppress')result=await suppressContact(b);
+  else if(action==='experiment')result=await registerV20Experiment({...b,owner:'Authenticated ULTRON owner'});
+  else if(action==='partner')result=await recordPartner(b);
+  else return json(404,{error:'unknown protected v20 operation'});
+  return json(200,{ok:true,result});
+ }catch(e){return json(400,{ok:false,error:String(e?.message||e)});}
 }
 
 if(path==='/v13'&&req.method==='GET'){const d=await v13Dashboard();res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store'});return res.end(shell('ULTRON v13 Control Plane','<nav><a href="/">← ULTRON ONE</a><a href="/api/v13">JSON</a></nav><h1>ULTRON v13 Control Plane</h1><div class="terminal">'+esc(JSON.stringify(d,null,2))+'</div>'))}
@@ -377,12 +432,13 @@ if(path==='/api/video-systems/revenue'&&req.method==='POST'){let raw='';for awai
 if(path==='/api/video-systems/wizard'&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;const result=wizardOperatingSystem(raw?JSON.parse(raw):{});await saveProject(result.project);return json(200,{ok:true,result})}
 if(path==='/api/search')return json(200,{ok:true,items:catalogPage({storeId:u.searchParams.get('store')||undefined,offset:Number(u.searchParams.get('offset')||0),limit:Math.min(100,Number(u.searchParams.get('limit')||20)),query:u.searchParams.get('q')||''})});
 if(path==='/market'||path.startsWith('/market/')){res.writeHead(200,{'content-type':'text/html'});return res.end(marketHtml(path==='/market'?null:decodeURIComponent(path.slice(8)),Number(u.searchParams.get('page')||1),u.searchParams.get('q')||''))}
-if(path==='/buy'){if(!READY)return json(503,{error:'PayPal not configured'});res.writeHead(303,{location:await createOrder(u.searchParams.get('product')||'')});return res.end()}
-if((path==='/webhooks/paypal'||path==='/api/paypal/webhook')&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;let event;try{event=JSON.parse(raw||'{}')}catch{return json(400,{error:'invalid JSON'})}const verify=await paypal('/v1/notifications/verify-webhook-signature','POST',{auth_algo:req.headers['paypal-auth-algo'],cert_url:req.headers['paypal-cert-url'],transmission_id:req.headers['paypal-transmission-id'],transmission_sig:req.headers['paypal-transmission-sig'],transmission_time:req.headers['paypal-transmission-time'],webhook_id:WH,webhook_event:event});if(verify?.verification_status!=='SUCCESS')return json(400,{error:'invalid webhook signature'});if(event.event_type==='PAYMENT.CAPTURE.COMPLETED'){const cap=event.resource||{},id=cap?.supplementary_data?.related_ids?.order_id||'';if(id){try{await fulfill(id,cap);await agentBurst()}catch(e){console.error('webhook fulfillment',e)}}}try{await paypalCommercialEvent(event)}catch(e){console.error('commercial PayPal mapping',e)}return json(200,{ok:true})}
+if(path==='/buy'){const g=await operationalGate('checkout');if(!g.allowed)return json(503,{error:'ULTRON new checkout paused by owner emergency control'});if(!READY)return json(503,{error:'PayPal not configured'});res.writeHead(303,{location:await createOrder(u.searchParams.get('product')||'')});return res.end()}
+if((path==='/webhooks/paypal'||path==='/api/paypal/webhook')&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;let event;try{event=JSON.parse(raw||'{}')}catch{return json(400,{error:'invalid JSON'})}const verify=await paypal('/v1/notifications/verify-webhook-signature','POST',{auth_algo:req.headers['paypal-auth-algo'],cert_url:req.headers['paypal-cert-url'],transmission_id:req.headers['paypal-transmission-id'],transmission_sig:req.headers['paypal-transmission-sig'],transmission_time:req.headers['paypal-transmission-time'],webhook_id:WH,webhook_event:event});if(verify?.verification_status!=='SUCCESS')return json(400,{error:'invalid webhook signature'});if(event.event_type==='PAYMENT.CAPTURE.REFUNDED'){const refund=event.resource||{},captureId=refund?.supplementary_data?.related_ids?.capture_id||refund.capture_id||'';if(captureId&&refund.id&&refund.status==='COMPLETED'){try{await recordTrustedRefund({refundId:refund.id,captureId,amountUsd:Number(refund.amount?.value||0),status:refund.status})}catch(e){console.error('v20 refund reconciliation',String(e?.message||e))}}}
+if(event.event_type==='PAYMENT.CAPTURE.COMPLETED'){const cap=event.resource||{},id=cap?.supplementary_data?.related_ids?.order_id||'';if(id){try{await fulfill(id,cap);await agentBurst()}catch(e){console.error('webhook fulfillment',e)}}}try{await paypalCommercialEvent(event)}catch(e){console.error('commercial PayPal mapping',e)}return json(200,{ok:true})}
 if(path==='/paypal/return'){const id=u.searchParams.get('token')||'',c=await capture(id);if(!c||c.status!=='COMPLETED')return json(409,{error:'Capture not completed'});const f=await fulfill(id,c);await agentBurst();res.writeHead(303,{location:'/fulfillment?token='+f.token});return res.end()}
 if(path==='/fulfillment'){const f=await byToken(u.searchParams.get('token'));if(!f)return json(404,{error:'Not found'});res.writeHead(200,{'content-type':'text/html'});return res.end(renderFulfillmentHtml(f))}
 if(path==='/paypal/cancel')return res.end('<h1>Payment canceled</h1>');
 if(path==='/api/payment-status')return json(200,{provider:'PayPal',mode:'live',ready:READY&&payment.ok,runtime:payment});
 return json(404,{error:'Not found'})}catch(e){console.error(e);return json(500,{error:'Request failed'})}})}
 async function boot(){try{payment=await verifyPayPalRuntime({paypal,webhookId:WH,publicBaseUrl:PUBLIC})}catch(e){payment={ok:false,checkedAt:new Date().toISOString(),error:String(e?.message||e)}}console.log('ULTRON payment runtime',JSON.stringify({ok:Boolean(payment.ok),apiAuthorized:Boolean(payment.apiAuthorized),webhookEndpointVerified:Boolean(payment.webhookEndpointVerified),captureEventsSubscribed:Boolean(payment.captureEventsSubscribed),checkedAt:payment.checkedAt||null,error:payment.error||null}));try{businessBilling=await verifyBusinessBilling(paypal);if(businessBilling.subscriptionApi&&process.env.PAYPAL_AUTO_PROVISION_RETAINER!=='false')businessBilling=await ensureDefaultRetainer(paypal);console.log('ULTRON business billing',JSON.stringify({invoiceApi:Boolean(businessBilling.invoiceApi),subscriptionApi:Boolean(businessBilling.subscriptionApi),planReady:Boolean(businessBilling.planId),planStatus:businessBilling.planStatus||null,lastVerifiedAt:businessBilling.lastVerifiedAt||null}))}catch(e){businessBilling={...(await billingState().catch(()=>({}))),lastError:String(e?.message||e),lastVerifiedAt:new Date().toISOString()};console.error('ULTRON business billing unavailable',String(e?.message||e))}try{const l=await ledger(),orders=Object.values(l?.orders||{}),completed=orders.filter(x=>String(x?.status||'').toUpperCase()==='COMPLETED'||x?.capturedAt),revenue=completed.reduce((s,x)=>s+Number(x?.capturedAmount||x?.amount||0),0);console.log('ULTRON sprint status',JSON.stringify({verifiedRevenueUsd:+revenue.toFixed(2),completedOrders:completed.length,...sprintPace({verifiedRevenueUsd:revenue})}))}catch(e){console.error('ULTRON sprint status unavailable',String(e?.message||e))}if(process.env.AGENT_AUTORUN!=='false'){await agentBurst().catch(console.error);timer=setInterval(()=>agentBurst().catch(console.error),INTERVAL*60000);timer.unref?.()}}
-if(process.argv[1]===fileURLToPath(import.meta.url)){createApp().listen(Number(process.env.PORT||3000),'0.0.0.0',()=>{console.log(`ULTRON market listening: ${marketStats().products} products, ${INTERVAL}m cycle, ${WORKLOAD}x workload`);boot();firstSaleV16Dashboard().then(d=>importProspects(d.prospects.filter(x=>x.site).map(x=>({name:x.name,website:x.site,city:'Houston',vertical:'auto detailing',fit:x.fit,source:'EXISTING_V16_CANDIDATE'})),'EXISTING_V16_CANDIDATE')).then(()=>backgroundTick()).then(x=>console.log('ULTRON v19 boot',JSON.stringify(x))).catch(e=>console.error('ULTRON v19 boot failed',String(e?.message||e)));setInterval(()=>backgroundTick().catch(e=>console.error('ULTRON v19 tick',String(e?.message||e))),30*60*1000).unref()})}
+if(process.argv[1]===fileURLToPath(import.meta.url)){createApp().listen(Number(process.env.PORT||3000),'0.0.0.0',()=>{console.log(`ULTRON market listening: ${marketStats().products} products, ${INTERVAL}m cycle, ${WORKLOAD}x workload`);boot();const reflectAndWork=async()=>{const s=await introspect({v19:await growthV19State(),legacyLedger:await ledger(),dbHealth:await storeHealth()});await rememberReflection(s);const j=await runSafeJobs(10);console.log('ULTRON reflective controller',JSON.stringify({mode:s.operatingMode,objective:s.objective,allocation:s.decisions.allocation.weights,verifiedCaptures:s.evidence.verifiedCaptureEvents,handledJobs:j.handled,blockers:s.decisions.blockers.length}))};reflectAndWork().catch(e=>console.error('ULTRON v20 start',String(e?.message||e)));setInterval(()=>reflectAndWork().catch(e=>console.error('ULTRON v20 tick',String(e?.message||e))),10*60000).unref();firstSaleV16Dashboard().then(d=>importProspects(d.prospects.filter(x=>x.site).map(x=>({name:x.name,website:x.site,city:'Houston',vertical:'auto detailing',fit:x.fit,source:'EXISTING_V16_CANDIDATE'})),'EXISTING_V16_CANDIDATE')).then(()=>backgroundTick()).then(x=>console.log('ULTRON v19 boot',JSON.stringify(x))).catch(e=>console.error('ULTRON v19 boot failed',String(e?.message||e)));setInterval(()=>backgroundTick().catch(e=>console.error('ULTRON v19 tick',String(e?.message||e))),30*60*1000).unref()})}

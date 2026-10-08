@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import {operationalGate,operatingState,registerBusinessEvent,suppressContact} from './ultron-reflective-revenue-v20.mjs';
 import dns from 'node:dns/promises';
 import net from 'node:net';
 import {getJson,mutateJson} from './state-store.mjs';
@@ -153,6 +154,10 @@ export async function receiveReply({prospectId,messageId,body}){
     else p.stage=category==='INTERESTED'?'INTERESTED':'REPLIED';
     if(category==='INTERESTED')s.meetings['reply-'+messageId]={prospectId,status:'READY_TO_OFFER_AVAILABLE_TIMES',createdAt:when()};
   });
+  try{
+    if(category==='OPT_OUT'||category==='DECLINE')await suppressContact({contactId:prospectId,reason:category});
+    if(category==='INTERESTED')await registerBusinessEvent({id:'gmail-reply:'+messageId,kind:'INTERESTED_REPLY',subject:prospectId,source:'OWNER_VERIFIED_REPLY',evidence:'Gmail message '+messageId});
+  }catch(e){console.error('v20 reply integration:',String(e?.message||e));}
   return {classification:category,sent:false,meetingConfirmed:false};
 }
 function configuredEmail(){return Boolean(process.env.ULTRON_GMAIL_CLIENT_ID&&process.env.ULTRON_GMAIL_CLIENT_SECRET&&process.env.ULTRON_GMAIL_REFRESH_TOKEN&&process.env.ULTRON_BUSINESS_SENDER&&process.env.ULTRON_BUSINESS_POSTAL_ADDRESS);}
@@ -170,6 +175,7 @@ export async function unsubscribe(id,token){
   return {unsubscribed:true};
 }
 export async function sendApproved(max=10){
+  const gate=await operationalGate('outreach');if(!gate.allowed)return {sent:0,status:gate.reason};
   if(!configuredEmail()||!process.env.ULTRON_UNSUBSCRIBE_SECRET||!process.env.PUBLIC_BASE_URL)
     return {sent:0,status:'SENDER_NOT_CONFIGURED',note:'No email sent; ChatGPT Gmail connection is separate from Railway runtime OAuth'};
   const day=when().slice(0,10),s=await growthState(),remaining=Math.max(0,s.policy.maxOutboundPerDay-(s.emailSentByDate[day]||0));if(remaining===0)return {sent:0,status:'DAILY_LIMIT_REACHED'};
@@ -177,8 +183,8 @@ export async function sendApproved(max=10){
   if(!allowed.length)return {sent:0,status:'NO_APPROVED_RECIPIENTS'};
   const t=await gmailToken();let sent=0,failed=0;
   for(const m of allowed){
-    const current=await growthState(),p=current.prospects[m.prospectId];
-    if(!p||p.optOut||current.suppression[p.id])continue;
+    const current=await growthState(),p=current.prospects[m.prospectId],v20=await operatingState();
+    if(!p||p.optOut||current.suppression[p.id]||v20.suppression[p.id]||v20.suppression[m.to])continue;
     if((p.touches||[]).filter(x=>Date.now()-Date.parse(x)<14*86400e3).length>=current.policy.maxTouchesPer14Days)continue;
     const link=String(process.env.PUBLIC_BASE_URL).replace(/\/$/,'')+'/unsubscribe/v19/'+encodeURIComponent(p.id)+'?token='+unsubscribeToken(p.id);
     const from=process.env.ULTRON_BUSINESS_SENDER,postal=process.env.ULTRON_BUSINESS_POSTAL_ADDRESS;
