@@ -1,5 +1,6 @@
 import {status as v24Status,pulse as v24Pulse,inspect as v24Inspect,browserRead as v24Browser,marketResearch as v24Market,writeCopy as v24Copy,reviewGrant as v24Grant} from './ultron-video-v24.mjs';
 import {snapshot as operatorSnapshot,cycle as operatorCycle,publicReadiness as operatorPublic,registerOwnerEvidence as operatorEvidence,register500Evidence} from './ultron-operator-v23.mjs';
+import {activationPlan} from './ultron-activation-v27.mjs';
 import {growthState as growthV19State,dashboard as growthDashboard,importProspects,auditProspect,prepareSales,approveOutbox,receiveReply,sendApproved,onVerifiedCapture,markFulfilled,customerProof,expense,queueExperiment,proposeContent,backgroundTick,unsubscribe,demoHtml} from './ultron-growth-runtime-v19.mjs';
 import {operatingState,introspect,rememberReflection,runSafeJobs,registerPublicOpportunities,registerBusinessEvent,recordTrustedCapture,recordTrustedRefund,emergencyStop,operationalGate,recordQualityEvidence,addRealCost,authorizeBudget,recordCustomerSatisfaction,approveCampaignEnvelope,suppressContact,recordExperiment as registerV20Experiment,recordPartner,readinessRegistry} from './ultron-reflective-revenue-v20.mjs';
 import {integrationSummary,dnsAudit,freeBusy,book as integrationBook,syncApprovedContact} from './ultron-integration-v21.mjs';
@@ -110,6 +111,8 @@ function acquisitionPage(nicheId='services'){
     <input name="missedCallRate" type="number" min="0" max="100" placeholder="Approx. % calls/inquiries missed"><br><br>
     <input name="responseMinutes" type="number" min="0" placeholder="Typical first-response minutes"><br><br>
     <input name="followup" placeholder="Follow-up: automated, manual, inconsistent, none"><br><br>
+    <label><input name="followupConsent" type="checkbox"> You may email me personally about my scan and a relevant solution. Optional; no marketing emails otherwise.</label><br><br>
+    <input name="website_url" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px" value="">
     <button>Run free scan</button>
    </form><div id="result"></div>
   </article>
@@ -192,6 +195,34 @@ if(path==='/completion-500'&&req.method==='GET'){
  '<p>Some items require domain ownership, provider authorization, external execution, actual customer payment or independent proof. Those are not automatically completed.</p>'));
 }
 
+
+if(path==='/api/activation/v27'&&req.method==='GET'){
+ const s=await operatorSnapshot();
+ const p=activationPlan({integrations:s.providerReadiness,paymentRuntime:payment,inbound:s.inboundLeads,
+  paidOrders:s.verifiedOrders,interestedBuyers:s.interestedBuyers,verifiedRevenueUsd:s.verifiedCapturedUsd});
+ return json(200,{ok:true,report:p,notice:'Real prospective buyers, authorized marketing and paid customer outcomes require external evidence.'});
+}
+if(path==='/api/activation/v27/inbound'&&req.method==='GET'){
+ if(!v13Owner())return json(403,{ok:false,error:'authenticated owner required'});
+ const limit=Math.min(100,Math.max(1,Number(u.searchParams.get('limit')||50)));
+ return json(200,{ok:true,leads:await listLeads(limit),notice:'Personal contact data restricted to owner; contact consent is separate from scan submission.'});
+}
+if(path==='/activation-center'&&req.method==='GET'){
+ const s=await operatorSnapshot();
+ const a=activationPlan({integrations:s.providerReadiness,paymentRuntime:payment,inbound:s.inboundLeads,
+  paidOrders:s.verifiedOrders,interestedBuyers:s.interestedBuyers,verifiedRevenueUsd:s.verifiedCapturedUsd});
+ const cards=a.actions.map(x=>'<article><small>'+esc(x.status)+' / '+esc(x.mode)+'</small><h3>'+esc(x.action)+'</h3><p>'+esc(x.dependsOn)+'</p></article>').join('');
+ const verified=a.providerGates.payments.status==='PRODUCTION_PROVIDER_VERIFIED'?'Production payment authorization verified (not a sale)':'Production payment verification pending';
+ res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store'});
+ return res.end(shell('ULTRON Revenue Activation Center',
+ '<nav><a href="/">ULTRON</a><a href="/mission-control">Mission Control</a><a href="/completion-500">500 Requirements</a><a href="/free-response-gap-scan">Free Diagnostic</a></nav>'+
+ '<h1>ULTRON / REVENUE ACTIVATION</h1><p>First-party inbound demand remains usable even when third-party buyer discovery is unavailable. Running software is not proof of real sales.</p>'+
+ '<section><article><h2>Voluntary inbound diagnostics</h2><b>'+a.firstPartyInbound.received+'</b></article><article><h2>Verified customer revenue</h2><b>$'+Number(a.verifiedRevenueUsd).toLocaleString('en-US')+'</b></article><article><h2>Current focus</h2><b>'+esc(a.focus)+'</b></article></section>'+
+ '<p>'+esc(verified)+'</p><h2>CEO priority actions</h2><section>'+cards+'</section>'+
+ '<p><a href="/api/activation/v27">Machine-readable status</a> | <a href="/flagship">Buy $500 Revenue Leak Audit</a></p>'+
+ '<p>Scanning voluntarily does not grant permission for unsolicited email. Owner credentials, external sending and spending require separate authorization.</p>'));
+}
+
 if(path==='/api/trillion-mission'&&req.method==='GET'){
  const d=await operatorSnapshot();
  return json(200,{ok:true,mission:d.strategicMission,supervisor:{currentPriority:d.objective,verifiedCapturedUsd:d.verifiedCapturedUsd,verifiedOrders:d.verifiedOrders,blocked:d.blockedCount,lastCycle:d.lastCycle?.at||null},notice:'Long-horizon stretch goal; only externally verified payments count as customer revenue.'});
@@ -212,7 +243,7 @@ if(path==='/trillion-mission'&&req.method==='GET'){
 if(path==='/mission-control'&&req.method==='GET'){
  const d=operatorPublic(await operatorSnapshot());
  res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store'});
- return res.end(shell('ULTRON Mission Control v23','<nav><a href="/">ULTRON</a><a href="/flagship">Flagship</a><a href="/integrations">Integration Status</a><a href="/trillion-mission">Trillion Mission</a><a href="/completion-500">500 Requirements</a></nav>'+
+ return res.end(shell('ULTRON Mission Control v23','<nav><a href="/">ULTRON</a><a href="/flagship">Flagship</a><a href="/integrations">Integration Status</a><a href="/trillion-mission">Trillion Mission</a><a href="/completion-500">500 Requirements</a><a href="/activation-center">Revenue Activation</a></nav>'+
  '<h1>MISSION CONTROL</h1><p>Thirty separate commercial and technical objectives, managed by one durable supervisor. Only real transactions count as revenue.</p>'+
  '<section><article><h2>Priority</h2><p>'+esc(d.objective)+'</p></article><article><h2>Verified captured orders</h2><b>'+d.verifiedOrders+'</b></article><article><h2>Blocked objectives</h2><b>'+d.blockedCount+'</b></article></section>'+
  '<p>Domain purchase, provider approvals, actual paid clients and independent financial proof remain external requirements.</p>'));
@@ -514,7 +545,7 @@ if(path==='/nucleus'){const m=nucleusManifest();const cards=Object.entries(m.org
 if(path==='/free-response-gap-scan'){res.writeHead(200,{'content-type':'text/html','cache-control':'public,max-age=300'});return res.end(acquisitionPage('services'))}
 if(/^\/solutions\/(hvac|plumbing|roofing|medspa|auto|services)-ai-lead-response$/.test(path)){const id=path.match(/^\/solutions\/([a-z]+)-ai-lead-response$/)[1];res.writeHead(200,{'content-type':'text/html','cache-control':'public,max-age=300'});return res.end(acquisitionPage(id))}
 if(path==='/api/acquisition'&&req.method==='GET')return json(200,{ok:true,manifest:acquisitionV11Manifest(),summary:await leadSummary()});
-if(path==='/api/acquisition/scan'&&req.method==='POST'){let raw='';for await(const ch of req){raw+=ch;if(raw.length>100000)return json(413,{ok:false,error:'request too large'})}let b={};try{b=JSON.parse(raw||'{}')}catch{return json(400,{ok:false,error:'invalid JSON'})}try{return json(201,{ok:true,...await captureLead(b)})}catch(e){return json(400,{ok:false,error:String(e?.message||e)})}}
+if(path==='/api/acquisition/scan'&&req.method==='POST'){let raw='';for await(const ch of req){raw+=ch;if(raw.length>100000)return json(413,{ok:false,error:'request too large'})}let b={};try{b=JSON.parse(raw||'{}')}catch{return json(400,{ok:false,error:'invalid JSON'})}if(b.website_url)return json(400,{ok:false,error:'invalid submission'});try{return json(201,{ok:true,...await captureLead(b)})}catch(e){return json(400,{ok:false,error:String(e?.message||e)})}}
 if(path==='/api/acquisition/leads'&&req.method==='GET'){if(!ACQ_TOKEN||req.headers['x-ultron-owner-token']!==ACQ_TOKEN)return json(401,{ok:false,error:'owner authorization required'});return json(200,{ok:true,leads:await listLeads(Number(u.searchParams.get('limit')||100))})}
 if(path==='/support'){res.writeHead(200,{'content-type':'text/html'});return res.end(shell('ULTRON Support','<h1>ULTRON Support</h1><p>Ask about products, checkout, delivery or refund policy through the support API.</p><p><a href="/market">Back to AI Market</a></p>'))}
 if(path==='/everything'){const m=universalMarketManifest(),s=await marketplaceState(),q=u.searchParams.get('q')||'',results=q?await marketplaceSearch(q,30):[];const cards=results.map(x=>`<article><small>${esc(x.product.type)} · ${esc(x.product.category)}</small><h3>${esc(x.product.title)}</h3><p>${esc(x.product.description)}</p>${x.featuredOffer?`<b>${Number(x.featuredOffer.priceUsd+x.featuredOffer.shippingUsd).toFixed(2)}</b><p>Featured offer · ${esc(x.featuredOffer.fulfillmentMode)}</p>`:'<p>No eligible live offer yet.</p>'}</article>`).join('');res.writeHead(200,{'content-type':'text/html','cache-control':'no-store'});return res.end(shell('ULTRON Everything Market',`<nav><a href="/">← ULTRON</a><a href="/market">AI Market</a><a href="/agent-of-agents">Agent-of-Agents</a></nav><h1>ULTRON Everything Market</h1><p>Universal mediator for digital products, software, services, subscriptions, POD, merchant goods, supplier fulfillment and partner offers.</p><p>${m.domains.length} marketplace domains · ${s.stats.merchants} merchants · ${s.stats.canonicalProducts} canonical products · ${s.stats.offers} live/staged offers</p><form><input name="q" value="${esc(q)}" placeholder="Search everything"><button>Search</button></form><section>${cards}</section><p><small>Only authorized sellers and compliant inventory can become eligible offers. Featured-offer ranking favors buyer value: price, availability, delivery and seller quality.</small></p>`))}
