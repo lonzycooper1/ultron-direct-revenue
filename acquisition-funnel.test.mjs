@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {nicheIds,nicheConfig,scoreResponseGap,acquisitionManifest} from './acquisition-funnel.mjs';
+import {nicheIds,nicheConfig,scoreResponseGap,acquisitionManifest,hasOneToOneConsent} from './acquisition-funnel.mjs';
 
 test('acquisition funnel exposes six high-intent service niches',()=>{
  assert.deepEqual(nicheIds().sort(),['auto','hvac','medspa','plumbing','roofing','services'].sort());
@@ -18,4 +18,12 @@ test('acquisition manifest prohibits spam and fabricated traffic',()=>{
  assert.match(m.funnel,/qualified lead capture/i);
  assert.ok(m.prohibited.includes('bulk unsolicited spam'));
  assert.ok(m.prohibited.includes('fake traffic'));
+});
+
+test('free diagnostic never assumes permission to send one-to-one follow-up',()=>{
+ assert.equal(hasOneToOneConsent(undefined),false);
+ assert.equal(hasOneToOneConsent(''),false);
+ assert.equal(hasOneToOneConsent('false'),false);
+ assert.equal(hasOneToOneConsent('on'),true);
+ assert.equal(hasOneToOneConsent(true),true);
 });
