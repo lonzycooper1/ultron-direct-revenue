@@ -1,4 +1,4 @@
-import {growthState,dashboard as growthDashboard,importProspects,auditProspect,prepareSales,approveOutbox,receiveReply,sendApproved,onVerifiedCapture,markFulfilled,customerProof,expense,queueExperiment,proposeContent,backgroundTick,unsubscribe,demoHtml} from './ultron-growth-runtime-v19.mjs';
+import {growthState as growthV19State,dashboard as growthDashboard,importProspects,auditProspect,prepareSales,approveOutbox,receiveReply,sendApproved,onVerifiedCapture,markFulfilled,customerProof,expense,queueExperiment,proposeContent,backgroundTick,unsubscribe,demoHtml} from './ultron-growth-runtime-v19.mjs';
 import {createServer} from 'node:http';
 import {fileURLToPath} from 'node:url';
 import {marketProduct,marketStats,marketStores,catalogPage,buildDigitalDelivery,featuredProducts} from './ai-market.mjs';
@@ -116,7 +116,7 @@ if(/^\/unsubscribe\/v19\/[^/]+$/.test(path)&&req.method==='GET'){
   try{await unsubscribe(decodeURIComponent(path.split('/')[3]),u.searchParams.get('token')||'');res.writeHead(200,{'content-type':'text/plain; charset=utf-8'});return res.end('ULTRON: unsubscribe confirmed');}catch{return json(400,{ok:false,error:'Invalid unsubscribe link'});}
 }
 if(/^\/demo\/v19\/[^/]+$/.test(path)&&req.method==='GET'){
-  const d=(await growthState()).demonstrations[decodeURIComponent(path.split('/')[3])];if(!d)return json(404,{error:'demo not found'});
+  const d=(await growthV19State()).demonstrations[decodeURIComponent(path.split('/')[3])];if(!d)return json(404,{error:'demo not found'});
   res.writeHead(200,{'content-type':'text/html; charset=utf-8','x-robots-tag':'noindex,nofollow','cache-control':'no-store'});return res.end(demoHtml(d));
 }
 if(path==='/growth/v19'&&req.method==='GET'){
@@ -131,7 +131,7 @@ if(path==='/growth/v19'&&req.method==='GET'){
 }
 if(path==='/api/growth/v19'&&req.method==='GET'){if(!v13Owner())return json(403,{error:'owner authorization required'});return json(200,{ok:true,dashboard:await growthDashboard()});}
 if(path==='/api/growth/v19/queue'&&req.method==='GET'){
-  if(!v13Owner())return json(403,{error:'owner authorization required'});const t=await growthState();
+  if(!v13Owner())return json(403,{error:'owner authorization required'});const t=await growthV19State();
   return json(200,{ok:true,prospects:Object.values(t.prospects).slice(-200),outbox:Object.values(t.outbox).filter(x=>x.status!=='SENT').slice(-100),
    proposals:Object.values(t.proposals).slice(-100),orders:Object.values(t.orders).slice(-100),fulfillment:Object.values(t.fulfillment).slice(-100)});
 }
