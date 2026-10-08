@@ -1,0 +1,13 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {ROLES,grantCheck,evidenceCopy,marketQuote,priority,integrationStates} from './ultron-video-v24.mjs';
+test('seven bounded departments',()=>assert.equal(ROLES.length,7));
+test('grant match never equals approval',()=>{const a=grantCheck({age:35,region:'US',forProfit:true,completedCourses:2});assert.equal(a.status,'PRELIMINARY_MATCH_NOT_VERIFIED');assert.equal(a.awarded,false);assert.equal(a.verifiedEligible,false)});
+test('missing grant info stays unverified',()=>assert.ok(grantCheck({}).missing.length>=3));
+test('draft requires evidence and never self-sends',()=>{const a=evidenceCopy({company:'Sample',website:'https://example.com',observations:['No visible booking link']});assert.equal(a.offer.usd,500);assert.equal(a.automaticSend,false);assert.equal(a.status,'DRAFT_NOT_SENT')});
+test('empty observations rejected',()=>assert.throws(()=>evidenceCopy({company:'Sample',website:'https://example.com'})));
+test('market data does not execute trades',()=>{const a=marketQuote({symbol:'AAPL',price:130,provider:'Test',asOf:new Date().toISOString()});assert.equal(a.liveOrderAllowed,false)});
+test('stale data clearly flagged',()=>{const a=marketQuote({symbol:'BTC/USD',price:130,provider:'Test',asOf:new Date(Date.now()-3600000).toISOString()});assert.equal(a.status,'STALE')});
+test('bad price rejected',()=>assert.throws(()=>marketQuote({symbol:'X',price:-1,provider:'X',asOf:new Date().toISOString()})));
+test('paid work prioritized',()=>{assert.equal(priority({paid:1,interested:1}),'DELIVER_TO_PAYING_CUSTOMER');assert.equal(priority({interested:1,blocked:1}),'RESPOND_TO_INTERESTED_BUYER')});
+test('no fake connector activation',()=>{const i=integrationStates({});assert.equal(i.browser.state,'NOT_CONNECTED');assert.equal(i.markets.realTrades,false)});
