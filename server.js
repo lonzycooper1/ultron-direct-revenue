@@ -1,6 +1,7 @@
 import {status as v24Status,pulse as v24Pulse,inspect as v24Inspect,browserRead as v24Browser,marketResearch as v24Market,writeCopy as v24Copy,reviewGrant as v24Grant} from './ultron-video-v24.mjs';
 import {snapshot as operatorSnapshot,cycle as operatorCycle,publicReadiness as operatorPublic,registerOwnerEvidence as operatorEvidence,register500Evidence} from './ultron-operator-v23.mjs';
 import {activationPlan} from './ultron-activation-v27.mjs';
+import {inboundWorkQueue,draftInboundById,reviewInbound} from './ultron-inbound-ops-v28.mjs';
 import {growthState as growthV19State,dashboard as growthDashboard,importProspects,auditProspect,prepareSales,approveOutbox,receiveReply,sendApproved,onVerifiedCapture,markFulfilled,customerProof,expense,queueExperiment,proposeContent,backgroundTick,unsubscribe,demoHtml} from './ultron-growth-runtime-v19.mjs';
 import {operatingState,introspect,rememberReflection,runSafeJobs,registerPublicOpportunities,registerBusinessEvent,recordTrustedCapture,recordTrustedRefund,emergencyStop,operationalGate,recordQualityEvidence,addRealCost,authorizeBudget,recordCustomerSatisfaction,approveCampaignEnvelope,suppressContact,recordExperiment as registerV20Experiment,recordPartner,readinessRegistry} from './ultron-reflective-revenue-v20.mjs';
 import {integrationSummary,dnsAudit,freeBusy,book as integrationBook,syncApprovedContact} from './ultron-integration-v21.mjs';
@@ -196,6 +197,29 @@ if(path==='/completion-500'&&req.method==='GET'){
 }
 
 
+if(path==='/api/owner/inbox-v28'&&req.method==='GET'){
+ if(!v13Owner())return json(403,{ok:false,error:'owner authentication required'});
+ const limit=Math.min(100,Math.max(1,Number(u.searchParams.get('limit')||100)||100));
+ return json(200,{ok:true,queue:await inboundWorkQueue(limit)});
+}
+if(path==='/api/owner/inbox-v28/draft'&&req.method==='GET'){
+ if(!v13Owner())return json(403,{ok:false,error:'owner authentication required'});
+ const id=String(u.searchParams.get('id')||'');
+ try{return json(200,{ok:true,draft:await draftInboundById(id)})}
+ catch(e){return json(400,{ok:false,error:String(e.message||e).slice(0,160)})}
+}
+if(path==='/api/owner/inbox-v28/review'&&req.method==='POST'){
+ if(!v13Owner())return json(403,{ok:false,error:'owner authentication required'});
+ let raw='';for await(const ch of req){raw+=ch;if(raw.length>3000)return json(413,{ok:false,error:'request too large'})}
+ let payload={};try{payload=JSON.parse(raw||'{}')}catch{return json(400,{error:'invalid JSON'})}
+ try{return json(200,{ok:true,review:await reviewInbound(payload)})}
+ catch(e){return json(400,{ok:false,error:String(e.message||e).slice(0,160)})}
+}
+if(path==='/inbound-inbox'&&req.method==='GET'){
+ res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store'});
+ return res.end(shell('ULTRON Private Inbound Inbox',"<nav><a href=\"/\">ULTRON</a><a href=\"/activation-center\">Revenue Activation</a><a href=\"/flagship\">Flagship</a></nav>\n<h1>ULTRON / OWNER INBOUND INBOX</h1>\n<p>Voluntary diagnostic inquiries only. Owner authentication is required to view contact information. No messages are sent automatically from this page.</p>\n<section><article><label for=\"key\">Owner token (kept only on this page)</label><input type=\"password\" id=\"key\" autocomplete=\"off\" placeholder=\"Railway owner token\">\n<button type=\"button\" id=\"load\">Load qualified inquiries</button><p id=\"feedback\" role=\"status\" aria-live=\"polite\"></p></article></section>\n<h2>Inbound lead queue</h2><div id=\"queue\"></div>\n<script>\n(function(){\nlet token='';\nconst status=document.getElementById('feedback'),queue=document.getElementById('queue');\nconst button=(label,fn)=>{const el=document.createElement('button');el.textContent=label;el.type='button';el.addEventListener('click',fn);return el};\nasync function request(url,init={}){\nconst r=await fetch(url,{...init,headers:{'authorization':'Bearer '+token,...(init.headers||{})}});\nlet b={};try{b=await r.json()}catch{};\nif(!r.ok)throw Error(b.error||'Authorization or request failed');\nreturn b;\n}\nasync function load(){\ntoken=document.getElementById('key').value.trim();\nif(!token){status.textContent='Owner token required';return;}\nstatus.textContent='Loading owner-only inquiries';queue.replaceChildren();\ntry{const b=await request('/api/owner/inbox-v28?limit=100');\nstatus.textContent=b.queue.total+' received; '+b.queue.consentedOpen+' available for consented one-to-one follow-up; '+b.queue.newRequests+' new.';\nfor(const item of b.queue.items){\nconst card=document.createElement('article'),title=document.createElement('h3'),details=document.createElement('p'),scope=document.createElement('p');\ntitle.textContent=(item.company||'Unspecified business')+' • '+item.severity+' • '+item.score+'/100';\ndetails.textContent=item.email+' • '+item.niche+' • '+item.status;\nscope.textContent=item.contactPermitted?'Requested one-to-one diagnostic follow-up':'No contact permission';\ncard.append(title,details,scope);\ncard.append(button('Mark reviewed',async()=>{try{await request('/api/owner/inbox-v28/review',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id:item.id,status:'reviewed'})});await load()}catch(e){status.textContent=e.message}}));\nif(item.contactPermitted){\ncard.append(button('Prepare reply in email app',async()=>{\ntry{const d=await request('/api/owner/inbox-v28/draft?id='+encodeURIComponent(item.id));\nconst href='mailto:'+encodeURIComponent(d.draft.to)+'?subject='+encodeURIComponent(d.draft.subject)+'&body='+encodeURIComponent(d.draft.body);\nwindow.location.href=href;status.textContent='Draft opened in your mail application. No email was sent by ULTRON.';}\ncatch(e){status.textContent=e.message;}\n}));\ncard.append(button('Mark qualified',async()=>{try{await request('/api/owner/inbox-v28/review',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id:item.id,status:'qualified'})});await load()}catch(e){status.textContent=e.message}}));\n}\ncard.append(button('Suppress contact',async()=>{if(!confirm('Suppress all follow-up for this lead?'))return;try{await request('/api/owner/inbox-v28/review',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id:item.id,status:'suppressed'})});await load()}catch(e){status.textContent=e.message}}));\nqueue.append(card);\n}\n}catch(e){status.textContent=e.message}\n}\ndocument.getElementById('load').addEventListener('click',load);\n})();\n</script>"));
+}
+
 if(path==='/api/activation/v27'&&req.method==='GET'){
  const s=await operatorSnapshot();
  const p=activationPlan({integrations:s.providerReadiness,paymentRuntime:payment,inbound:s.inboundLeads,
@@ -243,7 +267,7 @@ if(path==='/trillion-mission'&&req.method==='GET'){
 if(path==='/mission-control'&&req.method==='GET'){
  const d=operatorPublic(await operatorSnapshot());
  res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store'});
- return res.end(shell('ULTRON Mission Control v23','<nav><a href="/">ULTRON</a><a href="/flagship">Flagship</a><a href="/integrations">Integration Status</a><a href="/trillion-mission">Trillion Mission</a><a href="/completion-500">500 Requirements</a><a href="/activation-center">Revenue Activation</a></nav>'+
+ return res.end(shell('ULTRON Mission Control v23','<nav><a href="/">ULTRON</a><a href="/flagship">Flagship</a><a href="/integrations">Integration Status</a><a href="/trillion-mission">Trillion Mission</a><a href="/completion-500">500 Requirements</a><a href="/activation-center">Revenue Activation</a><a href="/inbound-inbox">Owner Inbox</a></nav>'+
  '<h1>MISSION CONTROL</h1><p>Thirty separate commercial and technical objectives, managed by one durable supervisor. Only real transactions count as revenue.</p>'+
  '<section><article><h2>Priority</h2><p>'+esc(d.objective)+'</p></article><article><h2>Verified captured orders</h2><b>'+d.verifiedOrders+'</b></article><article><h2>Blocked objectives</h2><b>'+d.blockedCount+'</b></article></section>'+
  '<p>Domain purchase, provider approvals, actual paid clients and independent financial proof remain external requirements.</p>'));
