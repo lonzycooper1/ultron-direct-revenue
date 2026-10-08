@@ -7,6 +7,22 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ultron_test
+          POSTGRES_PASSWORD: ci_ephemeral_only
+          POSTGRES_DB: ultron_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ultron_test -d ultron_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgresql://ultron_test:ci_ephemeral_only@localhost:5432/ultron_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
