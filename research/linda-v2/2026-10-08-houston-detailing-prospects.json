@@ -1,0 +1,89 @@
+{
+  "researchDate": "2026-10-08",
+  "localTimezone": "America/Chicago",
+  "purpose": "Linda V2 owner-private prospect research only",
+  "status": "RESEARCHED_NOT_CONTACTED",
+  "exclusions": [
+    "AutoLux Houston",
+    "Major Detailz",
+    "Prolific Shine Mobile Detailing",
+    "Altera Auto Detailing",
+    "LabShine Auto Detailing"
+  ],
+  "notes": "Public websites reviewed 2026-10-08. Questions are hypotheses, not confirmed deficiencies. No outbound contact, booking, sale, payment or CRM mutation.",
+  "prospects": [
+    {
+      "name": "Houston Mobile Details",
+      "domain": "houstonmobiledetails.com",
+      "website": "https://www.houstonmobiledetails.com/",
+      "officialContactPage": "https://www.houstonmobiledetails.com/",
+      "contactMethod": "Website footer lists business phone and email",
+      "bookingTool": "Wix-hosted Book Online services listing",
+      "bookingUrl": "https://www.houstonmobiledetails.com/book-online",
+      "discoveryQuestion": "When a same-day booking request arrives after hours, how do you confirm the service, travel location, and arrival window before the customer books elsewhere?",
+      "publicEvidence": "Site advertises same-day appointments and individual service-specific online booking with listed durations/prices.",
+      "sourceUrls": [
+        "https://www.houstonmobiledetails.com/",
+        "https://www.houstonmobiledetails.com/book-online"
+      ]
+    },
+    {
+      "name": "Dynamo Detailing LLC",
+      "domain": "dynamodetailing.com",
+      "website": "https://www.dynamodetailing.com/",
+      "officialContactPage": "https://www.dynamodetailing.com/",
+      "contactMethod": "On-page scheduling/contact form and call/text",
+      "bookingTool": "On-site booking-request form; company says it confirms within one hour (not an independently verified live slot reservation)",
+      "bookingUrl": "https://www.dynamodetailing.com/",
+      "discoveryQuestion": "How are incoming booking requests triaged during active detailing jobs, and would an automatic acknowledgement plus calendar handoff help you consistently meet your one-hour confirmation promise?",
+      "publicEvidence": "Booking form collects customer, vehicle, package, preferred date and service address; site says it will confirm within an hour.",
+      "sourceUrls": [
+        "https://www.dynamodetailing.com/"
+      ]
+    },
+    {
+      "name": "Rolling Water Detailing",
+      "domain": "rollingwaterdetailing.com",
+      "website": "https://rollingwaterdetailing.com/",
+      "officialContactPage": "https://rollingwaterdetailing.com/",
+      "contactMethod": "Phone/text and shop address in contact footer",
+      "bookingTool": "External Square booking link; site includes placeholder text 'Square Widget Goes Here'",
+      "bookingUrl": "https://rolling-water-detailing.square.site/",
+      "discoveryQuestion": "Are customers dropping off when they encounter the booking-widget placeholder before being sent to Square, and would a direct embedded scheduling flow reduce those steps?",
+      "publicEvidence": "Official site shows 'Online Booking — Square Widget Goes Here' and a separate Book on Square link.",
+      "sourceUrls": [
+        "https://rollingwaterdetailing.com/",
+        "https://rolling-water-detailing.square.site/"
+      ]
+    },
+    {
+      "name": "Mobility Cleaning",
+      "domain": "mobilitycleaning.com",
+      "website": "https://www.mobilitycleaning.com/",
+      "officialContactPage": "https://www.mobilitycleaning.com/contact/",
+      "contactMethod": "Official contact form, phone and business email",
+      "bookingTool": "Native online booking form requesting preferred date/time; phone/text alternative",
+      "bookingUrl": "https://www.mobilitycleaning.com/book/",
+      "discoveryQuestion": "When a customer submits a preferred date and time, does it immediately reserve a slot or require manual confirmation, and how do you prevent conflicting requests during mobile jobs?",
+      "publicEvidence": "Booking page has preferred date/time fields, says email confirmation and no upfront payment; contact page also encourages phone/text.",
+      "sourceUrls": [
+        "https://www.mobilitycleaning.com/contact/",
+        "https://www.mobilitycleaning.com/book/"
+      ]
+    },
+    {
+      "name": "Angel Details",
+      "domain": "angeldetails.com",
+      "website": "https://angeldetails.com/",
+      "officialContactPage": "https://angeldetails.com/#quote",
+      "contactMethod": "On-page free quote form, business email and phone",
+      "bookingTool": "Quote-request form rather than verified real-time slot selection",
+      "bookingUrl": "https://angeldetails.com/#quote",
+      "discoveryQuestion": "After a quote form is submitted, how quickly does a customer receive an estimate and available time slots, and could automated quote qualification shorten that gap?",
+      "publicEvidence": "Site collects vehicle, ZIP, service, condition and contact details and says business will contact customer to confirm pricing and availability.",
+      "sourceUrls": [
+        "https://angeldetails.com/"
+      ]
+    }
+  ]
+}
