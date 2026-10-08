@@ -1,3 +1,4 @@
+import {status as v24Status,pulse as v24Pulse,inspect as v24Inspect,browserRead as v24Browser,marketResearch as v24Market,writeCopy as v24Copy,reviewGrant as v24Grant} from './ultron-video-v24.mjs';
 import {snapshot as operatorSnapshot,cycle as operatorCycle,publicReadiness as operatorPublic,registerOwnerEvidence as operatorEvidence} from './ultron-operator-v23.mjs';
 import {growthState as growthV19State,dashboard as growthDashboard,importProspects,auditProspect,prepareSales,approveOutbox,receiveReply,sendApproved,onVerifiedCapture,markFulfilled,customerProof,expense,queueExperiment,proposeContent,backgroundTick,unsubscribe,demoHtml} from './ultron-growth-runtime-v19.mjs';
 import {operatingState,introspect,rememberReflection,runSafeJobs,registerPublicOpportunities,registerBusinessEvent,recordTrustedCapture,recordTrustedRefund,emergencyStop,operationalGate,recordQualityEvidence,addRealCost,authorizeBudget,recordCustomerSatisfaction,approveCampaignEnvelope,suppressContact,recordExperiment as registerV20Experiment,recordPartner,readinessRegistry} from './ultron-reflective-revenue-v20.mjs';
@@ -120,6 +121,35 @@ function acquisitionPage(nicheId='services'){
 }
 export function createApp(){return createServer(async(req,res)=>{const u=new URL(req.url,'http://local'),path=u.pathname,json=(s,d)=>{res.writeHead(s,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(d))};try{
 const v13Owner=()=>Boolean(ACQ_TOKEN)&&((req.headers.authorization||'')==='Bearer '+ACQ_TOKEN||req.headers['x-ultron-admin']===ACQ_TOKEN);
+
+if(path==='/api/upgrades/v24'&&req.method==='GET')return json(200,{ok:true,report:await v24Status()});
+if(path==='/upgrade-lab'&&req.method==='GET'){
+ const z=await v24Status();
+ res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store'});
+ return res.end(shell('ULTRON v24 Upgrade Lab',
+ '<nav><a href="/">ULTRON</a><a href="/mission-control">Mission Control</a><a href="/flagship">Flagship</a><a href="/api/upgrades/v24">JSON status</a></nav>'+
+ '<h1>ULTRON // VIDEO UPGRADE LAB</h1><p>Execution status is shown without overstating disconnected external services.</p>'+
+ '<section>'+Object.entries(z.integrations).map(([name,d])=>'<article><small>'+esc(name)+'</small><h3>'+esc(d.state)+'</h3></article>').join('')+'</section>'+
+ '<section><article><h2>Real captured orders</h2><b>'+z.sales.verifiedOrders+'</b></article><article><h2>Open paid delivery</h2><b>'+z.sales.outstandingDelivery+'</b></article></section>'+
+ '<p>Owner authorization required for scans and integrations. No automatic funding applications, live trades, or outbound sends.</p>'));
+}
+if(path.startsWith('/api/upgrades/v24/')&&req.method==='POST'){
+ if(!v13Owner())return json(403,{error:'owner authorization required'});
+ let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>16000)return json(413,{error:'request too large'});}
+ let b={};try{b=JSON.parse(raw||'{}')}catch{return json(400,{error:'invalid JSON'});}
+ try{
+  const op=path.slice('/api/upgrades/v24/'.length);
+  let result;
+  if(op==='pulse')result=await v24Pulse();
+  else if(op==='scan')result=await v24Inspect(b);
+  else if(op==='browser')result=await v24Browser(b);
+  else if(op==='copy')result=await v24Copy(b);
+  else if(op==='grant')result=await v24Grant(b);
+  else if(op==='market')result=await v24Market();
+  else return json(404,{error:'unknown action'});
+  return json(200,{ok:true,result});
+ }catch(e){return json(400,{error:String(e?.message||e).slice(0,200)})}
+}
 
 if(path==='/mission-control'&&req.method==='GET'){
  const d=operatorPublic(await operatorSnapshot());
