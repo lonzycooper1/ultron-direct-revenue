@@ -1,0 +1,15 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {scoreEvidence,workPriority,sendPolicy} from './ultron-sales-v22.mjs';
+import {reserveCalc,reviewCatalog} from './ultron-finance-v22.mjs';
+test('intent proof is not a verified buyer',()=>{const r=scoreEvidence({sourceUrl:'https://example.com',postedAt:'2026-10-07',publicRequest:'We need website and booking help'});assert.equal(r.verifiedBuyer,false)});
+test('unproven intent score is capped',()=>assert.ok(scoreEvidence({publicRequest:'a website'}).score<40));
+test('paid work first',()=>assert.equal(workPriority({paid:1}).next,'COMPLETE_PAID_DELIVERY'));
+test('buyer reply before speculation',()=>assert.equal(workPriority({interested:2}).next,'ANSWER_BUYER'));
+test('first sale prioritization',()=>assert.equal(workPriority({}).weights.acquisition,65));
+test('no unauthorized sending',()=>assert.equal(sendPolicy({}).ready,false));
+test('bounce investigation gates sender',()=>assert.equal(sendPolicy({domain:'x.com',oauth:true,unsubscribeCleared:true,bounces:1}).ready,false));
+test('no settlement means no reinvestment',()=>assert.equal(reserveCalc({captured:1000}).recommendedSpendUsd,0));
+test('owner claims do not verify bank balance',()=>assert.equal(reserveCalc({captured:1000,settled:800,depositClaim:700}).actualCashVerified,false));
+test('do not remove low data products',()=>assert.equal(reviewCatalog({views:40,sales:1}),'NOT_ENOUGH_DATA'));
+test('honor live purchases before pruning',()=>assert.equal(reviewCatalog({openOrders:1}),'KEEP_EXISTING_ORDERS'));

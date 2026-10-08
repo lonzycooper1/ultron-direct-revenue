@@ -1,6 +1,8 @@
 import {growthState as growthV19State,dashboard as growthDashboard,importProspects,auditProspect,prepareSales,approveOutbox,receiveReply,sendApproved,onVerifiedCapture,markFulfilled,customerProof,expense,queueExperiment,proposeContent,backgroundTick,unsubscribe,demoHtml} from './ultron-growth-runtime-v19.mjs';
 import {operatingState,introspect,rememberReflection,runSafeJobs,registerPublicOpportunities,registerBusinessEvent,recordTrustedCapture,recordTrustedRefund,emergencyStop,operationalGate,recordQualityEvidence,addRealCost,authorizeBudget,recordCustomerSatisfaction,approveCampaignEnvelope,suppressContact,recordExperiment as registerV20Experiment,recordPartner,readinessRegistry} from './ultron-reflective-revenue-v20.mjs';
 import {integrationSummary,dnsAudit,freeBusy,book as integrationBook,syncApprovedContact} from './ultron-integration-v21.mjs';
+import {overview as flywheelOverview,safeCycle as flywheelCycle,discoveryFallback,generateEvidenceDemo,crmDiff,ownerCampaign,trustedDispatch,acceptance,scoreEvidence,sendPolicy} from './ultron-sales-v22.mjs';
+import {report as financeReport,record as financeRecord,proposeExperiment,reviewCatalog} from './ultron-finance-v22.mjs';
 import {createServer} from 'node:http';
 import {fileURLToPath} from 'node:url';
 import {marketProduct,marketStats,marketStores,catalogPage,buildDigitalDelivery,featuredProducts} from './ai-market.mjs';
@@ -62,6 +64,7 @@ async function capture(id){const o=await paypal('/v2/checkout/orders/'+encodeURI
 async function fulfill(id,c){let out,verifiedOffer=null;await saveLedger(l=>{const o=l.orders[id];if(!o)throw Error('Unknown order');assertCaptureMatches(o,c);if(!o.fulfillment){const p=marketProduct(o.product),d=buildDigitalDelivery(p,id);o.fulfillment={token:crypto.randomBytes(24).toString('hex'),title:p.name,summary:'ULTRON digital product',sections:d.sections,createdAt:d.generatedAt}}o.status='COMPLETED';o.captureId=String(c.id||o.captureId||'');o.capturedAt=o.capturedAt||new Date().toISOString();o.capturedAmount=Number(c.amount?.value||o.amount||0);out=o.fulfillment;verifiedOffer=o.product});try{await onVerifiedCapture({orderId:id,captureId:String(c.id||''),amountUsd:Number(c.amount?.value||0),offerId:verifiedOffer,status:String(c.status||'')})}catch(e){console.error('v19 capture sync',String(e?.message||e))}
   try{await recordTrustedCapture({orderId:id,captureId:String(c.id||''),amountUsd:Number(c.amount?.value||0),offerId:verifiedOffer,status:String(c.status||''),currency:String(c.amount?.currency_code||'USD')})}
   catch(e){console.error('v20 trusted capture sync',String(e?.message||e))}
+  try{await trustedDispatch({orderId:id,captureId:String(c.id||''),offerId:verifiedOffer})}catch(e){console.error('v22 paid dispatch',String(e?.message||e))}
   return out}
 async function byToken(t){const l=await ledger();return Object.values(l.orders||{}).find(o=>o?.fulfillment?.token===t)?.fulfillment||null}
 async function agentBurst(){const l=await ledger();for(let i=0;i<WORKLOAD;i++)await runAgentCycle({ledger:l,baseUrl:PUBLIC});await runBusinessOSCycle({ledger:l,baseUrl:PUBLIC})}
