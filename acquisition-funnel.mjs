@@ -33,12 +33,14 @@ export function scoreResponseGap(input={}){
       :'Keep the current process, add a response-time KPI, and test one low-risk follow-up improvement before buying more software.';
   return {score,severity,recommendation};
 }
+export const hasOneToOneConsent=x=>x===true||x==='on'||x==='true';
+
 export async function captureLead(input={}){
   const email=clean(input.email,254).toLowerCase();
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error('valid business email required');
   const niche=Object.hasOwn(NICHES,input.niche)?input.niche:'services';
   const gap=scoreResponseGap(input);
-  const followupConsent=input.followupConsent===true||input.followupConsent==='on'||input.followupConsent==='true';
+  const followupConsent=hasOneToOneConsent(input.followupConsent);
   const lead={
     id:'lead-'+Date.now()+'-'+Math.random().toString(36).slice(2,8),
     createdAt:new Date().toISOString(),
