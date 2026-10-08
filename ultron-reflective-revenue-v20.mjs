@@ -185,8 +185,8 @@ export async function addRealCost({id,amountUsd,category,sourceRef,orderId}={}){
 export function financialControls({grossRevenue=0,refunds=0,recordedCosts=0,reserveRatePct=35,taxAllowancePct=25,ownerApprovedDailySpendUsd=0,satisfiedCustomers=0,minCustomers=3}={}){
  const gross=dollars(grossRevenue),reversed=dollars(refunds),cost=dollars(recordedCosts);
  const realized=Math.max(0,gross-reversed),operatingContribution=dollars(realized-cost);
- const taxHold=dollars(operatingContribution*Math.min(1,Math.max(0,Number(taxAllowancePct)||0))/100);
- const liquidityReserve=dollars(realized*Math.min(1,Math.max(0,Number(reserveRatePct)||0))/100);
+ const taxHold=dollars(operatingContribution*Math.min(100,Math.max(0,Number(taxAllowancePct)||0))/100);
+ const liquidityReserve=dollars(realized*Math.min(100,Math.max(0,Number(reserveRatePct)||0))/100);
  const available=dollars(Math.max(0,operatingContribution-taxHold-liquidityReserve));
  const threshold=Number(satisfiedCustomers)>=Number(minCustomers);
  const authorized=dollars(Math.min(available,Math.max(0,Number(ownerApprovedDailySpendUsd)||0)));
