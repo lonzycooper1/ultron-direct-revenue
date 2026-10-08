@@ -38,11 +38,12 @@ export async function captureLead(input={}){
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error('valid business email required');
   const niche=Object.hasOwn(NICHES,input.niche)?input.niche:'services';
   const gap=scoreResponseGap(input);
+  const followupConsent=input.followupConsent===true||input.followupConsent==='on'||input.followupConsent==='true';
   const lead={
     id:'lead-'+Date.now()+'-'+Math.random().toString(36).slice(2,8),
     createdAt:new Date().toISOString(),
     company:clean(input.company,160),
-    email,niche,
+    email,niche,followupConsent,consentScope:followupConsent?'REQUESTED_ONE_TO_ONE_DIAGNOSTIC_FOLLOWUP':'NO_MARKETING_PERMISSION',
     monthlyLeads:clamp(input.monthlyLeads,0,100000),
     missedCallRate:clamp(input.missedCallRate,0,100),
     responseMinutes:clamp(input.responseMinutes,0,10080),
@@ -51,14 +52,23 @@ export async function captureLead(input={}){
     source:clean(input.source||('free-response-gap-scan:'+niche),180),
     score:gap.score,severity:gap.severity,status:'new'
   };
-  await mutateJson(KEY,{leads:[]},s=>{s.leads=s.leads||[];s.leads.unshift(lead);s.leads=s.leads.slice(0,5000)});
-  return {leadId:lead.id,...gap,niche:nicheConfig(niche)};
+  let storedId=lead.id,duplicate=false;
+  await mutateJson(KEY,{leads:[]},s=>{
+   s.leads=s.leads||[];
+   const earlier=s.leads.find(x=>x.email===email&&x.niche===niche&&Date.now()-Date.parse(x.createdAt)<24*60*60*1000);
+   if(earlier){storedId=earlier.id;duplicate=true;
+    if(followupConsent){earlier.followupConsent=true;earlier.consentScope='REQUESTED_ONE_TO_ONE_DIAGNOSTIC_FOLLOWUP';}
+    earlier.score=gap.score;earlier.severity=gap.severity;earlier.lastScanAt=new Date().toISOString();
+   } else {s.leads.unshift(lead);s.leads=s.leads.slice(0,5000);}
+  });
+  return {leadId:storedId,duplicate,...gap,niche:nicheConfig(niche),contactStatus:followupConsent?'OPT_IN_TO_ONE_TO_ONE_REPLY':'NO_FOLLOWUP_PERMISSION'};
 }
 export async function leadSummary(){
   const s=await getJson(KEY,{leads:[]}),leads=s.leads||[];
   return {
     total:leads.length,
     new:leads.filter(x=>x.status==='new').length,
+    consentedForOneToOneFollowup:leads.filter(x=>x.followupConsent===true).length,
     high:leads.filter(x=>x.severity==='high').length,
     medium:leads.filter(x=>x.severity==='medium').length,
     byNiche:Object.fromEntries(nicheIds().map(id=>[id,leads.filter(x=>x.niche===id).length]))
