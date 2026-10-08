@@ -7,11 +7,15 @@ const read=()=>getJson(KEY,fallback());
 export function readiness(env=process.env){
  const has=(...a)=>a.every(k=>Boolean(env[k]));
  const gmail=has('ULTRON_GMAIL_CLIENT_ID','ULTRON_GMAIL_CLIENT_SECRET','ULTRON_GMAIL_REFRESH_TOKEN','ULTRON_BUSINESS_SENDER','ULTRON_BUSINESS_POSTAL_ADDRESS','ULTRON_UNSUBSCRIBE_SECRET');
+ const sender=String(env.ULTRON_BUSINESS_SENDER||'').trim();
+ const selectedSender=/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(sender)?sender:null;
  const calendar=has('ULTRON_GOOGLE_CLIENT_ID','ULTRON_GOOGLE_CLIENT_SECRET','ULTRON_CALENDAR_REFRESH_TOKEN','ULTRON_CALENDAR_ID');
  return {version:'21.0.0',
    discovery:{configured:has('ULTRON_DISCOVERY_FEED_URL'),status:has('ULTRON_DISCOVERY_FEED_URL')?'ADAPTER_CONFIGURED_VERIFY_SOURCE':'NEEDS_AUTHORIZED_FEED'},
    domain:{configured:has('ULTRON_BRANDED_DOMAIN'),status:has('ULTRON_BRANDED_DOMAIN')?'VERIFY_DNS_AND_OWNERSHIP':'NEEDS_OWNED_DOMAIN'},
-   gmail:{configured:gmail,status:gmail?'VERIFY_RUNTIME_OAUTH_AND_DNS':'NEEDS_RAILWAY_BUSINESS_GMAIL_AUTH'},
+   gmail:{configured:gmail,selectedSender,status:gmail?'VERIFY_RUNTIME_OAUTH_AND_SENDER':'NEEDS_RAILWAY_BUSINESS_GMAIL_AUTH',
+    deliveryMode:gmail?'RUNTIME_CREDENTIALS_PRESENT_VERIFY_SEND':'ADDRESS_SELECTED_PENDING_RAILWAY_OAUTH',
+    note:'An address selected in Railway and a Gmail account connected to ChatGPT do not by themselves grant the deployed server Gmail API permission.'},
    calendar:{configured:calendar,status:calendar?'VERIFY_RUNTIME_FREEBUSY':'NEEDS_RAILWAY_CALENDAR_OAUTH'},
    hubspot:{configured:has('ULTRON_HUBSPOT_PRIVATE_APP_TOKEN'),status:has('ULTRON_HUBSPOT_PRIVATE_APP_TOKEN')?'VERIFY_PRIVATE_APP_SCOPES':'NEEDS_RAILWAY_HUBSPOT_AUTH'},
    paypal:{configured:has('PAYPAL_CLIENT_ID','PAYPAL_CLIENT_SECRET','PAYPAL_WEBHOOK_ID'),status:'CHECK_SIGNED_WEBHOOK_AND_CAPTURE_STATUS'},
@@ -90,5 +94,5 @@ export async function syncApprovedContact({sourceId,name,email,company,sourceUrl
 export async function integrationSummary(){
  const s=await read();return {readiness:readiness(),syncedProspects:Object.keys(s.crmSync).length,
   confirmedCalendarInsertions:Object.keys(s.bookings).length,
-  requirements:['Owned verified domain and sender','Reauthorize restricted Hunter account or replace discovery provider','Production Google OAuth refresh credentials','HubSpot app token from correct portal','Payment settlement data and bank reconciliation','Signed distribution agreements']};
+  requirements:['An existing Gmail address may be used as the selected contact email; branded domain remains optional for a later professionalism upgrade','Configure Gmail API client ID, client secret, refresh token, business postal address and unsubscribe secret in Railway before automated sending','Verify selected Gmail sending authority from the Railway runtime','Reauthorize restricted Hunter account or replace discovery provider','Production Google Calendar OAuth refresh credentials','HubSpot app token from correct portal','Payment settlement data and bank reconciliation','Signed distribution agreements']};
 }
