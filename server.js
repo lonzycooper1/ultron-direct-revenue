@@ -1,5 +1,6 @@
 import {growthState as growthV19State,dashboard as growthDashboard,importProspects,auditProspect,prepareSales,approveOutbox,receiveReply,sendApproved,onVerifiedCapture,markFulfilled,customerProof,expense,queueExperiment,proposeContent,backgroundTick,unsubscribe,demoHtml} from './ultron-growth-runtime-v19.mjs';
 import {operatingState,introspect,rememberReflection,runSafeJobs,registerPublicOpportunities,registerBusinessEvent,recordTrustedCapture,recordTrustedRefund,emergencyStop,operationalGate,recordQualityEvidence,addRealCost,authorizeBudget,recordCustomerSatisfaction,approveCampaignEnvelope,suppressContact,recordExperiment as registerV20Experiment,recordPartner,readinessRegistry} from './ultron-reflective-revenue-v20.mjs';
+import {integrationSummary,dnsAudit,freeBusy,book as integrationBook,syncApprovedContact} from './ultron-integration-v21.mjs';
 import {createServer} from 'node:http';
 import {fileURLToPath} from 'node:url';
 import {marketProduct,marketStats,marketStores,catalogPage,buildDigitalDelivery,featuredProducts} from './ai-market.mjs';
@@ -209,6 +210,36 @@ if(path.startsWith('/api/reflective/v20/')&&req.method==='POST'){
   else if(action==='experiment')result=await registerV20Experiment({...b,owner:'Authenticated ULTRON owner'});
   else if(action==='partner')result=await recordPartner(b);
   else return json(404,{error:'unknown protected v20 operation'});
+  return json(200,{ok:true,result});
+ }catch(e){return json(400,{ok:false,error:String(e?.message||e)});}
+}
+
+
+if(path==='/integrations'&&req.method==='GET'){
+ const d=await integrationSummary();
+ const entries=Object.entries(d.readiness).filter(([,x])=>x&&typeof x==='object'&&'status'in x);
+ res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store'});
+ return res.end(shell('ULTRON External Integration Readiness','<nav><a href="/">ULTRON ONE</a><a href="/growth/v19">Growth v19</a><a href="/cognition">Reflective OS</a></nav>'+
+ '<h1>External Integration Readiness v21</h1><p>This report separates installed software, configured credentials and provider-verified connectivity.</p>'+
+ '<section>'+entries.map(([name,d])=>'<article><h2>'+esc(name)+'</h2><p>'+esc(d.status)+'</p></article>').join('')+'</section>'+
+ '<h2>Next required verifications</h2><ul>'+d.requirements.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>'+
+ '<p>No automated purchase, trading, transfers or unauthorized communication will be attempted.</p>'));
+}
+if(path==='/api/integrations/v21'&&req.method==='GET'){
+ if(!v13Owner())return json(403,{error:'owner authorization required'});
+ return json(200,{ok:true,result:await integrationSummary()});
+}
+if(path.startsWith('/api/integrations/v21/')&&req.method==='POST'){
+ if(!v13Owner())return json(403,{error:'owner authorization required'});
+ let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>20000)return json(413,{error:'payload too large'});}
+ let b={};try{b=JSON.parse(raw||'{}')}catch{return json(400,{error:'invalid JSON'});}
+ try{
+  let result;
+  if(path==='/api/integrations/v21/domain')result=await dnsAudit(b.domain);
+  else if(path==='/api/integrations/v21/freebusy')result=await freeBusy(b);
+  else if(path==='/api/integrations/v21/booking')result=await integrationBook(b);
+  else if(path==='/api/integrations/v21/crm')result=await syncApprovedContact(b);
+  else return json(404,{error:'unknown v21 operation'});
   return json(200,{ok:true,result});
  }catch(e){return json(400,{ok:false,error:String(e?.message||e)});}
 }
