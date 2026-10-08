@@ -1,0 +1,36 @@
+# Coolify is a portability option, NOT a second active ULTRON production deployment.
+# Bring your own Coolify server, secrets, domain, backup plan, and payment-webhook routing.
+services:
+  ultron:
+    build: .
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      PORT: '3000'
+      NODE_ENV: production
+      DATABASE_URL: 'postgresql://ultron:ultron_local_only@postgres:5432/ultron'
+      PUBLIC_BASE_URL: 'https://configure-your-own-domain.example'
+      ULTRON_ACQUISITION_ADMIN_TOKEN: '${ULTRON_ACQUISITION_ADMIN_TOKEN:?Owner token required}'
+      PAYPAL_CLIENT_ID: '${PAYPAL_CLIENT_ID:-}'
+      PAYPAL_CLIENT_SECRET: '${PAYPAL_CLIENT_SECRET:-}'
+      PAYPAL_WEBHOOK_ID: '${PAYPAL_WEBHOOK_ID:-}'
+    depends_on:
+      postgres:
+        condition: service_healthy
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ultron
+      POSTGRES_PASSWORD: 'ultron_local_only'
+      POSTGRES_DB: ultron
+    volumes:
+      - ultron-data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ultron -d ultron']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+volumes:
+  ultron-data:
