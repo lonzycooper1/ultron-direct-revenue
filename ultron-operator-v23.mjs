@@ -4,6 +4,8 @@ import {readiness} from './ultron-integration-v21.mjs';
 import {discoveryFallback,overview as salesOverview,safeCycle as salesCycle} from './ultron-sales-v22.mjs';
 import {report as financeReport} from './ultron-finance-v22.mjs';
 import {ledger} from './ledger-store.mjs';
+import {leadSummary} from './acquisition-funnel.mjs';
+import {activationPlan} from './ultron-activation-v27.mjs';
 import {buildTrillionMission} from './ultron-trillion-mission-v25.mjs';
 import {assessCompletion500,validateCompletionEvidence} from './ultron-500-completion-v26.mjs';
 
@@ -55,20 +57,21 @@ export function requiredStatus({integration={},paidOrders=0,accepted=0,crmDeals=
  set(30,'DEVICE_ACCEPTANCE_TEST_REQUIRED','Run iPhone and Mac workflow accessibility and login tests');
  return r;
 }
-export function prioritize({paid=0,interested=0,blockers=0}={}){
- return paid>0?'FULFILL_PAID_ORDERS':interested>0?'RESPOND_TO_INTERESTED_BUYERS':blockers>0?'REPAIR_REVENUE_PIPELINE':'DISCOVER_AND_CONVERT_CUSTOMERS';
+export function prioritize({paid=0,interested=0,inbound=0,blockers=0}={}){
+ return paid>0?'FULFILL_PAID_ORDERS':interested>0?'RESPOND_TO_INTERESTED_BUYERS':inbound>0?'REVIEW_OPT_IN_INBOUND':blockers>0?'REPAIR_REVENUE_PIPELINE':'DISCOVER_AND_CONVERT_CUSTOMERS';
 }
 export function publicReadiness(data){return {version:'23.0.0',asOf:data.asOf,objective:data.objective,verifiedOrders:data.verifiedOrders,blockedCount:data.blockedCount,taskCounts:data.taskCounts,strategicTargetUsd:data.strategicMission?.targetUsd||1000000000000,nextMilestoneUsd:data.strategicMission?.nextMilestone?.usd||100,notice:'Successful software cycles are not customer revenue. No guarantee of profit.'}}
 export async function snapshot(){
- const [s,g,l,i,f,db,sales]=await Promise.all([read(),growthState(),ledger(),Promise.resolve(readiness()),financeReport(),storeHealth(),salesOverview()]);
+ const [s,g,l,i,f,db,sales,inbound]=await Promise.all([read(),growthState(),ledger(),Promise.resolve(readiness()),financeReport(),storeHealth(),salesOverview(),leadSummary()]);
  const paid=Object.values(l.orders||{}).filter(o=>o.captureId&&o.capturedAt);
  const interested=Object.values(g.prospects||{}).filter(p=>p.stage==='INTERESTED').length;
  const tasks=requiredStatus({integration:i,paidOrders:paid.length,accepted:Number(sales.metrics?.accepted||0),domainVerified:false,shopifyLive:false});
  const blockers=tasks.filter(x=>x.status.startsWith('BLOCKED_'));
  const taskCounts={blocked:blockers.length,needsEvidence:tasks.length-blockers.length,externallyVerified:0};
  const completion500=assessCompletion500({verifiedRevenueUsd:f.verifiedCaptureUsd||0,verifiedOrders:paid.length,interestedBuyers:interested,operatorTasks:tasks,providerReadiness:i,serviceHealth:db,ownerEvidence:s.v26Evidence||{}});
- return {version:'23.0.0',asOf:now(),objective:prioritize({paid:paid.length,interested,blockers:blockers.length}),
- verifiedOrders:paid.length,interestedBuyers:interested,verifiedCapturedUsd:f.verifiedCaptureUsd||0,
+ const activation=activationPlan({integrations:i,paymentRuntime:{ok:process.env.PAYPAL_CLIENT_ID&&process.env.PAYPAL_CLIENT_SECRET&&process.env.PAYPAL_WEBHOOK_ID?true:false,apiAuthorized:false,webhookEndpointVerified:false},inbound,paidOrders:paid.length,unfulfilledPaidOrders:Number(sales.metrics?.outstandingDelivery||0),interestedBuyers:interested,verifiedRevenueUsd:f.verifiedCaptureUsd||0});
+ return {version:'23.0.0',asOf:now(),objective:prioritize({paid:Number(sales.metrics?.outstandingDelivery||0),interested,inbound:inbound.new,blockers:blockers.length}),
+ verifiedOrders:paid.length,interestedBuyers:interested,inboundLeads:inbound,activation,verifiedCapturedUsd:f.verifiedCaptureUsd||0,
  blockedCount:blockers.length,taskCounts,tasks,providerReadiness:i,db,
  lastCycle:s.lastCycle,cycleNumber:s.cycleNumber,recentCycles:s.history.slice(-12),
  ownerEvidenceCount:Object.keys(s.ownerEvidence||{}).length,completion500,
@@ -81,7 +84,7 @@ export async function cycle(){
  try{discovery=await discoveryFallback()}catch(e){discovery={status:'ERROR',error:String(e.message||e).slice(0,140)}}
  try{flywheel=await salesCycle()}catch(e){flywheel={status:'ERROR',error:String(e.message||e).slice(0,140)}}
  const snap=await snapshot();
- const rec={at:now(),objective:snap.objective,strategicTargetUsd:snap.strategicMission.targetUsd,strategicMilestone:snap.strategicMission.nextMilestone.usd,mainframeDirective:snap.strategicMission.mainframeDirective,completion500:{registered:snap.completion500.registeredRequirements,evidenceVerified:snap.completion500.evidenceVerifiedCount,focus:snap.completion500.focus,topAction:snap.completion500.nextActions[0]||null,ownerApprovalsRequired:snap.completion500.requiresExternalAction.length},verifiedOrders:snap.verifiedOrders,blocked:snap.blockedCount,
+ const rec={at:now(),objective:snap.objective,strategicTargetUsd:snap.strategicMission.targetUsd,strategicMilestone:snap.strategicMission.nextMilestone.usd,mainframeDirective:snap.strategicMission.mainframeDirective,activation:{focus:snap.activation.focus,inboundReceived:snap.activation.firstPartyInbound.received,inboundNew:snap.activation.firstPartyInbound.new,sender:snap.activation.providerGates.sender.status,discovery:snap.activation.providerGates.discovery.status,actions:snap.activation.actions.slice(0,3).map(x=>x.key)},completion500:{registered:snap.completion500.registeredRequirements,evidenceVerified:snap.completion500.evidenceVerifiedCount,focus:snap.completion500.focus,topAction:snap.completion500.nextActions[0]||null,ownerApprovalsRequired:snap.completion500.requiresExternalAction.length},verifiedOrders:snap.verifiedOrders,blocked:snap.blockedCount,
  discovery,flywheel,dbOk:snap.db.ok};
  await mutateJson(KEY,init(),s=>{s.lastCycle=rec;s.cycleNumber++;s.history.push(rec);if(s.history.length>48)s.history=s.history.slice(-48);
  s.activeAlerts=Object.fromEntries(snap.tasks.filter(t=>t.status.startsWith('BLOCKED_')).map(t=>[t.id,{name:t.name,status:t.status,at:rec.at}]));
