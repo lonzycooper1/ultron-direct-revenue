@@ -11,3 +11,10 @@ test('calendar booking requires explicit owner approval',async()=>assert.rejects
 test('CRM contact sync requires explicit owner approval',async()=>assert.rejects(syncApprovedContact({}),/approval/));
 test('invalid public hostname is rejected',async()=>assert.rejects(dnsAudit('localhost'),/public hostname/));
 test('freeBusy does not accept missing calendar ID',async()=>assert.rejects(freeBusy({start:'a',end:'b'}),/Calendar ID/));
+
+test('a connected Gmail address is selected without pretending server API auth exists',()=>{
+ const a=readiness({ULTRON_BUSINESS_SENDER:'hunterward199@gmail.com'});
+ assert.equal(a.gmail.selectedSender,'hunterward199@gmail.com');
+ assert.equal(a.gmail.configured,false);
+ assert.equal(a.gmail.deliveryMode,'ADDRESS_SELECTED_PENDING_RAILWAY_OAUTH');
+});
