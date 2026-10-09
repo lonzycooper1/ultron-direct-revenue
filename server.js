@@ -179,7 +179,7 @@ if(path==='/api/final-level/export.csv'&&req.method==='GET'){
  res.writeHead(200,{'content-type':'text/csv; charset=utf-8','cache-control':'no-store','content-disposition':'attachment; filename="ultron-final-level-100000.csv"','x-content-type-options':'nosniff'});
  const stream=Readable.from(finalLevelCsvLines(),{encoding:'utf8'});
  stream.on('error',e=>{console.error('final-level CSV stream failed:',String(e?.message||e));res.destroy(e)});
- req.on('close',()=>stream.destroy());
+ res.on('close',()=>stream.destroy());
  stream.pipe(res);return;
 }
 if(path==='/final-level'&&req.method==='GET'){
