@@ -1,6 +1,8 @@
 import {status as v24Status,pulse as v24Pulse,inspect as v24Inspect,browserRead as v24Browser,marketResearch as v24Market,writeCopy as v24Copy,reviewGrant as v24Grant} from './ultron-video-v24.mjs';
 import {snapshot as operatorSnapshot,cycle as operatorCycle,publicReadiness as operatorPublic,registerOwnerEvidence as operatorEvidence,register500Evidence} from './ultron-operator-v23.mjs';
 import {activationPlan} from './ultron-activation-v27.mjs';
+import {finalLevelCheck,lookupCheckId,listFinalLevelChecks,finalLevelCsvLines} from './ultron-final-level-v29.mjs';
+import {Readable} from 'node:stream';
 import {inboundWorkQueue,draftInboundById,reviewInbound} from './ultron-inbound-ops-v28.mjs';
 import {growthState as growthV19State,dashboard as growthDashboard,importProspects,auditProspect,prepareSales,approveOutbox,receiveReply,sendApproved,onVerifiedCapture,markFulfilled,customerProof,expense,queueExperiment,proposeContent,backgroundTick,unsubscribe,demoHtml} from './ultron-growth-runtime-v19.mjs';
 import {operatingState,introspect,rememberReflection,runSafeJobs,registerPublicOpportunities,registerBusinessEvent,recordTrustedCapture,recordTrustedRefund,emergencyStop,operationalGate,recordQualityEvidence,addRealCost,authorizeBudget,recordCustomerSatisfaction,approveCampaignEnvelope,suppressContact,recordExperiment as registerV20Experiment,recordPartner,readinessRegistry} from './ultron-reflective-revenue-v20.mjs';
@@ -156,6 +158,45 @@ if(path.startsWith('/api/upgrades/v24/')&&req.method==='POST'){
 }
 
 
+
+
+if(path==='/api/final-level'&&req.method==='GET'){
+ const s=await operatorSnapshot();
+ return json(200,{ok:true,report:s.finalLevel,supervisor:{objective:s.objective,asOf:s.asOf,verifiedOrders:s.verifiedOrders,verifiedCapturedUsd:s.verifiedCapturedUsd},
+  notice:'100,000 designed evidence checks; 0 have been automatically executed or independently verified.'});
+}
+if(path==='/api/final-level/checks'&&req.method==='GET'){
+ try{const p=listFinalLevelChecks({offset:u.searchParams.get('offset')||0,limit:u.searchParams.get('limit')||50,
+   requirementId:u.searchParams.get('requirementId')||null});
+  return json(200,{ok:true,...p});
+ }catch(e){return json(400,{ok:false,error:String(e.message||e).slice(0,160)})}
+}
+if(path.startsWith('/api/final-level/checks/')&&req.method==='GET'){
+ try{return json(200,{ok:true,check:lookupCheckId(path.slice('/api/final-level/checks/'.length))})}
+ catch(e){return json(404,{ok:false,error:String(e.message||e).slice(0,160)})}
+}
+if(path==='/api/final-level/export.csv'&&req.method==='GET'){
+ res.writeHead(200,{'content-type':'text/csv; charset=utf-8','cache-control':'no-store','content-disposition':'attachment; filename="ultron-final-level-100000.csv"','x-content-type-options':'nosniff'});
+ const stream=Readable.from(finalLevelCsvLines(),{encoding:'utf8'});
+ stream.on('error',e=>{console.error('final-level CSV stream failed:',String(e?.message||e));res.destroy(e)});
+ req.on('close',()=>stream.destroy());
+ stream.pipe(res);return;
+}
+if(path==='/final-level'&&req.method==='GET'){
+ const s=await operatorSnapshot(),x=s.finalLevel;
+ const blockers=x.mandatoryExternalGates.map(g=>'<article><small>'+esc(g.status)+'</small><h3>'+esc(g.key.replaceAll('_',' '))+'</h3><p>'+esc(g.reason)+'</p></article>').join('');
+ const top=x.priorityRequirements.map(t=>'<li><b>'+esc(t.requirementId)+'</b> '+esc(t.task)+' <small>'+esc(t.authorization)+'</small></li>').join('');
+ res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store'});
+ return res.end(shell('ULTRON - Final Level QA Program',
+  '<nav><a href="/">ULTRON</a><a href="/mission-control">Mission Control</a><a href="/completion-500">500 Requirements</a><a href="/activation-center">Activation</a></nav>'+
+  '<h1>FINAL LEVEL / 100,000 EVIDENCE CHECKS</h1><p>500 requirements × 10 quality controls × 5 operating conditions × 4 lifecycle stages. These are checks to perform, not completed upgrades.</p>'+
+  '<section><article><h2>Checks indexed</h2><b>'+Number(x.registeredQualityChecks).toLocaleString('en-US')+'</b></article>'+
+  '<article><h2>Independently verified as passed</h2><b>'+x.verifiedPassed+'</b></article>'+
+  '<article><h2>Reported customer revenue</h2><b>$'+Number(x.reportedVerifiedRevenueUsd).toLocaleString('en-US')+'</b></article></section>'+
+  '<p><a href="/api/final-level/export.csv">Download complete 100,000-check CSV</a> · <a href="/api/final-level/checks?offset=0&limit=50">Browse first 50 checks</a> · <a href="/api/final-level">Structured status</a></p>'+
+  '<h2>Highest-priority underlying requirements</h2><ol>'+top+'</ol><h2>External activation gates</h2><section>'+blockers+'</section>'+
+  '<p>All 100,000 checks begin as NOT_EVALUATED. Generating them does not create working provider access, sales or lender eligibility. No external sending, spending or financial transactions are performed.</p>'));
+}
 
 if(path==='/api/completion-500'&&req.method==='GET'){
  const d=await operatorSnapshot(),p=d.completion500;
