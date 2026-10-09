@@ -6,6 +6,7 @@ import {report as financeReport} from './ultron-finance-v22.mjs';
 import {ledger} from './ledger-store.mjs';
 import {leadSummary} from './acquisition-funnel.mjs';
 import {activationPlan} from './ultron-activation-v27.mjs';
+import {finalLevelSummary} from './ultron-final-level-v29.mjs';
 import {buildTrillionMission} from './ultron-trillion-mission-v25.mjs';
 import {assessCompletion500,validateCompletionEvidence} from './ultron-500-completion-v26.mjs';
 
@@ -70,11 +71,12 @@ export async function snapshot(){
  const taskCounts={blocked:blockers.length,needsEvidence:tasks.length-blockers.length,externallyVerified:0};
  const completion500=assessCompletion500({verifiedRevenueUsd:f.verifiedCaptureUsd||0,verifiedOrders:paid.length,interestedBuyers:interested,operatorTasks:tasks,providerReadiness:i,serviceHealth:db,ownerEvidence:s.v26Evidence||{}});
  const activation=activationPlan({integrations:i,paymentRuntime:{ok:process.env.PAYPAL_CLIENT_ID&&process.env.PAYPAL_CLIENT_SECRET&&process.env.PAYPAL_WEBHOOK_ID?true:false,apiAuthorized:false,webhookEndpointVerified:false},inbound,paidOrders:paid.length,unfulfilledPaidOrders:Number(sales.metrics?.outstandingDelivery||0),interestedBuyers:interested,verifiedRevenueUsd:f.verifiedCaptureUsd||0});
+ const finalLevel=finalLevelSummary({completion500,readiness:i,verifiedOrders:paid.length,verifiedRevenueUsd:f.verifiedCaptureUsd||0});
  return {version:'23.0.0',asOf:now(),objective:prioritize({paid:Number(sales.metrics?.outstandingDelivery||0),interested,inbound:inbound.new,blockers:blockers.length}),
  verifiedOrders:paid.length,interestedBuyers:interested,inboundLeads:inbound,activation,verifiedCapturedUsd:f.verifiedCaptureUsd||0,
  blockedCount:blockers.length,taskCounts,tasks,providerReadiness:i,db,
  lastCycle:s.lastCycle,cycleNumber:s.cycleNumber,recentCycles:s.history.slice(-12),
- ownerEvidenceCount:Object.keys(s.ownerEvidence||{}).length,completion500,
+ ownerEvidenceCount:Object.keys(s.ownerEvidence||{}).length,completion500,finalLevel,
  safety:{automaticPaidAds:false,automaticFinancialTransfers:false,unapprovedExternalEmail:false,reportedRevenueIsNotCash:true},strategicMission:buildTrillionMission({verifiedRevenueUsd:f.verifiedCaptureUsd||0,paidOrders:paid.length,interestedBuyers:interested,blockedTasks:tasks})};
 }
 export async function cycle(){
@@ -84,7 +86,7 @@ export async function cycle(){
  try{discovery=await discoveryFallback()}catch(e){discovery={status:'ERROR',error:String(e.message||e).slice(0,140)}}
  try{flywheel=await salesCycle()}catch(e){flywheel={status:'ERROR',error:String(e.message||e).slice(0,140)}}
  const snap=await snapshot();
- const rec={at:now(),objective:snap.objective,strategicTargetUsd:snap.strategicMission.targetUsd,strategicMilestone:snap.strategicMission.nextMilestone.usd,mainframeDirective:snap.strategicMission.mainframeDirective,activation:{focus:snap.activation.focus,inboundReceived:snap.activation.firstPartyInbound.received,inboundNew:snap.activation.firstPartyInbound.new,sender:snap.activation.providerGates.sender.status,discovery:snap.activation.providerGates.discovery.status,actions:snap.activation.actions.slice(0,3).map(x=>x.key)},completion500:{registered:snap.completion500.registeredRequirements,evidenceVerified:snap.completion500.evidenceVerifiedCount,focus:snap.completion500.focus,topAction:snap.completion500.nextActions[0]||null,ownerApprovalsRequired:snap.completion500.requiresExternalAction.length},verifiedOrders:snap.verifiedOrders,blocked:snap.blockedCount,
+ const rec={at:now(),objective:snap.objective,strategicTargetUsd:snap.strategicMission.targetUsd,strategicMilestone:snap.strategicMission.nextMilestone.usd,mainframeDirective:snap.strategicMission.mainframeDirective,activation:{focus:snap.activation.focus,inboundReceived:snap.activation.firstPartyInbound.received,inboundNew:snap.activation.firstPartyInbound.new,sender:snap.activation.providerGates.sender.status,discovery:snap.activation.providerGates.discovery.status,actions:snap.activation.actions.slice(0,3).map(x=>x.key)},completion500:{registered:snap.completion500.registeredRequirements,evidenceVerified:snap.completion500.evidenceVerifiedCount,focus:snap.completion500.focus,topAction:snap.completion500.nextActions[0]||null,ownerApprovalsRequired:snap.completion500.requiresExternalAction.length},finalLevel:{checksDesigned:snap.finalLevel.registeredQualityChecks,checksPassed:snap.finalLevel.verifiedPassed,requirementCount:snap.finalLevel.underlyingRequirements,priority:snap.finalLevel.priorityRequirements[0]||null},verifiedOrders:snap.verifiedOrders,blocked:snap.blockedCount,
  discovery,flywheel,dbOk:snap.db.ok};
  await mutateJson(KEY,init(),s=>{s.lastCycle=rec;s.cycleNumber++;s.history.push(rec);if(s.history.length>48)s.history=s.history.slice(-48);
  s.activeAlerts=Object.fromEntries(snap.tasks.filter(t=>t.status.startsWith('BLOCKED_')).map(t=>[t.id,{name:t.name,status:t.status,at:rec.at}]));
