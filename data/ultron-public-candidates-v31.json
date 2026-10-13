@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "curatedAt": "2026-10-13",
+  "classification": "PUBLIC_BUSINESS_CANDIDATES_ONLY",
+  "disclaimer": "Ordinary businesses from their own public websites. No expressed demand, contact consent, decision-maker verification, or buyer commitment is implied. Outreach remains owner-reviewed.",
+  "businesses": [
+    {
+      "name": "OneCall Houston",
+      "website": "https://onecallhouston.com/",
+      "city": "Houston, TX",
+      "vertical": "plumbing/HVAC/electrical",
+      "fit": 55,
+      "source": "PUBLIC_OFFICIAL_SITE",
+      "sourceEvidence": "https://onecallhouston.com/",
+      "buyerIntent": "UNKNOWN_NOT_A_BUYER"
+    },
+    {
+      "name": "Air Dynasty A/C & Heating LLC",
+      "website": "https://www.airdynastyusa.com/",
+      "city": "Houston, TX",
+      "vertical": "HVAC",
+      "fit": 55,
+      "source": "PUBLIC_OFFICIAL_SITE",
+      "sourceEvidence": "https://www.airdynastyusa.com/",
+      "buyerIntent": "UNKNOWN_NOT_A_BUYER"
+    },
+    {
+      "name": "APCA AC and Heating Repair",
+      "website": "https://apca-ac-and-heating.com/",
+      "city": "Houston, TX",
+      "vertical": "HVAC",
+      "fit": 55,
+      "source": "PUBLIC_OFFICIAL_SITE",
+      "sourceEvidence": "https://apca-ac-and-heating.com/book",
+      "buyerIntent": "UNKNOWN_NOT_A_BUYER"
+    },
+    {
+      "name": "Fireside Heating & Air Co. of Houston",
+      "website": "https://firesideheatingairhouston.com/",
+      "city": "Houston, TX",
+      "vertical": "HVAC",
+      "fit": 55,
+      "source": "PUBLIC_OFFICIAL_SITE",
+      "sourceEvidence": "https://firesideheatingairhouston.com/book/",
+      "buyerIntent": "UNKNOWN_NOT_A_BUYER"
+    }
+  ]
+}
