@@ -11,7 +11,7 @@ export function readiness(env=process.env){
  const selectedSender=/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(sender)?sender:null;
  const calendar=has('ULTRON_GOOGLE_CLIENT_ID','ULTRON_GOOGLE_CLIENT_SECRET','ULTRON_CALENDAR_REFRESH_TOKEN','ULTRON_CALENDAR_ID');
  return {version:'21.0.0',
-   discovery:{configured:has('ULTRON_DISCOVERY_FEED_URL'),status:has('ULTRON_DISCOVERY_FEED_URL')?'ADAPTER_CONFIGURED_VERIFY_SOURCE':'NEEDS_AUTHORIZED_FEED'},
+   discovery:{configured:has('ULTRON_DISCOVERY_FEED_URL')||has('ULTRON_DISCOVERY_FALLBACK_URL'),status:has('ULTRON_DISCOVERY_FEED_URL')?'PRIMARY_CONFIGURED_VERIFY_SOURCE':has('ULTRON_DISCOVERY_FALLBACK_URL')?'FALLBACK_CONFIGURED_VERIFY_SOURCE':'NEEDS_AUTHORIZED_FEED',note:'Configured source is only a researched-business feed; it does not establish real buyer intent, contact authority or a confirmed import.'},
    domain:{configured:has('ULTRON_BRANDED_DOMAIN'),status:has('ULTRON_BRANDED_DOMAIN')?'VERIFY_DNS_AND_OWNERSHIP':'NEEDS_OWNED_DOMAIN'},
    gmail:{configured:gmail,selectedSender,status:gmail?'VERIFY_RUNTIME_OAUTH_AND_SENDER':'NEEDS_RAILWAY_BUSINESS_GMAIL_AUTH',
     deliveryMode:gmail?'RUNTIME_CREDENTIALS_PRESENT_VERIFY_SEND':'ADDRESS_SELECTED_PENDING_RAILWAY_OAUTH',
