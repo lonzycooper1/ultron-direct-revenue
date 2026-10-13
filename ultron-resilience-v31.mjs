@@ -63,7 +63,8 @@ export function jobPlan(at=new Date()){
   {id:'health:'+hour,kind:'HEALTH',department:'infrastructure',priority:65},
   {id:'sales-truth:'+hour,kind:'SALES_TRUTH',department:'payments',priority:95},
   {id:'approval-triage:'+hour,kind:'APPROVAL_TRIAGE',department:'compliance',priority:90},
-  {id:'discovery:'+day,kind:'DISCOVERY',department:'acquisition',priority:80}
+  {id:'discovery:'+day,kind:'DISCOVERY',department:'acquisition',priority:80},
+  ...Object.keys(DEPARTMENTS).map(department=>({id:'pulse:'+day+':'+Math.floor(at.getUTCHours()/6)+':'+department,kind:'DEPARTMENT_PULSE',department,priority:35}))
  ];
 }
 export function reassignJob(job,at=Date.now()){
@@ -80,6 +81,7 @@ export function reviewResult(kind,result){
  if(kind==='SALES_TRUTH')return {ok:Number.isFinite(result.paidOrders)&&Number.isFinite(result.revenueUsd),why:'Ledger result cannot be treated as bank settlement'};
  if(kind==='APPROVAL_TRIAGE')return {ok:Number.isFinite(result.pendingApprovals),why:'Owner-only approvals must not be auto-decided'};
  if(kind==='DISCOVERY')return {ok:typeof result.status==='string',why:'Feed results are candidates, not verified buyers'};
+ if(kind==='DEPARTMENT_PULSE')return {ok:Boolean(DEPARTMENTS[result.department])&&result.manager===DEPARTMENTS[result.department].manager&&Number.isFinite(result.paidOrders)&&Number.isFinite(result.prospectCandidates),why:'Manager pulse is a read-only evidence check, not model execution'};
  return {ok:false,why:'Unrecognized action'};
 }
 export function publicStatus(state={}){
@@ -104,7 +106,11 @@ async function inspect(){
   prospectCandidates:Object.keys(growth.prospects||{}).length,
   consentRequests:inbound.consentedOpen||0,gates:computeGates(process.env,{paidOrders:orders.length,pendingApprovals})};
 }
-async function execute(kind){
+async function execute(kind,department){
+ if(kind==='DEPARTMENT_PULSE'){
+  const x=await inspect(),d=DEPARTMENTS[department];if(!d)throw Error('unknown department');
+  return {department,manager:d.manager,at:x.at,paidOrders:x.paidOrders,prospectCandidates:x.prospectCandidates,pendingApprovals:x.pendingApprovals,externalActions:0};
+ }
  if(kind==='DISCOVERY'){
   if(!process.env.ULTRON_DISCOVERY_FEED_URL&&!process.env.ULTRON_DISCOVERY_FALLBACK_URL)
    return {status:'BLOCKED_NO_AUTHORIZED_FEED',imported:0};
@@ -128,11 +134,11 @@ async function leaseNext(){
   }
   const all=Object.values(s.jobs);
   all.sort((a,b)=>b.priority-a.priority||a.queuedAt.localeCompare(b.queuedAt));
-  const job=all.find(j=>j.status==='QUEUED');
+  const job=all.find(j=>j.status==='QUEUED'&&(!j.retryAfter||Date.parse(j.retryAfter)<=Date.now()));
   if(job){
    const leaseId=crypto.randomUUID();
    Object.assign(job,{status:'RUNNING',startedAt:now(),leaseId,leaseExpiresAt:Date.now()+LEASE_MS});
-   picked={id:job.id,kind:job.kind,leaseId,reviewer:job.reviewer,owner:job.owner};
+   picked={id:job.id,kind:job.kind,department:job.department,leaseId,reviewer:job.reviewer,owner:job.owner};
   }
   if(all.length>MAX_JOBS){
    const removable=all.filter(j=>['COMPLETE','BLOCKED'].includes(j.status)).sort((a,b)=>a.queuedAt.localeCompare(b.queuedAt));
@@ -147,7 +153,7 @@ async function settle(job,result,error){
   const reviewer=reviewResult(job.kind,result);
   x.attempts=(x.attempts||0)+1;x.leaseExpiresAt=null;x.leaseId=null;
   if(!error&&reviewer.ok){
-   x.status=result?.status==='BLOCKED_NO_AUTHORIZED_FEED'?'BLOCKED':'COMPLETE';
+   x.status=job.kind==='DISCOVERY'&&/^(BLOCKED_|NO_|ERROR)/.test(String(result?.status||''))?'BLOCKED':'COMPLETE';
    x.finishedAt=now();x.evidence=result;
    x.verification={reviewer:job.reviewer,check:'shape_and_source_validation',status:'PASSED',at:now()};
   }else{
@@ -167,7 +173,7 @@ export async function supervisionCycle(){
   for(let n=0;n<4&&Date.now()-started<45000;n++){
    const j=await leaseNext();if(!j)break;
    let result=null,error=null;
-   try{result=await execute(j.kind)}catch(e){error=clean(e?.message||e)}
+   try{result=await execute(j.kind,j.department)}catch(e){error=clean(e?.message||e)}
    await settle(j,result,error);
    if(j.kind==='DISCOVERY')await mutateJson(KEY,base(),s=>{s.latest.discovery=result||{status:'ERROR'};});
    completed++;
