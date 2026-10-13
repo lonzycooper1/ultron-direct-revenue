@@ -1,6 +1,21 @@
 import pg from 'pg';import {readFile} from 'node:fs/promises';
-const {Pool}=pg,pool=process.env.DATABASE_URL?new Pool({connectionString:process.env.DATABASE_URL,max:20}):null;let initialized=false;
-async function init(){if(initialized)return;if(!pool)throw Error('DATABASE_URL is required');await pool.query(`CREATE TABLE IF NOT EXISTS ultron_state (key text PRIMARY KEY, value jsonb NOT NULL, updated_at timestamptz NOT NULL DEFAULT now())`);initialized=true}
+const {Pool}=pg,pool=process.env.DATABASE_URL?new Pool({connectionString:process.env.DATABASE_URL,max:20}):null;let initialized=false,initializing=null;
+async function init(){
+ if(initialized)return;
+ if(!pool)throw Error('DATABASE_URL is required');
+ if(!initializing)initializing=(async()=>{
+  const c=await pool.connect();
+  try {
+   await c.query('SELECT pg_advisory_lock(hashtext($1))',['ultron_state_schema']);
+   await c.query('CREATE TABLE IF NOT EXISTS ultron_state (key text PRIMARY KEY, value jsonb NOT NULL, updated_at timestamptz NOT NULL DEFAULT now())');
+   initialized=true;
+  } finally {
+   await c.query('SELECT pg_advisory_unlock(hashtext($1))',['ultron_state_schema']).catch(()=>{});
+   c.release();
+  }
+ })().catch(e=>{initializing=null;throw e});
+ return initializing;
+}
 async function legacy(key){const path=key==='order-ledger'?'/data/orders.json':key==='agent-state'?'/data/agent-state.json':null;if(!path)return null;try{return JSON.parse(await readFile(path,'utf8'))}catch{return null}}
 export async function getJson(key,fallback){await init();let r=await pool.query('SELECT value FROM ultron_state WHERE key=$1',[key]);if(r.rows[0])return r.rows[0].value;const old=await legacy(key);if(old){await setJson(key,old);return old}return structuredClone(fallback)}
 export async function setJson(key,value){await init();await pool.query(`INSERT INTO ultron_state(key,value,updated_at) VALUES($1,$2::jsonb,now()) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value,updated_at=now()`,[key,JSON.stringify(value)]);return value}
