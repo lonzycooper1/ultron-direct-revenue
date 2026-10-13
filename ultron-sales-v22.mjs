@@ -40,7 +40,10 @@ export async function discoveryFallback(){
  if(!sources.length)return {status:'NO_AUTHORIZED_FEED',imported:0};
  const errors=[];for(const [provider,raw] of sources){
   try{const site=await safeWebsite(raw),r=await fetch(site,{redirect:'error',signal:AbortSignal.timeout(10000),headers:{accept:'application/json'}});
-   if(!r.ok||!(r.headers.get('content-type')||'').includes('json'))throw Error('source unavailable');
+   if(!r.ok)throw Error('source unavailable');
+   const type=r.headers.get('content-type')||'';
+   const ownedJson=site.startsWith('https://raw.githubusercontent.com/lonzycooper1/ultron-direct-revenue/')&&new URL(site).pathname.endsWith('.json');
+   if(!type.includes('json')&&!(ownedJson&&type.includes('text/plain')))throw Error('discovery source did not serve accepted JSON');
    const txt=await r.text();if(txt.length>250000)throw Error('source size exceeded');
    const data=JSON.parse(txt);if(!Array.isArray(data.businesses))throw Error('invalid source schema');
    const valid=data.businesses.slice(0,50).filter(x=>x.website&&x.name);
