@@ -1,3 +1,4 @@
+import {activationReport as v40ActivationReport} from './ultron-work-activation-v40.mjs';
 import {quantumManifest,runCircuit,propertyScenario,pilotBlueprint} from './ultron-quantum-core-v39.mjs';
 import {status as v24Status,pulse as v24Pulse,inspect as v24Inspect,browserRead as v24Browser,marketResearch as v24Market,writeCopy as v24Copy,reviewGrant as v24Grant} from './ultron-video-v24.mjs';
 import {snapshot as operatorSnapshot,cycle as operatorCycle,publicReadiness as operatorPublic,registerOwnerEvidence as operatorEvidence,register500Evidence} from './ultron-operator-v23.mjs';
@@ -138,6 +139,21 @@ function acquisitionPage(nicheId='services'){
 }
 export function createApp(){return createServer(async(req,res)=>{const u=new URL(req.url,'http://local'),path=u.pathname,json=(s,d)=>{res.writeHead(s,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(d))};try{
 const v13Owner=()=>Boolean(ACQ_TOKEN)&&((req.headers.authorization||'')==='Bearer '+ACQ_TOKEN||req.headers['x-ultron-admin']===ACQ_TOKEN);
+
+if(path==='/work-handoff'&&req.method==='GET'){
+ res.writeHead(200,{'content-type':'text/markdown; charset=utf-8','cache-control':'public,max-age=90','x-content-type-options':'nosniff','x-frame-options':'DENY'});
+ return res.end(await readFile(new URL('./ULTRON_WORK_EXECUTION_HANDOFF.md',import.meta.url),'utf8'));
+}
+if(path==='/api/work-activation/v40'&&req.method==='GET'){
+ const l=await ledger();
+ return json(200,{ok:true,report:v40ActivationReport({env:process.env,provider:{paypal:payment},orders:Object.values(l.orders||{})})});
+}
+if(path==='/api/work-activation/v40/owner'&&req.method==='GET'){
+ if(!v13Owner())return json(403,{ok:false,error:'Owner authorization required'});
+ const l=await ledger();
+ return json(200,{ok:true,report:v40ActivationReport({env:process.env,provider:{paypal:payment},orders:Object.values(l.orders||{})}),commander:await revenueCommanderReport()});
+}
+
 
 if(path==='/api/quantum/v39'&&req.method==='GET')return json(200,{ok:true,core:quantumManifest()});
 if(path==='/api/quantum/v39/examples'&&req.method==='GET')return json(200,{ok:true,
