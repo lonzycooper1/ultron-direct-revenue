@@ -28,6 +28,79 @@ export const COMMERCIAL_FUNCTIONS=Object.freeze([
  'Prospect research','Buyer qualification','Personalized demonstrations',
  'Deal and payment tracking','Delivery coordination'
 ]);
+export const FIRST_PARTY_CANDIDATES=Object.freeze({
+  "prospects": [
+    {
+      "company": "Air Tech of Houston",
+      "website": "https://www.airtechofhouston.com/",
+      "sourceUrl": "https://www.airtechofhouston.com/",
+      "vertical": "hvac",
+      "locations": 5,
+      "researchContext": "Official site reports five locations; size, operational problem and intent not established"
+    },
+    {
+      "company": "Kilgore Service",
+      "website": "https://www.kilgoreservice.com/",
+      "sourceUrl": "https://www.kilgoreservice.com/",
+      "vertical": "hvac",
+      "locations": 4,
+      "researchContext": "Official site describes Houston, Austin, Dallas and San Antonio markets; no unmet demand established"
+    },
+    {
+      "company": "J.B. Passmore, Inc.",
+      "website": "https://passmoreinc.com/",
+      "sourceUrl": "https://passmoreinc.com/",
+      "vertical": "plumbing",
+      "locations": 2,
+      "researchContext": "Official site describes regional multi-site facility services; branch count and budget unverified"
+    },
+    {
+      "company": "Direct Service, Construction & Design",
+      "website": "https://www.directteam.com/",
+      "sourceUrl": "https://www.directteam.com/",
+      "vertical": "hvac",
+      "locations": 1,
+      "researchContext": "Official site describes its existing client portal; no evidence that systems are missing"
+    },
+    {
+      "company": "HCL Mechanical Services",
+      "website": "https://www.hclmechanicalservices.com/",
+      "sourceUrl": "https://www.hclmechanicalservices.com/",
+      "vertical": "hvac",
+      "locations": 1,
+      "researchContext": "Official site lists Houston office and fabrication facility, not proof of multi-branch service"
+    },
+    {
+      "company": "ACIS Houston",
+      "website": "https://acisinc.com/locations/houston/",
+      "sourceUrl": "https://acisinc.com/locations/houston/",
+      "vertical": "hvac",
+      "locations": 1,
+      "researchContext": "Official Houston office location; no confirmed buyer need"
+    },
+    {
+      "company": "Kirlin-Way Mechanical",
+      "website": "https://www.kirlinway.com/",
+      "sourceUrl": "https://www.kirlinway.com/",
+      "vertical": "plumbing",
+      "locations": 8,
+      "researchContext": "Official site lists multiple cities; likely larger enterprise than initial target"
+    }
+  ],
+  "partners": [
+    {
+      "name": "Powerhouse Consulting Group, LLC",
+      "sourceUrl": "https://www.servicetitan.com/certified-providers",
+      "researchContext": "Listed in ServiceTitan Certified Providers directory; no partnership or availability confirmed"
+    },
+    {
+      "name": "Team EASI",
+      "sourceUrl": "https://www.teameasi.com/",
+      "researchContext": "Houston Microsoft Dynamics 365 implementation firm; no subcontract or capacity commitment"
+    }
+  ],
+  "policy": "Public website evidence supports candidate identity/sector only. These are NOT interested buyers, signed partners, consent to contact, verified $5M-30M revenue operators or proof of pain."
+});
 export const STEPS=Object.freeze([
  ['1','Defined high-ticket HVAC/plumbing offer','IMPLEMENTED_AS_PROPOSAL'],
  ['2','90-day goal, contract and cash arithmetic','IMPLEMENTED_AS_MODEL'],
@@ -204,7 +277,25 @@ export async function dashboard({privateView=false}={}){
 }
 export async function cycle(){
  let result;
- await mutateJson(KEY,blank(),s=>{s.lastCycle=today();s.cycleCount++;result={at:s.lastCycle,cycleCount:s.cycleCount,research:s.research.length,opportunities:s.opportunities.length}});
+ await mutateJson(KEY,blank(),s=>{
+ for(const p of FIRST_PARTY_CANDIDATES.prospects){
+  if(s.research.some(r=>r.website===p.website))continue;
+  const row={id:'research-seed-'+s.research.length,createdAt:today(),company:p.company,website:p.website,
+   sourceUrl:p.sourceUrl,vertical:p.vertical,locations:p.locations,annualRevenueUsd:0,
+   evidenceOfNeed:'',contactPermission:false,status:'PUBLIC_RESEARCH_ONLY_NOT_BUYER',
+   source:'FIRST_PARTY_OFFICIAL_WEBSITE',researchContext:p.researchContext};
+  row.qualification=qualification(row);s.research.push(row);
+ }
+ for(const p of FIRST_PARTY_CANDIDATES.partners){
+  if(s.partners.some(r=>r.name===p.name))continue;
+  s.partners.push({id:'partner-seed-'+s.partners.length,createdAt:today(),name:p.name,
+   sourceUrl:p.sourceUrl,expertise:p.researchContext,ownerReportedCapacity:0,status:'CANDIDATE_UNCONTRACTED',
+   proof:'No contract, qualification, insurance or capacity verification'});
+ }
+ s.lastCycle=today();s.cycleCount++;
+ result={at:s.lastCycle,cycleCount:s.cycleCount,research:s.research.length,
+  partnerCandidates:s.partners.length,opportunities:s.opportunities.length};
+});
  return result;
 }
 export function publicLanding(){
