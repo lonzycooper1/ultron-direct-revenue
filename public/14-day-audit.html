@@ -1,0 +1,44 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ULTRON V37 | 14-Day Completion Ledger</title>
+<meta name="description" content="Honest record of ULTRON's Oct 1–14 requests, existing implementations and remaining verification gates.">
+<style>:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#091522;color:#f1f5fc;font:15px/1.6 system-ui,Arial}.wrap{max-width:1180px;margin:auto;padding:24px}h1{font-size:clamp(29px,5vw,52px);line-height:1.1;max-width:800px}a{color:#9adfff}.intro{color:#bfd2e4}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:12px}.tile{border:1px solid #344a63;background:#102338;border-radius:16px;padding:19px}.tag{color:#8beaac;font-weight:700;font-size:12px;letter-spacing:.07em}.small{color:#acc3d7;font-size:13px}.items{display:grid;gap:12px}.task{border:1px solid #364d60;background:#11243a;border-radius:12px;padding:18px}.top{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px}.state{font-size:12px;color:#fee4ae}nav{display:flex;gap:13px;flex-wrap:wrap;margin-bottom:30px}button{padding:9px 15px;background:#85d4ff;border:0;border-radius:9px;color:#06121d;font-weight:700;cursor:pointer}input,textarea,select{padding:9px;background:#071522;color:#fff;border:1px solid #547087;border-radius:7px;width:100%}textarea{min-height:90px}label{display:block;margin:10px 0}pre{white-space:pre-wrap;word-wrap:break-word}.focus{border-left:3px solid #88d2ff;padding-left:17px}</style></head><body><div class="wrap">
+<nav><a href="/">ULTRON</a><a href="/90-day-command">V35 Sales</a><a href="/growth-paths-command">V36 Agency + Media</a><a href="/growth-paths">Public Offer</a></nav>
+<p class="tag">ULTRON // V37 AUDIT // OCT 1–14, 2026</p><h1>One completion ledger. Evidence before claims.</h1>
+<p class="intro">The operating system tracks every major commercial, infrastructure and media workstream recovered from the past two weeks. Items marked blocked remain blocked until the correct third-party credentials, buyer evidence, legal approvals, or real performance data are present.</p>
+<div class="grid"><section class="tile"><div class="small">Recorded workstreams</div><h2 id="total">Loading…</h2></section><section class="tile"><div class="small">Library videos inventoried</div><h2 id="videos">—</h2></section><section class="tile"><div class="small">Independently verified V37 corporate revenue</div><h2>$0</h2></section><section class="tile"><div class="small">Operational priority</div><strong>First paid customer, then accepted delivery</strong></section></div>
+<h2>Revenue-first action sequence</h2><p class="focus">A real qualified business signs an achievable agreement → an independent buyer pays → ULTRON delivers customer-approved work → QA and customer acceptance → payment reconciliation → repeat.</p>
+<p><a href="https://docs.google.com/spreadsheets/d/1ZD-Utal-3e0CSrQ590QI7k0SulMeZFzbXe6HYOlaDKA/edit">10 Houston roofing prospect drafts in Google Sheets (unsent, require verification)</a></p>
+<h2>Verified, partial and blocked work</h2><div id="tasks" class="items" role="list"><p>Loading audit…</p></div>
+<h2>Video review record</h2><p class="small">The library lists 86 files from the period. This release time-sampled four videos and incorporated the existing partial Instagram reference analysis. No full-audio transcription of all videos is claimed.</p><div id="coverage" class="grid"></div>
+<h2>Owner evidence notes</h2><section class="tile"><p class="small">Optional. Requires your existing ULTRON admin token. Entries remain owner-reported; submitting a note never verifies a purchase, changes a bank account or authorizes a third-party operation.</p>
+<label>Owner token (never stored in local browser storage)<input id="token" type="password" autocomplete="off" placeholder="Existing ULTRON admin token"></label>
+<label>Workstream<select id="target"></select></label>
+<label>Evidence / progress note<textarea id="note" placeholder="Describe what was authorized and where independent evidence can be reviewed; never include credentials."></textarea></label>
+<button id="save">Save owner-reported note</button><p id="notice" role="status"></p></section>
+<p class="small"><a href="https://github.com/lonzycooper1/ultron-direct-revenue/issues/25">V36 external execution gates</a> · Research and approvals never constitute sales.</p>
+</div><script>
+let workstreams=[];
+function node(t,s,c){let e=document.createElement(t);if(c)e.className=c;if(s)e.textContent=s;return e}
+async function load(){
+ const r=await fetch('/api/14-day-audit/v37',{cache:'no-store'});const d=await r.json();
+ if(!r.ok||!d.ok)throw Error('Live audit unavailable');
+ workstreams=d.workstreams||[];
+ document.getElementById('total').textContent=String(workstreams.length);
+ document.getElementById('videos').textContent=String(d.mediaEvidence.discoveredLibraryFiles);
+ const tasks=document.getElementById('tasks');tasks.replaceChildren();
+ const selector=document.getElementById('target');selector.replaceChildren();
+ for(const x of workstreams){let box=node('article',null,'task');
+ let top=node('div',null,'top'),heading=node('strong',String(x.rank)+'. '+x.name),state=node('span',x.status.replaceAll('_',' '),'state');top.append(heading,state);
+ box.append(top,node('div','Already built/researched: '+x.existing,'small'),node('div','Next verified gate: '+x.gate,'small'));
+ tasks.append(box);let opt=node('option',x.name);opt.value=x.id;selector.append(opt)}
+ const cover=document.getElementById('coverage');cover.replaceChildren();
+ for(const v of d.mediaEvidence.sampledHere||[]){let el=node('section',null,'tile');el.append(node('strong',v.name),node('p',v.observed),node('p','Possible application: '+v.adapt,'small'),node('p',v.coverage,'small'));cover.append(el)}
+}
+document.getElementById('save').onclick=async()=>{
+ const token=document.getElementById('token').value.trim(),note=document.getElementById('note').value.trim(),id=document.getElementById('target').value;
+ const message=document.getElementById('notice');message.textContent='Submitting internal owner note…';
+ if(!token){message.textContent='Owner authorization required.';return}
+ try{const r=await fetch('/api/14-day-audit/v37/owner-note',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+token},body:JSON.stringify({workstreamId:id,action:'OWNER_UPDATE',note})});
+ const d=await r.json();message.textContent=r.ok?'Note recorded as owner-reported, NOT independently verified.':(d.error||'Request failed')}
+ catch(e){message.textContent=String(e.message)}};
+load().catch(e=>document.getElementById('tasks').textContent='Audit unavailable: '+e.message);
+</script></body></html>
