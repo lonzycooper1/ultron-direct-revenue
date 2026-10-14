@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ULTRON 90-Day Revenue Command</title>
+<meta name="robots" content="noindex,nofollow">
+<style>
+:root{color-scheme:dark}body{max-width:1120px;margin:auto;background:#070c16;color:#eaf3ff;font:15px/1.5 system-ui;padding:24px}
+a{color:#98d5ff}h1{font-size:clamp(30px,5vw,52px);margin:16px 0}h2{margin-top:28px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(285px,1fr));gap:15px}
+.card{background:#132237;border:1px solid #314b6a;border-radius:14px;padding:18px}
+button{background:#80c9ff;border:0;border-radius:9px;color:#061220;padding:11px 15px;font-weight:750;cursor:pointer}
+input,select,textarea{display:block;width:100%;box-sizing:border-box;padding:10px;margin:5px 0 11px;border-radius:7px;background:#0c1624;border:1px solid #405d7a;color:white}
+label{display:block}input[type=checkbox]{display:inline;width:auto}.muted{color:#acbfd2}.pill{display:inline-block;border:1px solid #4b627c;border-radius:50px;padding:4px 9px}
+pre{white-space:pre-wrap;word-break:break-word;background:#08111d;border:1px solid #405d7a;padding:13px;max-height:500px;overflow:auto;border-radius:10px}
+ul{padding-left:18px}li{margin:8px 0}#message{position:sticky;top:0;padding:8px;background:#112740}
+</style></head><body>
+<nav><a href="/">ULTRON</a> · <a href="/90-day-revenue">Public service page</a> · <a href="/api/b2b-90-day">Public operating status</a></nav>
+<h1>ULTRON // 90-DAY REVENUE COMMAND</h1>
+<p class="muted">Owner-only operating screen. Record real research, prepare proposals, and track externally verifiable progress. This page never initiates payments or sends outreach.</p>
+<section class="card">
+<label for="key">Railway ULTRON acquisition admin token (kept in this browser tab only)</label>
+<input id="key" type="password" autocomplete="off" placeholder="Owner API token">
+<button id="load">Load private operating dashboard</button>
+<p id="message" role="status">No action performed.</p>
+</section>
+<h2>Revenue evidence</h2><div id="metrics" class="grid"></div>
+<h2>Next operational priorities</h2><div class="card"><ul id="tasks"></ul></div>
+<h2>Workflow intake</h2>
+<div class="grid">
+<section class="card"><h3>1. Public research candidate</h3>
+<form data-action="RESEARCH">
+<label>Business<input name="company" required></label>
+<label>Official HTTPS website<input name="website" type="url" required placeholder="https://..."></label>
+<label>Evidence source<input name="sourceUrl" type="url" required placeholder="https://..."></label>
+<label>Trade<select name="vertical"><option value="hvac">HVAC</option><option value="plumbing">Plumbing</option></select></label>
+<label>Documented branches<input name="locations" type="number" min="0" value="0"></label>
+<label>Public evidence of need (optional; never invent)<textarea name="evidenceOfNeed"></textarea></label>
+<label><input name="contactPermission" type="checkbox"> Verified permission to contact</label>
+<button>Record prospect research</button></form></section>
+<section class="card"><h3>2. Potential fulfillment/referral partner</h3>
+<form data-action="PARTNER_CANDIDATE">
+<label>Partner name<input name="name" required></label>
+<label>Official evidence URL<input name="sourceUrl" type="url" required></label>
+<label>Proven expertise / research notes<textarea name="expertise"></textarea></label>
+<label>Owner-reported delivery capacity<input name="capacity" type="number" min="0" value="0"></label>
+<button>Record uncontracted candidate</button></form></section>
+<section class="card"><h3>3. Opportunity</h3>
+<form data-action="OPPORTUNITY">
+<label>Business<input name="company" required></label>
+<label>Public source URL (optional)<input name="sourceUrl" type="url"></label>
+<label>Real meeting/discovery notes<textarea name="notes"></textarea></label>
+<label><input name="consented" type="checkbox"> Prospect has requested engagement</label>
+<button>Create opportunity draft</button></form></section>
+<section class="card"><h3>4. Opportunity milestone</h3>
+<form data-action="OPPORTUNITY_EVENT">
+<label>Opportunity ID<input name="id" required></label>
+<label>Action<select name="actionChoice">
+<option value="PREPARE_DEMO">Prepare demo</option><option value="DISCOVERY_COMPLETE">Discovery complete</option>
+<option value="PROPOSAL_DRAFTED">Proposal drafted</option><option value="CONTRACT_REPORTED">Contract reported</option>
+<option value="DEPOSIT_REPORTED">Deposit reported</option><option value="IMPLEMENTATION_STARTED">Implementation started</option>
+<option value="CUSTOMER_ACCEPTANCE_REPORTED">Acceptance reported</option>
+<option value="FOLLOW_UP">Draft follow-up</option><option value="LOST">Closed lost</option></select></label>
+<label>Evidence HTTPS URL (required for consequential milestones)<input name="evidenceUrl" type="url"></label>
+<label>Evidence explanation<textarea name="note"></textarea></label>
+<button>Record owner-reported milestone</button></form></section>
+</div>
+<h2>Proposal and demonstration drafts</h2>
+<section class="card"><label>Company<input id="draftCompany" placeholder="Customer company"></label>
+<label>Evidence-based diagnosis<textarea id="draftDiagnosis"></textarea></label>
+<button id="demo">Preview demo</button> <button id="proposal">Preview scope and terms</button>
+<pre id="preview" aria-live="polite">No document generated.</pre></section>
+<h2>Detailed readiness and owner records</h2><pre id="raw">Load the dashboard to inspect actual states.</pre>
+<footer><p class="muted">Critical: An owner-entered deposit or contract status is not independent verification. PayPal-captured B2B transactions are counted only with matching provider-backed ledger records. No live $60,000 checkout is created automatically.</p></footer>
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const status=message=>{$('message').textContent=message};
+async function api(path,options={}){
+ const token=$('key').value.trim();if(!token)throw Error('Owner token required');
+ const response=await fetch(path,{...options,headers:{authorization:'Bearer '+token,...(options.headers||{})}});
+ let value={};try{value=await response.json()}catch{}
+ if(!response.ok)throw Error(value.error||'Request failed ('+response.status+')');
+ return value;
+}
+const node=(tag,content)=>{const n=document.createElement(tag);n.textContent=String(content);return n};
+async function refresh(){
+ status('Loading owner-only evidence.');
+ const data=await api('/api/b2b-90-day/owner');
+ const m=data.metrics||{},out=$('metrics');out.replaceChildren();
+ for(const [k,v] of Object.entries(m)){const card=document.createElement('div');card.className='card';
+  card.append(node('strong',k.replaceAll(/([A-Z])/g,' $1')),node('p',v));out.append(card)}
+ const ul=$('tasks');ul.replaceChildren();for(const t of data.nextActions||[])ul.append(node('li',t));
+ $('raw').textContent=JSON.stringify({readiness:data.readiness,steps:data.steps,
+ research:data.research,partners:data.partners,opportunities:data.opportunities,payments:data.payments,
+ activities:data.activities},null,2);
+ status('Readiness loaded. No sales claimed without external evidence.');
+}
+$('load').addEventListener('click',()=>refresh().catch(e=>status(e.message)));
+for(const form of document.querySelectorAll('form[data-action]'))form.addEventListener('submit',async event=>{
+ event.preventDefault();const payload=Object.fromEntries(new FormData(form).entries());
+ payload.action=form.dataset.action;
+ if(payload.action==='OPPORTUNITY_EVENT')payload.action='OPPORTUNITY_EVENT',payload.actionChoice&&
+  (payload.actionChoice=String(payload.actionChoice));
+ if(payload.action==='RESEARCH')payload.contactPermission=form.elements.contactPermission.checked;
+ if(payload.action==='OPPORTUNITY')payload.consented=form.elements.consented.checked;
+ if(payload.action==='OPPORTUNITY_EVENT'){
+  const milestone=payload.actionChoice;delete payload.actionChoice;
+  payload.action='OPPORTUNITY_EVENT';payload.actionType=milestone;
+  // The endpoint's action selects the endpoint operation; the milestone belongs in an event field.
+  payload.event=milestone;
+ }
+ try{
+  if(payload.action==='OPPORTUNITY_EVENT'){
+   // The authenticated API uses "action" to select operation, "eventAction" for milestone.
+   payload.eventAction=payload.event;delete payload.event;
+  }
+  const result=await api('/api/b2b-90-day/record',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
+  $('preview').textContent=JSON.stringify(result.result,null,2);
+  status('Owner record saved. External payment or customer acceptance is not independently verified.');
+  await refresh();
+ }catch(e){status(e.message)}
+});
+async function preview(action){
+ const data=await api('/api/b2b-90-day/record',{method:'POST',headers:{'content-type':'application/json'},
+ body:JSON.stringify({action,company:$('draftCompany').value,diagnosis:$('draftDiagnosis').value})});
+ $('preview').textContent=JSON.stringify(data.result,null,2);status('Draft created for review; no customer communication sent.');
+}
+$('demo').addEventListener('click',()=>preview('PREVIEW_DEMO').catch(e=>status(e.message)));
+$('proposal').addEventListener('click',()=>preview('PREVIEW_PROPOSAL').catch(e=>status(e.message)));
+})();
+</script></body></html>
