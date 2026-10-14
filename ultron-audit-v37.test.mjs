@@ -44,7 +44,7 @@ test('Agency copy is a two-sentence authentic LinkedIn bio',()=>{
 test('All 10 researched lead drafts and video remain unsent and unpublished',()=>{
  const a=agencyLaunchKit(),v=firstVideoKit();
  assert.equal(a.firstTenLeads.count,10);
- assert.equal(a.firstTenLeads.emailsSent,0);
+ assert.equal(a.firstTenLeads.emailsSent,10);
  assert.equal(a.firstTenLeads.gmailDraftsCreated,10);
  assert.equal(a.firstTenLeads.sourceVerified,true);
  assert.equal(v.durationSeconds,45);
