@@ -72,7 +72,7 @@ export function agencyLaunchKit(){
    {name:'HVAC and plumbing service companies',reason:'Dispatch handoffs, repeat customer data entry, technician updates'},
    {name:'Property management companies',reason:'Maintenance requests, tenant support ticket routing, vendor coordination'}
   ],
-  firstTenLeads:{count:10,source:'Official company websites with published business emails (reviewed 2026-10-14)',googleSheet:LEAD_SHEET,emailsSent:0,sourceVerified:true,interestVerified:false,postalAddressVerified:false},
+  firstTenLeads:{count:10,source:'Official company websites with published business emails (reviewed 2026-10-14)',googleSheet:LEAD_SHEET,emailsSent:0,gmailDraftsCreated:10,sourceVerified:true,interestVerified:false,postalAddressVerified:false},
   outreachRules:['Use genuine business identity','Obtain proper sender authorization','Include valid postal address and lawful opt-out','Suppress duplicate, opted-out or bounced recipients','Never infer that a specific company misses leads','Do not send without an approved campaign scope'],
   linkedInProfileUpdated:false,linkedInConnectionVerified:false
  }
