@@ -20,6 +20,7 @@ import {B2B_OFFER,STEPS as B2B_STEPS,dashboard as b2bDashboard,cycle as b2bCycle
 import {dashboard as v36Dashboard,queueAsset as v36QueueAsset,makeAsset as v36MakeAsset,safeCycle as v36SafeCycle} from './ultron-growth-paths-v36.mjs';
 import {dashboard as v37Dashboard,cycle as v37Cycle,recordOwnerNote as v37RecordOwnerNote} from './ultron-audit-v37.mjs';
 import {commanderSnapshot} from './ultron-revenue-commander-v38.mjs';
+import {report as videoV39Report,queueOriginalDraft as videoV39Queue,updateDraftReview as videoV39Review,economics as videoV39Economics,storyboard as videoV39Storyboard} from './ultron-video-intelligence-v39.mjs';
 import {storeHealth} from './state-store.mjs';
 import {runAgentCycle,agentState} from './agents.mjs';
 import {wizardFromConversation,generateCandidates,critiqueCandidate,buildAcquisitionPlan,prospectToPaymentWorkflow,capabilityManifest} from './ultron2-core.mjs';
@@ -576,7 +577,7 @@ if(path==='/lead-intake-pilot'&&req.method==='GET'){
  <p><small>Do not submit passwords or sensitive information through this page. Project proposals and contract acceptance should remain on the client's designated hiring platform.</small></p>
  `));
 }
-if(path==='/'){res.writeHead(200,{'content-type':'text/html'});return res.end(shell('ULTRON ONE',`<nav><a href="/">ULTRON ONE</a><a href="/90-day-revenue">Revenue Recovery</a><a href="/growth-paths">Corporate AI + Media</a><a href="/14-day-audit">Completion Audit</a><a href="/flagship">Hire ULTRON</a><a href="/mission-control">Mission Control</a><a href="/sports">Sports JARVIS</a><a href="/acquisition-command">Acquisition</a><a href="/system-360">360</a><a href="/real-estate">Real Estate</a><a href="/revenue-100">Revenue</a><a href="/market">Market</a></nav><h1>ULTRON ONE // MASTER CONSOLE</h1><section><article><h2>Instant $99 Lead Conversion Audit</h2><p>Submit business details and purchase a personalized digital report with customer-reported inputs clearly distinguished from publicly inspected homepage findings.</p><a href="/autonomous-audit">Get your $99 audit →</a></article><article><h2>Get a free response-gap scan</h2><p>See potential inquiry and booking problems in your business and request a voluntary follow-up.</p><a href="/free-response-gap-scan">Start free diagnostic →</a></article><article><h2>Get a $500 Revenue Leak Audit</h2><p>Review a scoped consulting offer. Results are not guaranteed.</p><a href="/flagship">View audit →</a></article><article><h2>Owner actions</h2><p>Review pending commerce approvals and provider readiness.</p><a href="/owner-actions">Open action center →</a></article></section><p><span class="status">ONE ICON · EIGHT SYSTEMS</span></p><section><article><small>01 · COMMAND</small><h2><a href="/system-360">360 Operating System</a></h2><p>Nucleus, cognition, memory, security, learning and governance.</p></article><article><small>02 · BUSINESS</small><h2><a href="/revenue-loop">Business Command</a></h2><p>Verified revenue, leads, commerce agents and business health.</p></article><article><small>03 · SPORTS</small><h2><a href="/sports">Sports JARVIS 2.0</a></h2><p>Projection analysis, MORE / LESS / PASS decisions, confidence, line movement and evidence-quality checks.</p></article><article><small>04 · MARKETS</small><h2><a href="https://ultron-trading-engine-production.up.railway.app/markets">Markets Research</a></h2><p>Stocks, ETFs, crypto and market research.</p></article><article><small>05 · CRYPTO</small><h2><a href="https://ultron-trading-engine-production.up.railway.app/dashboard">Crypto Intelligence</a></h2><p>Short-horizon research signals and approval-gated execution.</p></article><article><small>06 · REAL ESTATE</small><h2><a href="/real-estate">Real Estate Portfolio</a></h2><p>Deal intelligence, partner workflows and property operations.</p></article><article><small>07 · AI MARKET</small><h2><a href="/market">AI Market</a></h2><p>Products, checkout, fulfillment and commerce infrastructure.</p></article><article><small>08 · GROWTH</small><h2><a href="/revenue-100">100 Revenue Engines</a></h2><p>Revenue portfolio, founder patterns and opportunity experiments.</p></article></section><h2>Quick Controls</h2><nav><a href="/sports">Sports</a><a href="/nucleus">Nucleus</a><a href="/agent-of-agents">Agents</a><a href="/founder-patterns">Founder Patterns</a><a href="/capital-readiness">Capital</a><a href="/support">Support</a></nav>`))}
+if(path==='/'){res.writeHead(200,{'content-type':'text/html'});return res.end(shell('ULTRON ONE',`<nav><a href="/">ULTRON ONE</a><a href="/90-day-revenue">Revenue Recovery</a><a href="/growth-paths">Corporate AI + Media</a><a href="/video-intelligence">Video Intelligence</a><a href="/14-day-audit">Completion Audit</a><a href="/flagship">Hire ULTRON</a><a href="/mission-control">Mission Control</a><a href="/sports">Sports JARVIS</a><a href="/acquisition-command">Acquisition</a><a href="/system-360">360</a><a href="/real-estate">Real Estate</a><a href="/revenue-100">Revenue</a><a href="/market">Market</a></nav><h1>ULTRON ONE // MASTER CONSOLE</h1><section><article><h2>Instant $99 Lead Conversion Audit</h2><p>Submit business details and purchase a personalized digital report with customer-reported inputs clearly distinguished from publicly inspected homepage findings.</p><a href="/autonomous-audit">Get your $99 audit →</a></article><article><h2>Get a free response-gap scan</h2><p>See potential inquiry and booking problems in your business and request a voluntary follow-up.</p><a href="/free-response-gap-scan">Start free diagnostic →</a></article><article><h2>Get a $500 Revenue Leak Audit</h2><p>Review a scoped consulting offer. Results are not guaranteed.</p><a href="/flagship">View audit →</a></article><article><h2>Owner actions</h2><p>Review pending commerce approvals and provider readiness.</p><a href="/owner-actions">Open action center →</a></article></section><p><span class="status">ONE ICON · EIGHT SYSTEMS</span></p><section><article><small>01 · COMMAND</small><h2><a href="/system-360">360 Operating System</a></h2><p>Nucleus, cognition, memory, security, learning and governance.</p></article><article><small>02 · BUSINESS</small><h2><a href="/revenue-loop">Business Command</a></h2><p>Verified revenue, leads, commerce agents and business health.</p></article><article><small>03 · SPORTS</small><h2><a href="/sports">Sports JARVIS 2.0</a></h2><p>Projection analysis, MORE / LESS / PASS decisions, confidence, line movement and evidence-quality checks.</p></article><article><small>04 · MARKETS</small><h2><a href="https://ultron-trading-engine-production.up.railway.app/markets">Markets Research</a></h2><p>Stocks, ETFs, crypto and market research.</p></article><article><small>05 · CRYPTO</small><h2><a href="https://ultron-trading-engine-production.up.railway.app/dashboard">Crypto Intelligence</a></h2><p>Short-horizon research signals and approval-gated execution.</p></article><article><small>06 · REAL ESTATE</small><h2><a href="/real-estate">Real Estate Portfolio</a></h2><p>Deal intelligence, partner workflows and property operations.</p></article><article><small>07 · AI MARKET</small><h2><a href="/market">AI Market</a></h2><p>Products, checkout, fulfillment and commerce infrastructure.</p></article><article><small>08 · GROWTH</small><h2><a href="/revenue-100">100 Revenue Engines</a></h2><p>Revenue portfolio, founder patterns and opportunity experiments.</p></article></section><h2>Quick Controls</h2><nav><a href="/sports">Sports</a><a href="/nucleus">Nucleus</a><a href="/agent-of-agents">Agents</a><a href="/founder-patterns">Founder Patterns</a><a href="/capital-readiness">Capital</a><a href="/support">Support</a></nav>`))}
 
 /* legacy-home-disabled
 if(path==='/'){res.writeHead(200,{'content-type':'text/html'});return res.end(shell('ULTRON','<h1>ULTRON</h1><p><a href="/system-360">360 OS</a> · <a href="/real-estate">Real Estate OS</a> · <a href="/revenue-100">100 Revenue Engines</a> · <a href="/founder-patterns">Founder Patterns</a> · <a href="/free-response-gap-scan">Free Response-Gap Scan</a> · <a href="/market">Open AI Market</a> · <a href="/solutions/ai-implementation">AI implementation offers</a> · <a href="/solutions/revenue-frameworks">Revenue frameworks</a> · <a href="/revenue-loop">Revenue Loop</a> · <a href="/api/prospect-mission">1,000 Prospect Mission</a> · <a href="/api/security">20-Layer Security</a> · <a href="/agent-of-agents">Agent-of-Agents</a> · <a href="/capital-readiness">Institutional Power</a> · <a href="/everything">Everything Market</a> · <a href="/support">Support</a></p>'))}
@@ -802,7 +803,7 @@ if(path==='/revenue-commander'&&req.method==='GET'){
  const m=report.metrics;
  res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-frame-options':'DENY'});
  return res.end(shell('ULTRON Revenue Commander v38',
- '<nav><a href="/">ULTRON HOME</a><a href="/activation-center">ACTIVATION</a><a href="/inbound-inbox">OWNER INBOX</a><a href="/flagship">AUDIT OFFER</a><a href="/lead-intake-pilot">PILOT</a><a href="/api/revenue-commander/v38">JSON</a></nav>'+
+ '<nav><a href="/">ULTRON HOME</a><a href="/activation-center">ACTIVATION</a><a href="/inbound-inbox">OWNER INBOX</a><a href="/flagship">AUDIT OFFER</a><a href="/lead-intake-pilot">PILOT</a><a href="/video-intelligence">VIDEO INTELLIGENCE</a><a href="/api/revenue-commander/v38">JSON</a></nav>'+
  '<h1>ULTRON // REVENUE COMMANDER V38</h1><p>The first real customer, verified delivery, and repeatability take priority over more bots or synthetic catalogs.</p>'+
  '<section><article><small>MISSION</small><h3>'+esc(report.phase)+'</h3></article>'+
  '<article><small>PROSPECT CANDIDATES</small><b>'+m.prospectCandidates+'</b><p>Not independently verified buyers.</p></article>'+
@@ -814,6 +815,58 @@ if(path==='/revenue-commander'&&req.method==='GET'){
  '<h2>External provider gates</h2><section>'+serviceCards+'</section>'+
  '<h2>All 16 screenshot upgrades and their acceptance criteria</h2><section>'+upgradeCards+'</section>'+
  '<p>Security, account authorizations, owner signatures, payment/refund operations, ads and trades are never bypassed. Source configuration alone is not a verified connection, and recommendations are not already executed.</p>'));
+}
+
+if(path==='/api/video-intelligence/v39'&&req.method==='GET'){
+ return json(200,{ok:true,report:await videoV39Report({env:process.env}),
+ notice:'Video observations, not autonomous proof of claims or customer sales.'});
+}
+if(path==='/api/video-intelligence/v39/owner'&&req.method==='GET'){
+ if(!v13Owner())return json(403,{ok:false,error:'Owner token required'});
+ return json(200,{ok:true,report:await videoV39Report({privateView:true,env:process.env})});
+}
+if(path==='/api/video-intelligence/v39/draft'&&req.method==='POST'){
+ if(!v13Owner())return json(403,{ok:false,error:'Owner authorization required'});
+ let raw='';for await(const ch of req){raw+=ch;if(raw.length>9000)return json(413,{ok:false,error:'Payload too large'});}
+ let b;try{b=JSON.parse(raw||'{}')}catch{return json(400,{ok:false,error:'Invalid JSON'});}
+ try{return json(201,{ok:true,...await videoV39Queue(b)})}catch(e){return json(400,{ok:false,error:String(e?.message||e).slice(0,200)})}
+}
+if(path==='/api/video-intelligence/v39/review'&&req.method==='POST'){
+ if(!v13Owner())return json(403,{ok:false,error:'Owner authorization required'});
+ let raw='';for await(const ch of req){raw+=ch;if(raw.length>9000)return json(413,{ok:false,error:'Payload too large'});}
+ let b;try{b=JSON.parse(raw||'{}')}catch{return json(400,{ok:false,error:'Invalid JSON'});}
+ try{return json(200,{ok:true,review:await videoV39Review(b)})}catch(e){return json(400,{ok:false,error:String(e?.message||e).slice(0,200)})}
+}
+if(path==='/api/video-intelligence/v39/preview'&&req.method==='POST'){
+ if(!v13Owner())return json(403,{ok:false,error:'Owner authorization required'});
+ let raw='';for await(const ch of req){raw+=ch;if(raw.length>9000)return json(413,{ok:false,error:'Payload too large'});}
+ let b;try{b=JSON.parse(raw||'{}')}catch{return json(400,{ok:false,error:'Invalid JSON'});}
+ try{return json(200,{ok:true,storyboard:videoV39Storyboard(b),externalActionTaken:false})}
+ catch(e){return json(400,{ok:false,error:String(e?.message||e).slice(0,200)})}
+}
+if(path==='/api/video-intelligence/v39/economics'&&req.method==='POST'){
+ if(!v13Owner())return json(403,{ok:false,error:'Owner authorization required'});
+ let raw='';for await(const ch of req){raw+=ch;if(raw.length>4000)return json(413,{ok:false,error:'Payload too large'});}
+ let b;try{b=JSON.parse(raw||'{}')}catch{return json(400,{ok:false,error:'Invalid JSON'});}
+ return json(200,{ok:true,scenario:videoV39Economics(b),notice:'Supplied arithmetic only, not verified finances or trades.'});
+}
+if(path==='/video-intelligence'&&req.method==='GET'){
+ const d=await videoV39Report({env:process.env});
+ const signalCards=d.observations.map((x,i)=>'<article><small>RANK '+(i+1)+' / VIDEO '+x.clip+' @ '+x.second+'S / '+esc(x.level)+'</small><h3>'+esc(x.topic)+'</h3><p>'+esc(x.value)+'</p><p>Priority index: '+x.priority+'/100. Workstream: '+esc(x.workstream)+'</p>'+(x.source?'<p><a href="'+esc(x.source)+'" rel="noopener noreferrer">Supporting source</a></p>':'<p>Recorded screenshot only; unverified independently.</p>')+'</article>').join('');
+ const stack=d.dependencies.map(x=>'<article><small>'+esc(x.id)+'</small><h3>'+esc(x.examples.join(' + '))+'</h3><p>Fallback: '+esc(x.fallback)+'</p></article>').join('');
+ res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-frame-options':'DENY'});
+ return res.end(shell('ULTRON Video Intelligence V39',
+ '<nav><a href="/">ULTRON HOME</a><a href="/revenue-commander">REVENUE COMMANDER</a><a href="/flagship">CUSTOMER OFFER</a><a href="/api/video-intelligence/v39">JSON RESEARCH</a></nav>'+
+ '<h1>ULTRON // VIDEO INTELLIGENCE LAB V39</h1><p>Two owner-provided recordings reviewed. Fourteen video-derived opportunities. Frame observations are never automatic proofs.</p>'+
+ '<section><article><small>FRAME-DERIVED IDEAS</small><b>'+d.summary.observationCount+'</b></article><article><small>SUPPORTED OFFICIAL REFERENCES</small><b>'+d.summary.verifiedByOfficialSource+'</b></article><article><small>UNVERIFIED SOCIAL CLAIMS</small><b>'+d.summary.unverifiedSocialClaims+'</b></article><article><small>OWNER CREATIVE DRAFTS</small><b>'+d.summary.queue.total+'</b></article></section>'+
+ '<h2>Opportunity and evidence ranking</h2><section>'+signalCards+'</section>'+
+ '<h2>Six-layer dependency and fallback map</h2><section>'+stack+'</section>'+
+ '<h2>Owner-only original video draft queue</h2><article><p>A draft creates an original storyboard and QA gate, not a finished film or social publication. Requires owner token and no secret is stored in the page.</p>'+
+ '<label>Owner token</label><input id="v39-token" type="password" autocomplete="off" placeholder="Railway acquisition owner token">'+
+ '<label>Original video topic</label><input id="v39-topic" type="text" maxlength="120" placeholder="A real customer-lead automation demo">'+
+ '<button type="button" id="v39-create">Create original content draft</button><p id="v39-result" role="status" aria-live="polite"></p></article>'+
+ '<script>(function(){const b=document.getElementById("v39-create"),t=document.getElementById("v39-token"),q=document.getElementById("v39-topic"),r=document.getElementById("v39-result");b.addEventListener("click",async()=>{if(!t.value||q.value.trim().length<8){r.textContent="Owner token and a specific topic are required";return}b.disabled=true;r.textContent="Submitting an internal draft";try{const res=await fetch("/api/video-intelligence/v39/draft",{method:"POST",headers:{"authorization":"Bearer "+t.value,"content-type":"application/json"},body:JSON.stringify({topic:q.value,format:"SERVICE_OFFER"})});const x=await res.json();r.textContent=res.ok?"Draft queued, status: "+x.draft.status+". No video published.":(x.error||"Request failed")}catch(e){r.textContent="Unable to save draft"}finally{b.disabled=false}})})();</script>'+
+ '<p>Privacy: no social platforms, outside prospects, assets, purchases, identities or trading funds are accessed or acted upon by this lab.</p>'));
 }
 
 if(path==='/api/growth-paths/v36'&&req.method==='GET'){return json(200,{ok:true,...await v36Dashboard(false)})}
