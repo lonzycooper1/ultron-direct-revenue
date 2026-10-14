@@ -1,0 +1,36 @@
+{
+  "version": "2026-10-13",
+  "sourcePolicy": "FIRST_PARTY_PUBLIC_RFP_ONLY",
+  "notes": "Published solicitations represent demonstrated organizational need, not existing ULTRON customers, consent to marketing, contracts, or revenue. Verify every scope and deadline before responding.",
+  "businesses": [
+    {
+      "name": "Community Council of South Central Texas",
+      "website": "https://www.ccsct.org/about-us/request-for-bids-proposals/",
+      "sourceUrl": "https://www.ccsct.org/about-us/request-for-bids-proposals/",
+      "sourceType": "OFFICIAL_RFP",
+      "identifiedNeed": "Information technology support and website hosting",
+      "observedDate": "2026-10-13",
+      "deadline": "2026-10-30T17:00:00-05:00",
+      "decisionMaker": "NOT_VERIFIED",
+      "contactPermission": false,
+      "customerStatus": "PUBLIC_SOLICITATION_NOT_CUSTOMER",
+      "match": "LARGER_IT_SERVICES_NOT_INSTANT_99_AUDIT",
+      "submission": "Official RFP/Bid portal; review qualifications before any response"
+    },
+    {
+      "name": "Garland Independent School District",
+      "website": "https://garlandisd.net/connect/how-do-business-us/current-bidrfp-opportunities/122-27-0",
+      "sourceUrl": "https://garlandisd.net/connect/how-do-business-us/current-bidrfp-opportunities/122-27-0",
+      "sourceType": "OFFICIAL_RFP_ADDENDUM",
+      "solicitationId": "122-27",
+      "identifiedNeed": "Drupal Design and Development Services",
+      "observedDate": "2026-10-13",
+      "deadline": "2026-10-20",
+      "decisionMaker": "NOT_VERIFIED",
+      "contactPermission": false,
+      "customerStatus": "PUBLIC_SOLICITATION_NOT_CUSTOMER",
+      "match": "SPECIALIST_DRUPAL_SERVICE_NOT_INSTANT_99_AUDIT",
+      "submission": "Follow Garland ISD procurement bid instructions and verify qualifications"
+    }
+  ]
+}
