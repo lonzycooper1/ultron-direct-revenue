@@ -20,6 +20,7 @@ import {B2B_OFFER,STEPS as B2B_STEPS,dashboard as b2bDashboard,cycle as b2bCycle
 import {dashboard as v36Dashboard,queueAsset as v36QueueAsset,makeAsset as v36MakeAsset,safeCycle as v36SafeCycle} from './ultron-growth-paths-v36.mjs';
 import {dashboard as v37Dashboard,cycle as v37Cycle,recordOwnerNote as v37RecordOwnerNote} from './ultron-audit-v37.mjs';
 import {commanderSnapshot} from './ultron-revenue-commander-v38.mjs';
+import {report as videoV39Report,queueOriginalDraft as videoV39Queue,updateDraftReview as videoV39Review,economics as videoV39Economics,storyboard as videoV39Storyboard} from './ultron-video-intelligence-v39.mjs';
 import {storeHealth} from './state-store.mjs';
 import {runAgentCycle,agentState} from './agents.mjs';
 import {wizardFromConversation,generateCandidates,critiqueCandidate,buildAcquisitionPlan,prospectToPaymentWorkflow,capabilityManifest} from './ultron2-core.mjs';
@@ -814,6 +815,58 @@ if(path==='/revenue-commander'&&req.method==='GET'){
  '<h2>External provider gates</h2><section>'+serviceCards+'</section>'+
  '<h2>All 16 screenshot upgrades and their acceptance criteria</h2><section>'+upgradeCards+'</section>'+
  '<p>Security, account authorizations, owner signatures, payment/refund operations, ads and trades are never bypassed. Source configuration alone is not a verified connection, and recommendations are not already executed.</p>'));
+}
+
+if(path==='/api/video-intelligence/v39'&&req.method==='GET'){
+ return json(200,{ok:true,report:await videoV39Report({env:process.env}),
+ notice:'Video observations, not autonomous proof of claims or customer sales.'});
+}
+if(path==='/api/video-intelligence/v39/owner'&&req.method==='GET'){
+ if(!v13Owner())return json(403,{ok:false,error:'Owner token required'});
+ return json(200,{ok:true,report:await videoV39Report({privateView:true,env:process.env})});
+}
+if(path==='/api/video-intelligence/v39/draft'&&req.method==='POST'){
+ if(!v13Owner())return json(403,{ok:false,error:'Owner authorization required'});
+ let raw='';for await(const ch of req){raw+=ch;if(raw.length>9000)return json(413,{ok:false,error:'Payload too large'});}
+ let b;try{b=JSON.parse(raw||'{}')}catch{return json(400,{ok:false,error:'Invalid JSON'});}
+ try{return json(201,{ok:true,...await videoV39Queue(b)})}catch(e){return json(400,{ok:false,error:String(e?.message||e).slice(0,200)})}
+}
+if(path==='/api/video-intelligence/v39/review'&&req.method==='POST'){
+ if(!v13Owner())return json(403,{ok:false,error:'Owner authorization required'});
+ let raw='';for await(const ch of req){raw+=ch;if(raw.length>9000)return json(413,{ok:false,error:'Payload too large'});}
+ let b;try{b=JSON.parse(raw||'{}')}catch{return json(400,{ok:false,error:'Invalid JSON'});}
+ try{return json(200,{ok:true,review:await videoV39Review(b)})}catch(e){return json(400,{ok:false,error:String(e?.message||e).slice(0,200)})}
+}
+if(path==='/api/video-intelligence/v39/preview'&&req.method==='POST'){
+ if(!v13Owner())return json(403,{ok:false,error:'Owner authorization required'});
+ let raw='';for await(const ch of req){raw+=ch;if(raw.length>9000)return json(413,{ok:false,error:'Payload too large'});}
+ let b;try{b=JSON.parse(raw||'{}')}catch{return json(400,{ok:false,error:'Invalid JSON'});}
+ try{return json(200,{ok:true,storyboard:videoV39Storyboard(b),externalActionTaken:false})}
+ catch(e){return json(400,{ok:false,error:String(e?.message||e).slice(0,200)})}
+}
+if(path==='/api/video-intelligence/v39/economics'&&req.method==='POST'){
+ if(!v13Owner())return json(403,{ok:false,error:'Owner authorization required'});
+ let raw='';for await(const ch of req){raw+=ch;if(raw.length>4000)return json(413,{ok:false,error:'Payload too large'});}
+ let b;try{b=JSON.parse(raw||'{}')}catch{return json(400,{ok:false,error:'Invalid JSON'});}
+ return json(200,{ok:true,scenario:videoV39Economics(b),notice:'Supplied arithmetic only, not verified finances or trades.'});
+}
+if(path==='/video-intelligence'&&req.method==='GET'){
+ const d=await videoV39Report({env:process.env});
+ const signalCards=d.observations.map((x,i)=>'<article><small>RANK '+(i+1)+' / VIDEO '+x.clip+' @ '+x.second+'S / '+esc(x.level)+'</small><h3>'+esc(x.topic)+'</h3><p>'+esc(x.value)+'</p><p>Priority index: '+x.priority+'/100. Workstream: '+esc(x.workstream)+'</p>'+(x.source?'<p><a href="'+esc(x.source)+'" rel="noopener noreferrer">Supporting source</a></p>':'<p>Recorded screenshot only; unverified independently.</p>')+'</article>').join('');
+ const stack=d.dependencies.map(x=>'<article><small>'+esc(x.id)+'</small><h3>'+esc(x.examples.join(' + '))+'</h3><p>Fallback: '+esc(x.fallback)+'</p></article>').join('');
+ res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-frame-options':'DENY'});
+ return res.end(shell('ULTRON Video Intelligence V39',
+ '<nav><a href="/">ULTRON HOME</a><a href="/revenue-commander">REVENUE COMMANDER</a><a href="/flagship">CUSTOMER OFFER</a><a href="/api/video-intelligence/v39">JSON RESEARCH</a></nav>'+
+ '<h1>ULTRON // VIDEO INTELLIGENCE LAB V39</h1><p>Two owner-provided recordings reviewed. Fourteen video-derived opportunities. Frame observations are never automatic proofs.</p>'+
+ '<section><article><small>FRAME-DERIVED IDEAS</small><b>'+d.summary.observationCount+'</b></article><article><small>SUPPORTED OFFICIAL REFERENCES</small><b>'+d.summary.verifiedByOfficialSource+'</b></article><article><small>UNVERIFIED SOCIAL CLAIMS</small><b>'+d.summary.unverifiedSocialClaims+'</b></article><article><small>OWNER CREATIVE DRAFTS</small><b>'+d.summary.queue.total+'</b></article></section>'+
+ '<h2>Opportunity and evidence ranking</h2><section>'+signalCards+'</section>'+
+ '<h2>Six-layer dependency and fallback map</h2><section>'+stack+'</section>'+
+ '<h2>Owner-only original video draft queue</h2><article><p>A draft creates an original storyboard and QA gate, not a finished film or social publication. Requires owner token and no secret is stored in the page.</p>'+
+ '<label>Owner token</label><input id="v39-token" type="password" autocomplete="off" placeholder="Railway acquisition owner token">'+
+ '<label>Original video topic</label><input id="v39-topic" type="text" maxlength="120" placeholder="A real customer-lead automation demo">'+
+ '<button type="button" id="v39-create">Create original content draft</button><p id="v39-result" role="status" aria-live="polite"></p></article>'+
+ '<script>(function(){const b=document.getElementById("v39-create"),t=document.getElementById("v39-token"),q=document.getElementById("v39-topic"),r=document.getElementById("v39-result");b.addEventListener("click",async()=>{if(!t.value||q.value.trim().length<8){r.textContent="Owner token and a specific topic are required";return}b.disabled=true;r.textContent="Submitting an internal draft";try{const res=await fetch("/api/video-intelligence/v39/draft",{method:"POST",headers:{"authorization":"Bearer "+t.value,"content-type":"application/json"},body:JSON.stringify({topic:q.value,format:"SERVICE_OFFER"})});const x=await res.json();r.textContent=res.ok?"Draft queued, status: "+x.draft.status+". No video published.":(x.error||"Request failed")}catch(e){r.textContent="Unable to save draft"}finally{b.disabled=false}})})();</script>'+
+ '<p>Privacy: no social platforms, outside prospects, assets, purchases, identities or trading funds are accessed or acted upon by this lab.</p>'));
 }
 
 if(path==='/api/growth-paths/v36'&&req.method==='GET'){return json(200,{ok:true,...await v36Dashboard(false)})}
