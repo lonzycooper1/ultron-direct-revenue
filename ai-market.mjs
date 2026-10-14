@@ -42,6 +42,17 @@ const STORES=Object.freeze([
 const STORE_MAP=new Map(STORES.map(s=>[s.id,s]));
 const FEATURED=Object.freeze([
  Object.freeze({
+   id:'instant-lead-audit-99',
+   storeId:'businessex',
+   name:'Instant Lead Conversion Audit',
+   price:99,
+   tier:'budget',
+   category:'business-audit',
+   targetBuyer:'Local service business owners looking for practical response and booking improvements',
+   featured:'v34-automated-audit',
+   description:'Self-service $99 personalized digital report. Complete a short business intake. Upon verified PayPal payment ULTRON reviews limited publicly available homepage HTML when accessible and produces an evidence-labeled lead-response assessment, prioritized actions, scripts and a 30-day KPI scorecard. No guaranteed sales uplift or website implementation.'
+ }),
+ Object.freeze({
    id:'missed-lead-recovery-99',
    storeId:'local',
    name:'Missed-Lead Recovery System',
