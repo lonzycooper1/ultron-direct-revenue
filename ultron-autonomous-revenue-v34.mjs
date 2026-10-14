@@ -220,3 +220,28 @@ export function publicV34Manifest(){
  restrictions:DIRECTOR.prohibited,
  honestState:'These are implemented code capabilities, not proof of buyer traffic, profits, permissions, paid purchases or bank settlement'};
 }
+
+/** Self-service owned landing page. Real buyers independently approve PayPal checkout. */
+export function auditPageHtml(){
+ return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'+
+ '<title>Instant Lead Conversion Audit | ULTRON</title><meta name="description" content="Get a personalized $99 lead conversion audit based on your submitted workflow and limited public homepage review.">'+
+ '<style>body{margin:auto;max-width:900px;padding:22px;background:#06120c;color:#e8fff0;font:16px system-ui,sans-serif}h1{font-size:clamp(27px,5vw,48px)}h2{color:#80ffc1}a{color:#80ffc1}main{border:1px solid #377b55;padding:24px;border-radius:16px;background:#092315}label{display:block;margin:14px 0}input,textarea,select{display:block;width:100%;max-width:700px;padding:11px;border:1px solid #80ffc1;border-radius:6px;font:inherit}button{padding:14px 18px;background:#60eaa4;border:0;border-radius:7px;color:#002810;font-weight:750;cursor:pointer}small{color:#a0d5b7}</style></head><body>'+
+ '<nav><a href="/">ULTRON</a> · <a href="/market">Marketplace</a> · <a href="/support">Support</a></nav>'+
+ '<main><h1>Instant Lead Conversion Audit</h1><h2>$99 — Digital Report</h2>'+
+ '<p>Tell us about your business. After a genuine approved PayPal payment, ULTRON prepares a personalized report with prioritized response improvements, booking recommendations, templates and a 30-day KPI scorecard. When technically possible, it also checks your publicly available homepage HTML.</p>'+
+ '<p>Includes no website modification, no guaranteed sales lift and no private-system access. Not a complete website performance or SEO audit.</p>'+
+ '<form id="audit">'+
+ '<label>Business name<input name="company" required maxlength="100" autocomplete="organization"></label>'+
+ '<label>Public HTTPS website<input name="website" required type="url" maxlength="240" placeholder="https://your-business.com"></label>'+
+ '<label>Industry<select name="industry"><option value="home-services">Home services</option><option value="plumbing">Plumbing</option><option value="hvac">HVAC</option><option value="roofing">Roofing</option><option value="auto-repair">Auto repair</option><option value="salon">Salon</option><option value="professional-services">Professional services</option><option value="other">Other</option></select></label>'+
+ '<label>Monthly inbound inquiries (estimate)<input name="monthlyLeads" type="number" min="0" max="100000" value="30" required></label>'+
+ '<label>Missed inquiry percentage (estimate)<input name="missedPercent" type="number" min="0" max="100" value="15" required></label>'+
+ '<label>Typical first response (minutes)<input name="responseMinutes" type="number" min="0" max="10080" value="60" required></label>'+
+ '<label>How customers book<select name="bookingMethod"><option value="mixed">Multiple channels</option><option value="phone">Telephone</option><option value="form">Website form</option><option value="online-booking">Online booking</option><option value="social">Social messages</option></select></label>'+
+ '<label>Current follow-up<select name="followup"><option value="inconsistent">Inconsistent</option><option value="manual">Manual</option><option value="none">None</option><option value="automated">Automated</option></select></label>'+
+ '<label>Main pain point (optional; no secrets or private customer information)<textarea name="mainProblem" maxlength="300" rows="3"></textarea></label>'+
+ '<button type="submit">Continue to PayPal checkout</button></form><p id="result" role="status" aria-live="polite"></p>'+
+ '<small>Buyer approval is required at PayPal. Data supplied is used to prepare your report. ULTRON does not contact your customers or access your accounts.</small></main>'+
+ '<script>document.getElementById("audit").addEventListener("submit",async function(e){e.preventDefault();const status=document.getElementById("result");status.textContent="Opening secure checkout...";try{const data=Object.fromEntries(new FormData(e.target).entries());const response=await fetch("/api/v34/checkout",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(data)});const result=await response.json();if(!response.ok)throw Error(result.error||"Checkout unavailable");const url=new URL(result.checkoutUrl);if(url.protocol!=="https:"||!(url.hostname==="paypal.com"||url.hostname.endsWith(".paypal.com")))throw Error("Unexpected checkout destination");location.assign(url.href)}catch(e){status.textContent=e.message||"Checkout unavailable"}})</script>'+
+ '</body></html>';
+}
