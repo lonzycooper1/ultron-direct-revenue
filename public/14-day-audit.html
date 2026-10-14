@@ -5,6 +5,8 @@
 <p class="tag">ULTRON // V37 AUDIT // OCT 1–14, 2026</p><h1>One completion ledger. Evidence before claims.</h1>
 <p class="intro">The operating system tracks every major commercial, infrastructure and media workstream recovered from the past two weeks. Items marked blocked remain blocked until the correct third-party credentials, buyer evidence, legal approvals, or real performance data are present.</p>
 <div class="grid"><section class="tile"><div class="small">Recorded workstreams</div><h2 id="total">Loading…</h2></section><section class="tile"><div class="small">Library videos inventoried</div><h2 id="videos">—</h2></section><section class="tile"><div class="small">Independently verified V37 corporate revenue</div><h2>$0</h2></section><section class="tile"><div class="small">Operational priority</div><strong>First paid customer, then accepted delivery</strong></section></div>
+<h2>Agency launch identity</h2><section class="tile"><p class="tag">AUTHENTIC BRAND COPY — NOT POSTED TO LINKEDIN</p><strong id="headline"></strong><p id="agencybio" class="intro"></p><button id="copyBio">Copy LinkedIn bio</button><p><strong>Initial industry priorities:</strong> <span id="industries"></span></p></section>
+<h2>First AI short — publishing kit</h2><section class="tile"><p class="tag">45-SECOND VIDEO RENDERED; EXTERNAL POSTS NOT PUBLISHED</p><strong id="videotitle"></strong><p id="videocaption" class="intro"></p><button id="copyCaption">Copy caption</button><p class="small">The completed narrated MP4 is attached in your ChatGPT conversation; it is not hosted by Railway and no social profile was created or verified.</p></section>
 <h2>Revenue-first action sequence</h2><p class="focus">A real qualified business signs an achievable agreement → an independent buyer pays → ULTRON delivers customer-approved work → QA and customer acceptance → payment reconciliation → repeat.</p>
 <p><a href="https://docs.google.com/spreadsheets/d/1ZD-Utal-3e0CSrQ590QI7k0SulMeZFzbXe6HYOlaDKA/edit">10 Houston roofing prospect drafts in Google Sheets (unsent, require verification)</a></p>
 <h2>Verified, partial and blocked work</h2><div id="tasks" class="items" role="list"><p>Loading audit…</p></div>
@@ -22,6 +24,15 @@ async function load(){
  const r=await fetch('/api/14-day-audit/v37',{cache:'no-store'});const d=await r.json();
  if(!r.ok||!d.ok)throw Error('Live audit unavailable');
  workstreams=d.workstreams||[];
+ const kit=d.agency||{},media=d.firstVideo||{};
+ document.getElementById('headline').textContent=kit.linkedInHeadline||'';
+ document.getElementById('agencybio').textContent=kit.linkedInBio||'';
+ document.getElementById('industries').textContent=(kit.targetIndustries||[]).map(x=>x.name).join(' • ');
+ document.getElementById('videotitle').textContent=media.title||'';
+ document.getElementById('videocaption').textContent=media.caption||'';
+ document.getElementById('copyBio').onclick=()=>navigator.clipboard.writeText(kit.linkedInBio||'');
+ document.getElementById('copyCaption').onclick=()=>navigator.clipboard.writeText(media.caption||'');
+
  document.getElementById('total').textContent=String(workstreams.length);
  document.getElementById('videos').textContent=String(d.mediaEvidence.discoveredLibraryFiles);
  const tasks=document.getElementById('tasks');tasks.replaceChildren();
