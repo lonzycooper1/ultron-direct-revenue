@@ -38,7 +38,7 @@ export function classifyAction(action=''){
   return {mode:'PROHIBITED',reason:'Never evade access controls, invent a sale or impersonate anyone'};
  if(/(?:otp|mfa|password|kyc|identity|biometric|captcha)/i.test(a))
   return {mode:'OWNER_ONLY',reason:'Identity and security challenges require a real authorized person'};
- if(/(?:send|message|publish|post|advertis|spend|charge|refund|transfer|payout|withdraw|trade|sign|contract|loan|credit|purchase|upgrade|oauth|token|permission|connect account)/i.test(a))
+ if(/(?:send|message|publish|post|advertis|spend|buy|order|charge|refund|transfer|payout|withdraw|trade|sign|contract|loan|credit|purchase|upgrade|oauth|token|permission|connect account)/i.test(a))
   return {mode:'APPROVED_EXTERNAL',reason:'Real account permission and action-specific authority required'};
  if(/(?:read|audit|draft|analy|research|rank|monitor|check|review|inspect|score|reconcile|report|triage|test|compare)/i.test(a))
   return {mode:'SAFE_INTERNAL',reason:'Read-only or internal non-consequential work'};
