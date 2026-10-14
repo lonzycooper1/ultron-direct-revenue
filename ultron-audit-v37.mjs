@@ -61,10 +61,37 @@ export async function recordOwnerNote({workstreamId,action='OWNER_UPDATE',note='
 }
 export async function cycle(){let output;await mutateJson('ultron-14-day-audit-v37',initial(),s=>{
  s.lastCycle=new Date().toISOString();s.cycles++;output={cycles:s.cycles,at:s.lastCycle,notes:s.records.length,priority:'FIRST_VERIFIED_B2B_BUYER'};});return output;}
+
+export function agencyLaunchKit(){
+ return {
+  brand:'ULTRON Revenue Studio',legalEntityVerified:false,
+  linkedInHeadline:'Founder & AI Automation Architect | ULTRON Revenue Studio',
+  linkedInBio:'At ULTRON Revenue Studio, I help local service businesses reduce repetitive data entry and improve customer support through practical, human-reviewed AI automations. I design intake, follow-up, and information-routing workflows that keep teams in control while making daily operations easier to manage.',
+  targetIndustries:[
+   {name:'Roofing contractors',reason:'After-hours inquiries, inspection scheduling, emergency vs. ordinary quote routing'},
+   {name:'HVAC and plumbing service companies',reason:'Dispatch handoffs, repeat customer data entry, technician updates'},
+   {name:'Property management companies',reason:'Maintenance requests, tenant support ticket routing, vendor coordination'}
+  ],
+  firstTenLeads:{count:10,source:'Official company websites with published business emails (reviewed 2026-10-14)',googleSheet:LEAD_SHEET,emailsSent:0,sourceVerified:true,interestVerified:false,postalAddressVerified:false},
+  outreachRules:['Use genuine business identity','Obtain proper sender authorization','Include valid postal address and lawful opt-out','Suppress duplicate, opted-out or bounced recipients','Never infer that a specific company misses leads','Do not send without an approved campaign scope'],
+  linkedInProfileUpdated:false,linkedInConnectionVerified:false
+ }
+}
+export function firstVideoKit(){
+ return {
+  title:'Is AI Erasing Middle Management? Hype vs Reality',
+  durationSeconds:45,aspectRatio:'9:16',format:'MP4 H.264 with synthetic narration and original motion graphics',
+  caption:'Is AI quietly changing middle-management work? Here is the reality behind the headlines. The corporate world is changing. Are you ready? #AI #Leadership #Automation',
+  script:'Is AI quietly erasing middle management? Not exactly. But the work is changing faster than many job titles. Reports, schedules, follow-ups, and status updates can increasingly be assisted by software. Here is the question leaders should ask: what decisions still need human judgment? A real manager coaches people, resolves exceptions, protects customers, and owns results. Automating repetitive reporting may free time, but only if accuracy, privacy, and staff oversight are built in. Do not mistake a viral prediction for verified layoffs. Measure one workflow, test with fictional data, and check what actually improves. The corporate world is changing. Are you ready?',
+  renderedInChat:true,renderedFileOnlyInConversation:true,hostedOnRailway:false,
+  publishedTikTok:false,publishedInstagram:false,publishedYouTube:false,
+  externalBlockers:['Authorized actual brand profiles on TikTok, Instagram, YouTube','Approved uploader/scheduling access','Platform-specific content review','Confirmation of live post URLs']
+ }
+}
 export async function dashboard({privateView=false}={}){
  const s=await getJson('ultron-14-day-audit-v37',initial());
  return {version:VERSION,window:WINDOW,leadSheet:LEAD_SHEET,tracker:TRACKER,workstreams:WORKSTREAMS,
- queue:priorityQueue(),mediaEvidence:VIDEO_COVERAGE,
+ queue:priorityQueue(),mediaEvidence:VIDEO_COVERAGE,agency:agencyLaunchKit(),firstVideo:firstVideoKit(),
  metrics:{requestedWorkstreams:WORKSTREAMS.length,videoFilesIndexed:VIDEO_COVERAGE.discoveredLibraryFiles,
  clipsTimeSampled:VIDEO_COVERAGE.sampledHere.length,fullyTranscribedAudio:0,verifiedExternalSalesFromThisAudit:0},
  cycles:s.cycles,lastCycle:s.lastCycle,
