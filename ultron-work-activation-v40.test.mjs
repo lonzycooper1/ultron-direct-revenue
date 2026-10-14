@@ -15,7 +15,7 @@ test('configured Gmail without delivery test remains unverified',()=>{
 });
 test('signed PayPal provider runtime does not prove first sale',()=>{
  const r=activationReport({provider:{paypal:{ok:true,apiAuthorized:true,webhookEndpointVerified:true,captureEventsSubscribed:true}}});
- assert.equal(r.entries.find(x=>x.id==='paypal').status,STATUS.VERIFIED);
+ assert.equal(r.entries.find(x=>x.id==='paypal').status,STATUS.PROVIDER);
  assert.notEqual(r.entries.find(x=>x.id==='first-sale').status,STATUS.VERIFIED);
 });
 test('self-reported sale flag without independent completed order never passes',()=>{
@@ -24,7 +24,7 @@ test('self-reported sale flag without independent completed order never passes',
 });
 test('independently evidenced paid-delivered-accepted order is eligible',()=>{
  const r=activationReport({orders:[{independentBuyerVerified:true,customerAcceptanceVerified:true,
- fulfillment:{token:'id'},captureId:'provider-capture',status:'COMPLETED'}]});
+ id:'o1',capturedAt:'2026-10-14T12:00:00Z',fulfillmentCompletedAt:'2026-10-14T13:00:00Z',customerAcceptanceEvidence:{at:'2026-10-14T14:00:00Z'},independentBuyerEvidence:{source:'PAYPAL_ORDER_READ_AND_OWNER_REVIEW',orderId:'o1'},webhookEvidence:{signatureVerified:true,eventId:'ev1',captureId:'provider-capture'},fulfillment:{token:'id',review:{qualityApproved:true}},captureId:'provider-capture',status:'COMPLETED'}]});
  assert.equal(r.entries.find(x=>x.id==='first-sale').status,STATUS.VERIFIED);
 });
 test('some config must never leak values',()=>{

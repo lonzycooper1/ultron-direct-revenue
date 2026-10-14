@@ -1,14 +1,15 @@
+import {independentSale} from './ultron-revenue-operations-v41.mjs';
 /** ULTRON v40: evidence-gated activation and Work handoff capability registry.
  * Designed for autonomously prioritizing safe internal jobs, NOT granting external authority.
  * Provider verification is explicit; config presence alone never means an integration works.
  */
 export const VERSION='40.0.0';
 export const MISSION='FIRST_VERIFIED_UNRELATED_PAYING_CUSTOMER_THEN_REPEATABLE_SAFE_SCALE';
-export const STATUS=Object.freeze({VERIFIED:'VERIFIED_END_TO_END',CONFIG:'CONFIG_PRESENT_TEST_NOT_PROVEN',BLOCKED:'OWNER_OR_PROVIDER_ACCESS_REQUIRED',PROOF:'REAL_WORLD_PROOF_REQUIRED'});
+export const STATUS=Object.freeze({VERIFIED:'VERIFIED_END_TO_END',PROVIDER:'PROVIDER_CONFIG_VERIFIED',CONFIG:'CONFIG_PRESENT_TEST_NOT_PROVEN',BLOCKED:'OWNER_OR_PROVIDER_ACCESS_REQUIRED',PROOF:'REAL_WORLD_PROOF_REQUIRED'});
 export const CAPABILITIES=Object.freeze([
  {id:'paypal',group:'revenue',priority:0,title:'PayPal live checkout and signed webhook',env:['PAYPAL_CLIENT_ID','PAYPAL_CLIENT_SECRET','PAYPAL_WEBHOOK_ID','PUBLIC_BASE_URL'],proof:'verifiedProviderPayment',next:'Check provider authorization and signed webhook delivery; do not count a checkout as a sale.'},
  {id:'buyer-feed',group:'sales',priority:0,title:'Authorized buyer discovery and fallback',env:['ULTRON_DISCOVERY_FEED_URL'],proof:'verifiedBuyerFeed',next:'Test actual lawful feed output, source permissions, buyer need and deduplication.'},
- {id:'business-email',group:'sales',priority:0,title:'Approved Gmail business sending and reply loop',env:['ULTRON_GMAIL_CLIENT_ID','ULTRON_GMAIL_CLIENT_SECRET','ULTRON_GMAIL_REFRESH_TOKEN','ULTRON_BUSINESS_SENDER','ULTRON_BUSINESS_POSTAL_ADDRESS','ULTRON_UNSUBSCRIBE_SECRET'],proof:'verifiedEmailRoundTrip',next:'Owner-authorize OAuth, nonresidential business mailing address, sender tests, bounce and opt-out suppression.'},
+ {id:'business-email',group:'sales',priority:0,title:'Approved Gmail business sending and reply loop',env:['ULTRON_GMAIL_CLIENT_ID','ULTRON_GMAIL_CLIENT_SECRET','ULTRON_GMAIL_REFRESH_TOKEN','ULTRON_BUSINESS_SENDER','ULTRON_BUSINESS_POSTAL_ADDRESS','ULTRON_BUSINESS_POSTAL_ADDRESS_APPROVED','ULTRON_UNSUBSCRIBE_SECRET'],proof:'verifiedEmailRoundTrip',next:'Owner-authorize OAuth, nonresidential business mailing address, sender tests, bounce and opt-out suppression.'},
  {id:'crm',group:'sales',priority:0,title:'HubSpot runtime CRM sync',env:['ULTRON_HUBSPOT_PRIVATE_APP_TOKEN'],proof:'verifiedCrmRoundTrip',next:'Authorize scoped private app and reconcile one permitted record.'},
  {id:'calendar',group:'sales',priority:0,title:'Google Calendar availability and real appointment confirmation',env:['ULTRON_GOOGLE_CLIENT_ID','ULTRON_GOOGLE_CLIENT_SECRET','ULTRON_CALENDAR_REFRESH_TOKEN','ULTRON_CALENDAR_ID'],proof:'verifiedRealBooking',next:'Authorize scoped Calendar runtime and prove a real opted-in booking.'},
  {id:'commerce-approvals',group:'sales',priority:0,title:'Owner-reviewed pending commerce approvals',env:[],proof:'verifiedCommerceApprovalsResolved',next:'Review individually: store publishing, advertising and refund-related actions; do not auto-approve.'},
@@ -33,8 +34,7 @@ const has=(env,k)=>typeof env[k]==='string'?env[k].trim().length>0:Boolean(env[k
 const truth=x=>x===true;
 export function activationReport({env={},verified={},provider={},orders=[],now=''}={}){
  const orderRows=Array.isArray(orders)?orders:[];
- const realSale=orderRows.some(o=>o&&o.independentBuyerVerified===true&&o.customerAcceptanceVerified===true&&
-  o.fulfillment?.token&&o.captureId&&String(o.status||'').toUpperCase()==='COMPLETED');
+ const realSale=orderRows.some(independentSale);
  const accepted={...verified,verifiedFirstSale:realSale};
  const paymentRuntime=provider.paypal?.ok===true&&provider.paypal?.apiAuthorized===true&&
   provider.paypal?.webhookEndpointVerified===true&&provider.paypal?.captureEventsSubscribed===true;
@@ -42,12 +42,13 @@ export function activationReport({env={},verified={},provider={},orders=[],now='
   const missing=item.env.filter(k=>!has(env,k));
   const hasProof=truth(accepted[item.proof]);
   const verifiedProvider=item.id==='paypal'&&paymentRuntime;
-  const status=item.id==='paypal'&&verifiedProvider?STATUS.VERIFIED:
+  const signedDelivery=item.id==='paypal'&&orderRows.some(o=>o.webhookEvidence?.signatureVerified===true&&o.webhookEvidence.captureId===o.captureId&&o.webhookEvidence.eventId);
+  const status=item.id==='paypal'?(signedDelivery&&verifiedProvider?STATUS.VERIFIED:verifiedProvider?STATUS.PROVIDER:missing.length?STATUS.BLOCKED:STATUS.CONFIG):
    hasProof&&missing.length===0?STATUS.VERIFIED:
    missing.length>0?STATUS.BLOCKED:
    item.env.length>0?STATUS.CONFIG:STATUS.PROOF;
   return {id:item.id,title:item.title,group:item.group,priority:item.priority,
-   status,missingVariableNames:missing,proofNeeded:item.proof,next:item.next,
+   status,missingVariableNames:missing,proofNeeded:item.proof,next:item.next,providerCheckedAt:item.id==='paypal'?provider.paypal?.checkedAt||null:undefined,
    verificationClaim:status===STATUS.VERIFIED?'BOUNDED_PROOF_FOR_NAMED_CAPABILITY':'NOT_VERIFIED_END_TO_END',
    externalActionTaken:false};
  }).sort((a,b)=>a.priority-b.priority||a.id.localeCompare(b.id));
