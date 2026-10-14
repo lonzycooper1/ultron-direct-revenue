@@ -307,7 +307,7 @@ export function publicLanding(){
  '.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:13px}.tile{background:#111e2b;border:1px solid #32465c;border-radius:14px;padding:17px}.muted{color:#b4c7d7}small{color:#9fbbcc}</style></head><body>'+
  '<nav><a href="/">ULTRON Home</a> · <a href="/flagship">Smaller diagnostic</a></nav><main><p class="muted">B2B OPERATIONS • HVAC + PLUMBING</p><h1>Recover lost opportunities in your customer inquiry workflow.</h1>'+
  '<p>ULTRON offers discovery-first implementation of permissioned lead response, CRM handoffs, booking and measurable service operations. We assess fit and partner capacity before agreeing to delivery.</p>'+
- '<p><a class="cta" href="https://payhip.com/LindaWorkflowStudio/contact">Request a private discovery conversation</a></p>'+
+ '<p><a class="cta" href="https://payhip.com/LindaWorkflowStudio/contact">Request a private discovery conversation</a> &nbsp; <a href="/90-day-demo">Try the fictional workflow demo</a></p>'+
  '<div class="grid"><section class="tile"><h2>1. Diagnose</h2><p>Review your actual inquiry and booking process, with your consent.</p></section>'+
  '<section class="tile"><h2>2. Design</h2><p>Specify system architecture, vendor roles, privacy controls and acceptance tests.</p></section>'+
  '<section class="tile"><h2>3. Deliver</h2><p>Implement approved workflows, test failure paths and train staff.</p></section></div>'+
