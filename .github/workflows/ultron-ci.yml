@@ -1,7 +1,7 @@
 name: ULTRON CI
 on:
   push:
-    branches: [main]
+    branches: [main, 'feature/ultron-v34-bounded-revenue-autonomy']
   workflow_dispatch:
 jobs:
   test:
