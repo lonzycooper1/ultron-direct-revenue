@@ -1,0 +1,33 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>ULTRON | Revenue Recovery Workflow Demo</title>
+<style>body{font:16px/1.6 system-ui;max-width:950px;margin:auto;padding:24px;background:#071522;color:#f0f8ff}h1{font-size:clamp(32px,6vw,55px);line-height:1.1}
+p{max-width:760px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.card{border:1px solid #375771;background:#102940;border-radius:13px;padding:18px}.step{border-left:4px solid #3d647e;padding:11px;margin:9px 0;background:#102235}
+.step.done{border-left-color:#6feba5}button{background:#8ee5ff;border:0;border-radius:9px;padding:12px 18px;font-size:16px;font-weight:700;color:#062032;cursor:pointer}button:disabled{opacity:.5}
+small,.muted{color:#aec7d9}a{color:#9edfff}strong{color:#8ee5ff}#status{font-weight:600}</style></head>
+<body><nav><a href="/90-day-revenue">← Revenue Recovery</a> · <a href="/90-day-command">Owner Operations</a></nav>
+<p><strong>FICTIONAL INTERACTIVE DEMO — NOT CUSTOMER PRODUCTION</strong></p>
+<h1>From a missed call to an appointment request.</h1>
+<p class="muted">Click through a sample HVAC lead workflow. All names, contact events, bookings and data are synthetic and remain entirely inside this browser. No calls, messages or bookings are made.</p>
+<div class="grid"><section class="card"><h2>Sample customer</h2><p>Pat Example (fictional)</p><p>Request: AC stopped cooling</p><p>Time: 7:30 PM (illustrative)</p></section>
+<section class="card"><h2>Sample service operator</h2><p>Metro Comfort Demo (fictional)</p><p>CRM: Demo records only</p><p>Staff availability: Not connected</p></section>
+<section class="card"><h2>Proof boundaries</h2><p>No customer records or credentials accessed.</p><p>No real API integrations used.</p><p>No revenue or outcomes claimed.</p></section></div>
+<h2>Workflow stages</h2><div id="timeline"></div>
+<p><button id="advance">Advance simulated workflow</button> <button id="reset">Reset demo</button></p>
+<p id="status" role="status">Ready for simulated inquiry.</p>
+<h2>What installation actually requires</h2><p>Customer consent and access rights, phone or contact-center provider permissions, tested CRM integration, scheduling availability, unsubscribe and suppression controls where applicable, QA and a signed statement of work. A real implementation cannot be priced or promised solely from this simulation.</p>
+<p><a href="https://payhip.com/LindaWorkflowStudio/contact">Request a real discovery conversation</a></p>
+<script>
+(function(){
+const stages=[
+['Missed inquiry detected','Demo case opens with a hypothetical missed call.'],
+['Follow-up decision','System checks simulated contact permission and defers external messages.'],
+['CRM handoff prepared','A draft lead is staged for review in a simulated CRM queue.'],
+['Appointment request prepared','A fictional availability request is shown; no calendar write occurs.'],
+['Reporting and quality check','Sample pipeline reaches QA. No actual appointment or revenue counted.']
+];
+let index=0;const root=document.getElementById('timeline'),status=document.getElementById('status'),btn=document.getElementById('advance');
+function render(){root.replaceChildren();stages.forEach((row,i)=>{const div=document.createElement('div');div.className='step'+(i<index?' done':'');const h=document.createElement('strong');h.textContent=(i+1)+'. '+row[0];const p=document.createElement('p');p.textContent=row[1];div.append(h,p);root.append(div)});status.textContent=index===0?'Ready for simulated inquiry.':index===stages.length?'Simulation complete. No real customer contacted or payment received.':index+' of '+stages.length+' fictional stages processed.';btn.disabled=index>=stages.length}
+btn.addEventListener('click',()=>{index=Math.min(stages.length,index+1);render()});document.getElementById('reset').addEventListener('click',()=>{index=0;render()});render();
+})();
+</script></body></html>
