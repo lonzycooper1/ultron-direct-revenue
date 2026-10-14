@@ -1,3 +1,4 @@
+import {quantumManifest,runCircuit,propertyScenario,pilotBlueprint} from './ultron-quantum-core-v39.mjs';
 import {status as v24Status,pulse as v24Pulse,inspect as v24Inspect,browserRead as v24Browser,marketResearch as v24Market,writeCopy as v24Copy,reviewGrant as v24Grant} from './ultron-video-v24.mjs';
 import {snapshot as operatorSnapshot,cycle as operatorCycle,publicReadiness as operatorPublic,registerOwnerEvidence as operatorEvidence,register500Evidence} from './ultron-operator-v23.mjs';
 import {activationPlan} from './ultron-activation-v27.mjs';
@@ -137,6 +138,35 @@ function acquisitionPage(nicheId='services'){
 }
 export function createApp(){return createServer(async(req,res)=>{const u=new URL(req.url,'http://local'),path=u.pathname,json=(s,d)=>{res.writeHead(s,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(d))};try{
 const v13Owner=()=>Boolean(ACQ_TOKEN)&&((req.headers.authorization||'')==='Bearer '+ACQ_TOKEN||req.headers['x-ultron-admin']===ACQ_TOKEN);
+
+if(path==='/api/quantum/v39'&&req.method==='GET')return json(200,{ok:true,core:quantumManifest()});
+if(path==='/api/quantum/v39/examples'&&req.method==='GET')return json(200,{ok:true,
+ bell:runCircuit({}),ghz:runCircuit({qubits:3,gates:[{op:'H',target:0},{op:'CX',control:0,target:1},{op:'CX',control:0,target:2}]}),
+ caution:'CPU simulation only. No quantum processor was contacted.'});
+if(path==='/quantum-core'&&req.method==='GET'){
+ const x=quantumManifest();
+ const links='<nav><a href="/">ULTRON</a> <a href="/api/quantum/v39">Core JSON</a> <a href="/api/quantum/v39/examples">Quantum circuit examples</a> <a href="https://quantum.cloud.ibm.com/learning">IBM free learning</a></nav>';
+ const body='<h1>ULTRON / HYBRID QUANTUM CORE V39</h1>'+links+
+  '<p>Live educational circuit simulation on a classical CPU. Not a real QPU and not proven faster than classical computing.</p>'+
+  '<section><article><h2>Core</h2><p>Bounded 1-8 qubit circuits, H / X / Z / RY / CX, probability results.</p><b>SIMULATOR READY</b></article>'+
+  '<article><h2>Physical quantum computer</h2><p>IBM Cloud sign-up, provider credential, quota check and isolated Python Qiskit worker still required.</p><b>NOT CONNECTED</b></article>'+
+  '<article><h2>Durable memory</h2><p>Use Postgres, encrypted object storage, audit log and backups. Quantum hard-drive technology is not available for this service.</p><b>CLASSICAL STORAGE</b></article>'+
+  '<article><h2>Revenue-first</h2><p>Existing real buyers and paid delivery take priority over quantum hype. No new real sales are asserted.</p><b>NO CLAIMED SALES</b></article></section>'+
+  '<h2>Video-derived modules</h2><section>'+x.modules.map(m=>'<article><h3>'+esc(m.label)+'</h3><p>'+esc(m.state)+'</p></article>').join('')+'</section>'+
+  '<p>All outputs are bounded research and educational prototypes; external actions require separate authorization.</p>';
+ res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-frame-options':'DENY'});
+ return res.end(shell('ULTRON Quantum Core v39',body));
+}
+if((path==='/api/quantum/v39/simulate'||path==='/api/quantum/v39/property'||path==='/api/quantum/v39/pilot')&&req.method==='POST'){
+ if(!v13Owner())return json(403,{ok:false,error:'Owner authorization required'});
+ let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>8000)return json(413,{ok:false,error:'Request too large'})}
+ let input;try{input=JSON.parse(raw||'{}')}catch{return json(400,{ok:false,error:'Invalid JSON'})}
+ try{
+ const result=path.endsWith('/simulate')?runCircuit(input):path.endsWith('/property')?propertyScenario(input):pilotBlueprint(input);
+ return json(200,{ok:true,result,externalActionTaken:false});
+ }catch(e){return json(400,{ok:false,error:String(e?.message||e).slice(0,200)})}
+}
+
 
 if(path==='/api/upgrades/v24'&&req.method==='GET')return json(200,{ok:true,report:await v24Status()});
 if(path==='/upgrade-lab'&&req.method==='GET'){
