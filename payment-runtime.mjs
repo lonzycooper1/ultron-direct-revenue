@@ -57,8 +57,20 @@ function esc(value){
 }
 
 export function renderFulfillmentHtml(record){
-  const items=(record.nextSteps||[]).map(x=>'<li>'+esc(x)+'</li>').join('');
-  return '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+esc(record.title)+'</title><style>body{font-family:system-ui;background:#090c10;color:#fff;padding:32px}main{max-width:760px;margin:auto;background:#141920;border:1px solid #29313b;padding:28px;border-radius:16px}a{color:#6ee77a}.muted{color:#aeb7c3}</style><main><h1>'+esc(record.title)+'</h1><p>Payment verified. Your onboarding package is ready.</p><p class="muted">Order '+esc(record.orderId)+' · Capture '+esc(record.captureId)+' · '+esc(record.amount)+' '+esc(record.currency)+'</p><h2>Next steps</h2><ol>'+items+'</ol><p><a href="/support">Open support assistant</a> · <a href="/">Return to storefront</a></p></main>';
+ const title=esc(record?.title||'Your ULTRON digital delivery');
+ const items=(record?.nextSteps||[]).map(x=>'<li>'+esc(x)+'</li>').join('');
+ const sections=(Array.isArray(record?.sections)?record.sections:[])
+  .map(x=>'<section><h2>'+esc(x?.title||'Section')+'</h2><p>'+esc(x?.body||'').replace(/\n/g,'<br>')+'</p></section>').join('');
+ const hasContent=Boolean(items||sections);
+ return '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>'+title+'</title>'+
+ '<style>body{font:16px/1.6 system-ui;background:#08130e;color:#eafff0;margin:0;padding:24px}main{max-width:900px;margin:auto;background:#112219;border:1px solid #47765b;padding:clamp(16px,4vw,32px);border-radius:16px}h1{font-size:clamp(26px,5vw,42px)}h2{color:#7bffc0}section{border-top:1px solid #365543;margin-top:20px;padding-top:12px}p{white-space:normal;overflow-wrap:anywhere}a{color:#86f0ad}.muted{color:#bad2c2}</style>'+
+ '<main><h1>'+title+'</h1><p>Payment confirmed. Your digital material is ready.</p>'+
+ (record.orderId?'<p class="muted">Order '+esc(record.orderId)+'</p>':'')+
+ (record.createdAt?'<p class="muted">Prepared '+esc(record.createdAt)+'</p>':'')+
+ (sections?'<h2>Digital deliverables</h2>'+sections:'')+
+ (items?'<h2>Next steps</h2><ol>'+items+'</ol>':'')+
+ (!hasContent?'<p>Delivery contents are not yet available. Contact support with your order reference.</p>':'')+
+ '<p><a href="/support">Support</a> · <a href="/">Return to ULTRON</a></p></main></html>';
 }
 
 export async function verifyPayPalRuntime({paypal,webhookId,publicBaseUrl}){
