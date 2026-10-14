@@ -1,0 +1,21 @@
+{
+  "version": "2026-10-13",
+  "sourcePolicy": "FIRST_PARTY_PUBLIC_RFP_ONLY",
+  "notes": "Published solicitations represent demonstrated organizational need, not existing ULTRON customers, consent to marketing, contracts, or revenue. Verify every scope and deadline before responding.",
+  "businesses": [
+    {
+      "name": "Community Council of South Central Texas",
+      "website": "https://www.ccsct.org/about-us/request-for-bids-proposals/",
+      "sourceUrl": "https://www.ccsct.org/about-us/request-for-bids-proposals/",
+      "sourceType": "OFFICIAL_RFP",
+      "identifiedNeed": "Information technology support and website hosting",
+      "observedDate": "2026-10-13",
+      "deadline": "2026-10-30T17:00:00-05:00",
+      "decisionMaker": "NOT_VERIFIED",
+      "contactPermission": false,
+      "customerStatus": "PUBLIC_SOLICITATION_NOT_CUSTOMER",
+      "match": "LARGER_IT_SERVICES_NOT_INSTANT_99_AUDIT",
+      "submission": "Official RFP/Bid portal; review qualifications before any response"
+    }
+  ]
+}
