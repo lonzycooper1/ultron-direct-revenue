@@ -16,6 +16,21 @@
       "customerStatus": "PUBLIC_SOLICITATION_NOT_CUSTOMER",
       "match": "LARGER_IT_SERVICES_NOT_INSTANT_99_AUDIT",
       "submission": "Official RFP/Bid portal; review qualifications before any response"
+    },
+    {
+      "name": "Garland Independent School District",
+      "website": "https://garlandisd.net/connect/how-do-business-us/current-bidrfp-opportunities/122-27-0",
+      "sourceUrl": "https://garlandisd.net/connect/how-do-business-us/current-bidrfp-opportunities/122-27-0",
+      "sourceType": "OFFICIAL_RFP_ADDENDUM",
+      "solicitationId": "122-27",
+      "identifiedNeed": "Drupal Design and Development Services",
+      "observedDate": "2026-10-13",
+      "deadline": "2026-10-20",
+      "decisionMaker": "NOT_VERIFIED",
+      "contactPermission": false,
+      "customerStatus": "PUBLIC_SOLICITATION_NOT_CUSTOMER",
+      "match": "SPECIALIST_DRUPAL_SERVICE_NOT_INSTANT_99_AUDIT",
+      "submission": "Follow Garland ISD procurement bid instructions and verify qualifications"
     }
   ]
 }
