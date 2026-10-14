@@ -19,6 +19,7 @@ import {V34_SKU,V34_VERSION,validateV34Intake,inspectV34Homepage,buildV34Report,
 import {B2B_OFFER,STEPS as B2B_STEPS,dashboard as b2bDashboard,cycle as b2bCycle,recordResearch as b2bResearch,recordPartnerCandidate as b2bPartner,recordOpportunity as b2bOpportunity,updateOpportunity as b2bAdvance,demonstration as b2bDemo,proposal as b2bProposal,publicLanding as b2bPublicLanding} from './ultron-b2b-90-day-v35.mjs';
 import {dashboard as v36Dashboard,queueAsset as v36QueueAsset,makeAsset as v36MakeAsset,safeCycle as v36SafeCycle} from './ultron-growth-paths-v36.mjs';
 import {dashboard as v37Dashboard,cycle as v37Cycle,recordOwnerNote as v37RecordOwnerNote} from './ultron-audit-v37.mjs';
+import {commanderSnapshot} from './ultron-revenue-commander-v38.mjs';
 import {storeHealth} from './state-store.mjs';
 import {runAgentCycle,agentState} from './agents.mjs';
 import {wizardFromConversation,generateCandidates,critiqueCandidate,buildAcquisitionPlan,prospectToPaymentWorkflow,capabilityManifest} from './ultron2-core.mjs';
@@ -82,6 +83,7 @@ async function fulfill(id,c){let out,verifiedOffer=null;const known=(await ledge
   return out}
 async function byToken(t){const l=await ledger();return Object.values(l.orders||{}).find(o=>o?.fulfillment?.token===t)?.fulfillment||null}
 async function agentBurst(){const l=await ledger();for(let i=0;i<WORKLOAD;i++)await runAgentCycle({ledger:l,baseUrl:PUBLIC});await runBusinessOSCycle({ledger:l,baseUrl:PUBLIC})}
+async function revenueCommanderReport(){const [g,i,c,l]=await Promise.all([growthV19State(),inboundWorkQueue(100),agentOfAgentsState(),ledger()]);return commanderSnapshot({env:process.env,payment,growth:g,inbound:i,commerce:c,orders:l?.orders||{}})}
 const esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const shell=(title,body,head='')=>`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${esc(title)}</title><meta name="theme-color" content="#020806"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="ULTRON ONE"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/ultron-one-icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/ultron-one-icon.svg">${head}<style>:root{color-scheme:dark;--phosphor:#35ff9a;--phosphor2:#00e676;--amber:#ffd166;--danger:#ff6178;--ink:#020806;--panel:rgba(2,18,12,.88);--line:rgba(53,255,154,.30);--dim:#82b69d}
 *{box-sizing:border-box}html{background:#010503}body{background:radial-gradient(circle at 50% -10%,rgba(0,255,128,.10),transparent 33%),linear-gradient(rgba(2,12,8,.97),rgba(0,4,2,.99));color:#caffdf;font:13px ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;max-width:1480px;margin:auto;padding:22px;min-height:100vh;letter-spacing:.015em}
@@ -788,6 +790,32 @@ if(path==='/api/14-day-audit/v37/owner-note'&&req.method==='POST'){
 if(path==='/growth-paths'&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'public,max-age=120'});return res.end(await readFile(new URL('./public/growth-paths.html',import.meta.url),'utf8'))}
 if(path==='/ai-workflow-guide-preview'&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'public,max-age=120'});return res.end(await readFile(new URL('./public/ai-workflow-guide-preview.html',import.meta.url),'utf8'))}
 if(path==='/growth-paths-command'&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-frame-options':'DENY'});return res.end(await readFile(new URL('./public/growth-paths-command.html',import.meta.url),'utf8'))}
+if(path==='/api/revenue-commander/v38'&&req.method==='GET'){
+ const report=await revenueCommanderReport();
+ return json(200,{ok:true,report,notice:'Observed state and recommended work only. No external authorizations or customer purchases are inferred.'});
+}
+if(path==='/revenue-commander'&&req.method==='GET'){
+ const report=await revenueCommanderReport();
+ const serviceCards=report.providerGates.map(g=>'<article><small>'+esc(g.id)+' / '+esc(g.status)+'</small><h3>'+esc(g.next)+'</h3><p>Proof: '+esc(g.proof)+'</p></article>').join('');
+ const actionCards=report.queue.slice(0,12).map((a,i)=>'<article><small>PRIORITY '+(i+1)+' / '+esc(a.mode)+'</small><h3>'+esc(a.action)+'</h3><p>'+esc(a.why)+'</p><small>RECOMMENDATION, NOT EXECUTED</small></article>').join('');
+ const upgradeCards=report.upgrades.map((a,i)=>'<article><small>'+esc(a.phase)+' / '+(i+1)+'</small><h3>'+esc(a.name)+'</h3><p>Acceptance evidence: '+esc(a.proof)+'</p></article>').join('');
+ const m=report.metrics;
+ res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-frame-options':'DENY'});
+ return res.end(shell('ULTRON Revenue Commander v38',
+ '<nav><a href="/">ULTRON HOME</a><a href="/activation-center">ACTIVATION</a><a href="/inbound-inbox">OWNER INBOX</a><a href="/flagship">AUDIT OFFER</a><a href="/lead-intake-pilot">PILOT</a><a href="/api/revenue-commander/v38">JSON</a></nav>'+
+ '<h1>ULTRON // REVENUE COMMANDER V38</h1><p>The first real customer, verified delivery, and repeatability take priority over more bots or synthetic catalogs.</p>'+
+ '<section><article><small>MISSION</small><h3>'+esc(report.phase)+'</h3></article>'+
+ '<article><small>PROSPECT CANDIDATES</small><b>'+m.prospectCandidates+'</b><p>Not independently verified buyers.</p></article>'+
+ '<article><small>VOLUNTARY INBOUND</small><b>'+m.inboundDiagnostics+'</b><p>'+m.consentedInbound+' open permissioned inquiries.</p></article>'+
+ '<article><small>RECORDED CAPTURED ORDERS</small><b>'+m.capturedOrderRecords+'</b><p>Provider, independent buyer and settlement evidence remain distinct.</p></article>'+
+ '<article><small>INDEPENDENT ACCEPTED CUSTOMERS WITH EXPLICIT RECORD PROOF</small><b>'+m.independentAcceptedCustomersWithExplicitProof+'</b></article>'+
+ '<article><small>PENDING COMMERCE APPROVALS</small><b>'+m.pendingCommerceApprovals+'</b></article></section>'+
+ '<h2>Highest-priority next actions</h2><section>'+actionCards+'</section>'+
+ '<h2>External provider gates</h2><section>'+serviceCards+'</section>'+
+ '<h2>All 16 screenshot upgrades and their acceptance criteria</h2><section>'+upgradeCards+'</section>'+
+ '<p>Security, account authorizations, owner signatures, payment/refund operations, ads and trades are never bypassed. Source configuration alone is not a verified connection, and recommendations are not already executed.</p>'));
+}
+
 if(path==='/api/growth-paths/v36'&&req.method==='GET'){return json(200,{ok:true,...await v36Dashboard(false)})}
 if(path==='/api/growth-paths/v36/owner'&&req.method==='GET'){
  if(!v13Owner())return json(403,{ok:false,error:'Owner authorization required'});
