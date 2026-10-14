@@ -45,6 +45,7 @@ test('All 10 researched lead drafts and video remain unsent and unpublished',()=
  const a=agencyLaunchKit(),v=firstVideoKit();
  assert.equal(a.firstTenLeads.count,10);
  assert.equal(a.firstTenLeads.emailsSent,0);
+ assert.equal(a.firstTenLeads.gmailDraftsCreated,10);
  assert.equal(a.firstTenLeads.sourceVerified,true);
  assert.equal(v.durationSeconds,45);
  assert.equal(v.renderedInChat,true);
