@@ -752,6 +752,7 @@ if(path==='/api/video-systems/wizard'&&req.method==='POST'){let raw='';for await
 if(path==='/api/search')return json(200,{ok:true,items:catalogPage({storeId:u.searchParams.get('store')||undefined,offset:Number(u.searchParams.get('offset')||0),limit:Math.min(100,Number(u.searchParams.get('limit')||20)),query:u.searchParams.get('q')||''})});
 if(path==='/market'||path.startsWith('/market/')){res.writeHead(200,{'content-type':'text/html'});return res.end(marketHtml(path==='/market'?null:decodeURIComponent(path.slice(8)),Number(u.searchParams.get('page')||1),u.searchParams.get('q')||''))}
 
+if(path==='/90-day-demo'&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'public,max-age=120'});return res.end(await readFile(new URL('./public/90-day-demo.html',import.meta.url),'utf8'))}
 if(path==='/90-day-command'&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-frame-options':'DENY'});return res.end(await readFile(new URL('./public/90-day-command.html',import.meta.url),'utf8'))}
 if(path==='/90-day-revenue'&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'public,max-age=120'});return res.end(b2bPublicLanding())}
 if(path==='/api/b2b-90-day'&&req.method==='GET'){const d=await b2bDashboard();return json(200,{ok:true,...d})}
