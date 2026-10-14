@@ -4,7 +4,7 @@ const sent={status:'SENT',ownerApprovedAt:'2026-10-14',to:'buyer@fixture-busines
 const message=(body='Please stop emailing me')=>({id:'M1',threadId:'T1',labelIds:['INBOX'],payload:{mimeType:'text/plain',headers:[{name:'From',value:'Buyer <buyer@fixture-business.org>'}],body:{data:Buffer.from(body).toString('base64url')}}});
 test('only known approved contacted senders are eligible; opt-out in a new thread is retained',()=>{
  assert.ok(scopedIncoming(message(),[sent],{P1:{}}));assert.equal(scopedIncoming(message(),[],{P1:{}}),null);
- assert.ok(scopedIncoming({...message(),threadId:'T2'},[sent],{P1:{}}));
+ assert.ok(scopedIncoming({...message(),threadId:'T2'},[sent],{P1:{}}));assert.ok(scopedIncoming({...message('STOP'),threadId:'T2'},[sent],{P1:{}}));
  assert.equal(scopedIncoming({...message('Yes, interested'),threadId:'T2'},[sent],{P1:{}}),null);
 });
 test('bounce requires matching sent thread and recipient evidence',()=>{

@@ -141,7 +141,7 @@ export async function approveOutbox(ids,owner){
   return {approved:ids.length,actualSend:false,requires:'Runtime Gmail OAuth, verified business identity, sending policy and applicable legal disclosures'};
 }
 export function classifyIncoming(body=''){
-  const t=String(body).toLowerCase();if(/unsubscribe|remove me|stop emailing|do not contact/.test(t))return 'OPT_OUT';
+  const t=String(body).toLowerCase();if(/unsubscribe|remove me|stop emailing|do not contact|^\s*stop[.!]?\s*$/.test(t))return 'OPT_OUT';
   if(/\b(not interested|no thanks|pass)\b/.test(t))return 'DECLINE';
   if(/\b(book|call|interested|schedule|yes|demo)\b/.test(t))return 'INTERESTED';
   return 'QUESTION';

@@ -14,7 +14,7 @@ export function scopedIncoming(message,outbox=[],prospects={}){
  const candidate=outbox.find(o=>o.status==='SENT'&&o.ownerApprovedAt&&prospects[o.prospectId]&&
   (bounce?o.providerThreadId===message.threadId&&text.toLowerCase().includes(email(o.to)):email(o.to)===from));
  if(!message.id||!candidate||!message.labelIds?.includes('INBOX'))return null;
- if(candidate.providerThreadId&&candidate.providerThreadId!==message.threadId&&!/unsubscribe|remove me|stop emailing|do not contact/i.test(text))return null;
+ if(candidate.providerThreadId&&candidate.providerThreadId!==message.threadId&&!/unsubscribe|remove me|stop emailing|do not contact|^\s*stop[.!]?\s*$/i.test(text))return null;
  if(!text.trim())return null;
  return {prospectId:candidate.prospectId,messageId:message.id,body:text,source:'GMAIL_API_READ',threadId:message.threadId,bounce};
 }
