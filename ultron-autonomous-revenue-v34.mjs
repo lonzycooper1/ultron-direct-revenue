@@ -113,7 +113,7 @@ export function buildV34Report(input,site={status:'UNAVAILABLE',reason:'not insp
   'No independent homepage finding: '+clean(site.reason,120)+'. All business-process inputs are customer-provided and unverified.';
  const sections=[
   {title:'Scope and evidence',body:'Instant $99 digital decision-support audit for '+x.company+'. Inputs are customer self-reported, not verified revenue or performance facts. Homepage findings cover only public HTML, if accessible.'},
-  {title:'Customer-supplied baseline',body:'Industry '+x.industry+'; '+x.monthlyLeads+' estimated monthly inquiries; '+x.missedPercent+'% estimated missed; '+x.responseMinutes+'-minute typical response; booking '+x.bookingMethod+'; follow-up '+x.followup+'. Implied missed inquiries approximately '+missed+' per month, conditional on supplied inputs; not proven lost sales.'},
+  {title:'Customer-supplied baseline',body:'Customer self-reported baseline: Industry '+x.industry+'; +x.monthlyLeads+' estimated monthly inquiries; '+x.missedPercent+'% estimated missed; '+x.responseMinutes+'-minute typical response; booking '+x.bookingMethod+'; follow-up '+x.followup+'. Implied missed inquiries approximately '+missed+' per month, conditional on supplied inputs; not proven lost sales.'},
   {title:'Public website observations',body:findings},
   {title:'Prioritized opportunities',body:steps.map((z,i)=>(i+1)+'. '+z).join(' ')},
   {title:'Initial response script',body:'Thanks for contacting '+x.company+'. What service do you need, and which time works for a response? We will confirm availability rather than promise what we have not checked.'},
