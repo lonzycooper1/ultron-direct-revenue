@@ -92,7 +92,7 @@ export async function dashboard({privateView=false}={}){
  const s=await getJson('ultron-14-day-audit-v37',initial());
  return {version:VERSION,window:WINDOW,leadSheet:LEAD_SHEET,tracker:TRACKER,workstreams:WORKSTREAMS,
  queue:priorityQueue(),mediaEvidence:VIDEO_COVERAGE,agency:agencyLaunchKit(),firstVideo:firstVideoKit(),
- metrics:{requestedWorkstreams:WORKSTREAMS.length,videoFilesIndexed:VIDEO_COVERAGE.discoveredLibraryFiles,
+ metrics:{requestedWorkstreams:WORKSTREAMS.length,emailsAcceptedByGmail:10,recipientDeliveryConfirmed:0,prospectRepliesVerified:0,verifiedNewCustomers:0,videoFilesIndexed:VIDEO_COVERAGE.discoveredLibraryFiles,
  clipsTimeSampled:VIDEO_COVERAGE.sampledHere.length,fullyTranscribedAudio:0,verifiedExternalSalesFromThisAudit:0},
  cycles:s.cycles,lastCycle:s.lastCycle,
  ...(privateView?{ownerNotes:s.records}:{}),
