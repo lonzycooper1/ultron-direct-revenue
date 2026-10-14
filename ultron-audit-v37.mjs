@@ -9,7 +9,7 @@ export const LEAD_SHEET='https://docs.google.com/spreadsheets/d/1ZD-Utal-3e0CSrQ
 export const TRACKER='https://github.com/lonzycooper1/ultron-direct-revenue/issues/25';
 export const WORKSTREAMS=Object.freeze([
  {id:'customers',rank:1,category:'REVENUE',name:'Find an independently verified corporate buyer and close a scoped deal',existing:'V35 B2B offer, demo, research queue and proposal generator',gate:'Buyer consent, qualified delivery partner, executed contract and provider payment proof',status:'BLOCKED_EXTERNAL_DEMAND'},
- {id:'outreach',rank:2,category:'REVENUE',name:'Send permissioned personalized outbound and process replies',existing:'Ten researched Houston roofing candidates and tailored message drafts in Google Sheet',gate:'Published contacts must be verified, postal address, compliant sending, runtime Gmail OAuth, suppression and recipient approval',status:'BLOCKED_SENDER'},
+ {id:'outreach',rank:2,category:'REVENUE',name:'Send permissioned personalized outbound and process replies',existing:'Ten researched Houston roofing candidates and tailored message drafts in Google Sheet',gate:'Published contacts must be verified, postal address, compliant sending, runtime Gmail OAuth, suppression and recipient approval',status:'PARTIAL_10_SENT_RUNTIME_BLOCKED'},
  {id:'agency',rank:3,category:'REVENUE',name:'Launch authentic AI automation agency and LinkedIn presentation',existing:'ULTRON Revenue Studio public growth page, authentic profile and five posts drafted',gate:'Owner-controlled real LinkedIn account, role/title verification and approval to change it',status:'BLOCKED_EXTERNAL_ACCOUNT'},
  {id:'booking',rank:4,category:'REVENUE',name:'Convert interested replies into confirmed booking and CRM',existing:'V35 booking design and prior Google Calendar and HubSpot adapters',gate:'Railway Gmail/HubSpot/Calendar runtime credentials and external QA',status:'BLOCKED_RUNTIME_INTEGRATION'},
  {id:'delivery',rank:5,category:'CUSTOMER',name:'Deliver scoped installations with acceptance and support',existing:'V35 workflow plan, QA templates, lead-intake synthetic demo',gate:'Qualified capacity, signed customer scope, real system permissions, quality and acceptance signoff',status:'BLOCKED_NO_CUSTOMERS'},
@@ -72,7 +72,7 @@ export function agencyLaunchKit(){
    {name:'HVAC and plumbing service companies',reason:'Dispatch handoffs, repeat customer data entry, technician updates'},
    {name:'Property management companies',reason:'Maintenance requests, tenant support ticket routing, vendor coordination'}
   ],
-  firstTenLeads:{count:10,source:'Official company websites with published business emails (reviewed 2026-10-14)',googleSheet:LEAD_SHEET,emailsSent:0,gmailDraftsCreated:10,sourceVerified:true,interestVerified:false,postalAddressVerified:false},
+  firstTenLeads:{count:10,source:'Official company websites with published business emails (reviewed 2026-10-14)',googleSheet:LEAD_SHEET,emailsSent:10,gmailDraftsCreated:10,sourceVerified:true,interestVerified:false,postalAddressOwnerSupplied:true,postalAddressIndependentlyVerified:false,gmailDeliveryStatus:'SENT_LABEL_RECEIVED',recipientDeliveryConfirmed:false},
   outreachRules:['Use genuine business identity','Obtain proper sender authorization','Include valid postal address and lawful opt-out','Suppress duplicate, opted-out or bounced recipients','Never infer that a specific company misses leads','Do not send without an approved campaign scope'],
   linkedInProfileUpdated:false,linkedInConnectionVerified:false
  }
