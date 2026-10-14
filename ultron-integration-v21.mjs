@@ -6,7 +6,7 @@ const fallback=()=>({version:'21.0.0',crmSync:{},bookings:{},lastChecked:null});
 const read=()=>getJson(KEY,fallback());
 export function readiness(env=process.env){
  const has=(...a)=>a.every(k=>Boolean(env[k]));
- const gmail=has('ULTRON_GMAIL_CLIENT_ID','ULTRON_GMAIL_CLIENT_SECRET','ULTRON_GMAIL_REFRESH_TOKEN','ULTRON_BUSINESS_SENDER','ULTRON_BUSINESS_POSTAL_ADDRESS','ULTRON_UNSUBSCRIBE_SECRET');
+ const gmail=env.ULTRON_BUSINESS_POSTAL_ADDRESS_APPROVED==='true'&&has('ULTRON_GMAIL_CLIENT_ID','ULTRON_GMAIL_CLIENT_SECRET','ULTRON_GMAIL_REFRESH_TOKEN','ULTRON_BUSINESS_SENDER','ULTRON_BUSINESS_POSTAL_ADDRESS','ULTRON_UNSUBSCRIBE_SECRET');
  const sender=String(env.ULTRON_BUSINESS_SENDER||'').trim();
  const selectedSender=/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(sender)?sender:null;
  const calendar=has('ULTRON_GOOGLE_CLIENT_ID','ULTRON_GOOGLE_CLIENT_SECRET','ULTRON_CALENDAR_REFRESH_TOKEN','ULTRON_CALENDAR_ID');

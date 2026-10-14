@@ -1,3 +1,4 @@
+import {independentSale} from './ultron-revenue-operations-v41.mjs';
 /**
  * ULTRON Revenue Commander v38
  * Converts the 2026-10-14 screen recording's requested outcomes into an
@@ -47,9 +48,9 @@ export function classifyAction(action=''){
 export function commanderSnapshot({env={},payment={},growth={},inbound={},commerce={},orders={},serviceOnline=true,externalProof={}}={}){
  const rows=Object.values(orders||{}).filter(x=>x&&typeof x==='object');
  const captured=rows.filter(x=>x.captureId&&String(x.status||'').toUpperCase()==='COMPLETED');
- const delivered=captured.filter(x=>x.fulfillment?.token);
- const unpaidDelivery=captured.filter(x=>!x.fulfillment?.token);
- const independent=delivered.filter(x=>x.independentBuyerVerified===true&&x.customerAcceptanceVerified===true);
+ const delivered=captured.filter(x=>x.fulfillment?.token&&(x.product!=='ai-revenue-audit-500'||x.fulfillmentCompletedAt&&x.fulfillment?.review?.qualityApproved));
+ const unpaidDelivery=captured.filter(x=>!delivered.includes(x));
+ const independent=delivered.filter(independentSale);
  const consented=n(inbound.consentedOpen);
  const inquiries=n(inbound.total);
  const candidateCount=count(growth.prospects);

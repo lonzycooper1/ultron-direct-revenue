@@ -160,8 +160,13 @@ export async function receiveReply({prospectId,messageId,body}){
   }catch(e){console.error('v20 reply integration:',String(e?.message||e));}
   return {classification:category,sent:false,meetingConfirmed:false};
 }
+export async function receiveBounce({prospectId,messageId}={}){
+ if(!prospectId||!messageId)throw Error('Provider bounce reference required');
+ await mutate(s=>{const p=s.prospects[prospectId];if(!p)throw Error('Unknown prospect');s.suppression[prospectId]='PROVIDER_DELIVERY_FAILURE';p.optOut=true;p.stage='DELIVERY_FAILED';s.replies[messageId]??={prospectId,category:'BOUNCE',at:when(),source:'GMAIL_API_READ'};});
+ await suppressContact({contactId:prospectId,reason:'PROVIDER_DELIVERY_FAILURE'});return {classification:'BOUNCE',sent:false};
+}
 function configuredEmail(){return Boolean(process.env.ULTRON_GMAIL_CLIENT_ID&&process.env.ULTRON_GMAIL_CLIENT_SECRET&&process.env.ULTRON_GMAIL_REFRESH_TOKEN&&process.env.ULTRON_BUSINESS_SENDER&&process.env.ULTRON_BUSINESS_POSTAL_ADDRESS);}
-async function gmailToken(){
+export async function gmailToken(){
   const form=new URLSearchParams({client_id:process.env.ULTRON_GMAIL_CLIENT_ID,client_secret:process.env.ULTRON_GMAIL_CLIENT_SECRET,refresh_token:process.env.ULTRON_GMAIL_REFRESH_TOKEN,grant_type:'refresh_token'});
   const r=await fetch('https://oauth2.googleapis.com/token',{method:'POST',body:form,signal:AbortSignal.timeout(10000)});
   if(!r.ok)throw Error('Gmail OAuth token refresh failed');
@@ -176,12 +181,15 @@ export async function unsubscribe(id,token){
 }
 export async function sendApproved(max=10){
   const gate=await operationalGate('outreach');if(!gate.allowed)return {sent:0,status:gate.reason};
-  if(!configuredEmail()||!process.env.ULTRON_UNSUBSCRIBE_SECRET||!process.env.PUBLIC_BASE_URL)
+  if(!configuredEmail()||process.env.ULTRON_BUSINESS_POSTAL_ADDRESS_APPROVED!=='true'||!process.env.ULTRON_UNSUBSCRIBE_SECRET||!process.env.PUBLIC_BASE_URL)
     return {sent:0,status:'SENDER_NOT_CONFIGURED',note:'No email sent; ChatGPT Gmail connection is separate from Railway runtime OAuth'};
   const day=when().slice(0,10),s=await growthState(),remaining=Math.max(0,s.policy.maxOutboundPerDay-(s.emailSentByDate[day]||0));if(remaining===0)return {sent:0,status:'DAILY_LIMIT_REACHED'};
   const allowed=Object.values(s.outbox).filter(m=>m.status==='APPROVED_PENDING_SENDER'&&m.ownerApprovedAt).slice(0,Math.min(max,remaining));
   if(!allowed.length)return {sent:0,status:'NO_APPROVED_RECIPIENTS'};
-  const t=await gmailToken();let sent=0,failed=0;
+  const t=await gmailToken();
+  const identity=await fetch('https://gmail.googleapis.com/gmail/v1/users/me/profile',{headers:{authorization:'Bearer '+t},signal:AbortSignal.timeout(10000)});
+  if(!identity.ok||(await identity.json()).emailAddress?.toLowerCase()!==process.env.ULTRON_BUSINESS_SENDER?.toLowerCase())throw Error('Gmail sender identity mismatch');
+  let sent=0,failed=0;
   for(const m of allowed){
     const current=await growthState(),p=current.prospects[m.prospectId],v20=await operatingState();
     if(!p||p.optOut||current.suppression[p.id]||v20.suppression[p.id]||v20.suppression[m.to])continue;
@@ -190,13 +198,14 @@ export async function sendApproved(max=10){
     const from=process.env.ULTRON_BUSINESS_SENDER,postal=process.env.ULTRON_BUSINESS_POSTAL_ADDRESS;
     const mime=['From: '+from,'To: '+m.to,'Subject: '+m.subject.replace(/[\r\n]/g,' '),'MIME-Version: 1.0','Content-Type: text/plain; charset=UTF-8',
       'List-Unsubscribe: <'+link+'>','',m.body,'','Business mailing address: '+postal,'Unsubscribe: '+link].join('\r\n');
+    let claimed=false;await mutate(z=>{const item=z.outbox[m.id];if(item?.status==='APPROVED_PENDING_SENDER'){item.status='DISPATCHING_RECONCILIATION_REQUIRED';item.dispatchStartedAt=when();claimed=true;}});if(!claimed)continue;
     try{
       const r=await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send',{method:'POST',
         headers:{authorization:'Bearer '+t,'content-type':'application/json'},
         body:JSON.stringify({raw:Buffer.from(mime).toString('base64url')}),signal:AbortSignal.timeout(10000)});
       const j=await r.json().catch(()=>({}));if(!r.ok||!j.id)throw Error('Gmail did not confirm message delivery handoff');
-      await mutate(z=>{const item=z.outbox[m.id];if(item.status!=='APPROVED_PENDING_SENDER')return;
-        item.status='SENT';item.sentAt=when();item.providerId=j.id;const lead=z.prospects[item.prospectId];
+      await mutate(z=>{const item=z.outbox[m.id];if(item.status!=='DISPATCHING_RECONCILIATION_REQUIRED')return;
+        item.status='SENT';item.sentAt=when();item.providerId=j.id;item.providerThreadId=j.threadId||null;const lead=z.prospects[item.prospectId];
         lead.touches.push(item.sentAt);lead.stage='CONTACTED';z.emailSentByDate[day]=(z.emailSentByDate[day]||0)+1;});sent++;
     }catch(e){failed++;await mutate(z=>{z.errors.push({kind:'GMAIL_SEND_FAILURE',message:clean(e.message),at:when()});z.errors=z.errors.slice(-100);});break;}
   }
