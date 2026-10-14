@@ -2,6 +2,7 @@ import {status as v24Status,pulse as v24Pulse,inspect as v24Inspect,browserRead 
 import {snapshot as operatorSnapshot,cycle as operatorCycle,publicReadiness as operatorPublic,registerOwnerEvidence as operatorEvidence,register500Evidence} from './ultron-operator-v23.mjs';
 import {activationPlan} from './ultron-activation-v27.mjs';
 import {finalLevelCheck,lookupCheckId,listFinalLevelChecks,finalLevelCsvLines} from './ultron-final-level-v29.mjs';
+import {readFile} from 'node:fs/promises';
 import {Readable} from 'node:stream';
 import {inboundWorkQueue,draftInboundById,reviewInbound} from './ultron-inbound-ops-v28.mjs';
 import {growthState as growthV19State,dashboard as growthDashboard,importProspects,auditProspect,prepareSales,approveOutbox,receiveReply,sendApproved,onVerifiedCapture,markFulfilled,customerProof,expense,queueExperiment,proposeContent,backgroundTick,unsubscribe,demoHtml} from './ultron-growth-runtime-v19.mjs';
@@ -751,6 +752,7 @@ if(path==='/api/video-systems/wizard'&&req.method==='POST'){let raw='';for await
 if(path==='/api/search')return json(200,{ok:true,items:catalogPage({storeId:u.searchParams.get('store')||undefined,offset:Number(u.searchParams.get('offset')||0),limit:Math.min(100,Number(u.searchParams.get('limit')||20)),query:u.searchParams.get('q')||''})});
 if(path==='/market'||path.startsWith('/market/')){res.writeHead(200,{'content-type':'text/html'});return res.end(marketHtml(path==='/market'?null:decodeURIComponent(path.slice(8)),Number(u.searchParams.get('page')||1),u.searchParams.get('q')||''))}
 
+if(path==='/90-day-command'&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-frame-options':'DENY'});return res.end(await readFile(new URL('./public/90-day-command.html',import.meta.url),'utf8'))}
 if(path==='/90-day-revenue'&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'public,max-age=120'});return res.end(b2bPublicLanding())}
 if(path==='/api/b2b-90-day'&&req.method==='GET'){const d=await b2bDashboard();return json(200,{ok:true,...d})}
 if(path==='/api/b2b-90-day/owner'&&req.method==='GET'){
@@ -767,7 +769,7 @@ if(path==='/api/b2b-90-day/record'&&req.method==='POST'){
   if(action==='RESEARCH')result=await b2bResearch(data);
   else if(action==='PARTNER_CANDIDATE')result=await b2bPartner(data);
   else if(action==='OPPORTUNITY')result=await b2bOpportunity(data);
-  else if(action==='OPPORTUNITY_EVENT')result=await b2bAdvance(data);
+  else if(action==='OPPORTUNITY_EVENT')result=await b2bAdvance({...data,action:data.eventAction});
   else if(action==='PREVIEW_DEMO')result=b2bDemo(data);
   else if(action==='PREVIEW_PROPOSAL')result=b2bProposal(data);
   else return json(400,{ok:false,error:'Unknown or prohibited B2B action'});
