@@ -1,0 +1,53 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>ULTRON Growth Paths Command</title>
+<style>body{max-width:1050px;margin:auto;padding:25px;background:#071522;color:#edf6ff;font:15px/1.6 system-ui}h1{font-size:clamp(30px,5vw,52px)}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:16px}.card{background:#12283a;border:1px solid #36516c;border-radius:13px;padding:20px}input,select,textarea{box-sizing:border-box;width:100%;background:#081525;color:#edf6ff;border:1px solid #4f6a84;padding:10px;border-radius:8px;margin-bottom:10px}button{padding:11px 17px;border-radius:8px;background:#91dbff;color:#081b2a;border:0;font-weight:bold;cursor:pointer}label{display:block}a{color:#9cdbff}pre{white-space:pre-wrap;word-break:break-word;max-height:480px;overflow:auto;padding:14px;background:#081525;border:1px solid #345773;border-radius:9px}.muted{color:#b7cada}</style></head><body>
+<nav><a href="/growth-paths">Public growth paths</a> · <a href="/90-day-command">V35 B2B command</a> · <a href="/api/growth-paths/v36">Public status</a></nav>
+<h1>ULTRON V36 // Growth Paths</h1><p class="muted">Operator-only workbench. Drafts are internal, unsent, unposted and not evidence of earned revenue. V35 first-buyer acquisition remains the primary mission.</p>
+<section class="card"><label>ULTRON owner token — used in this tab only<input type="password" id="key" autocomplete="off"></label><button id="load">Load private status</button><p id="notice" role="status">No request made.</p></section>
+<div class="grid">
+<section class="card"><h2>Corporate asset</h2><label>Output<select id="kind"><option value="PROFILE">LinkedIn business bio + 5 posts</option><option value="AUDIT">Feasibility audit</option><option value="OUTREACH">Reviewed email draft (never sent)</option><option value="MODEL">Revenue scenarios</option></select></label>
+<label>Company / brand<input id="company" placeholder="Real business or brand"></label>
+<label>Industry<select id="industry"><option value="hvac">HVAC</option><option value="plumbing">Plumbing</option><option value="legal">Legal admin</option><option value="realestate">Real estate</option><option value="medical">Nonclinical medical admin</option></select></label>
+<label>Verified public source URL for outreach<input id="source" placeholder="https://example.org/"></label>
+<label>Specific public observation (do not invent)<textarea id="observation" rows="3"></textarea></label>
+<label>Events per month<input id="volume" type="number" value="0" min="0"></label>
+<label>Minutes per event<input id="minutes" type="number" value="0" min="0"></label>
+<label>Hourly loaded cost (estimate)<input id="hourly" type="number" value="0" min="0"></label>
+<button id="draftCorporate">Create internal corporate draft</button></section>
+<section class="card"><h2>Educational media</h2><p>Generate ten original educational short-form scripts for review. No social media account will be touched.</p>
+<label>Number of short scripts<input id="count" type="number" min="1" max="10" value="10"></label>
+<button id="draftMedia">Create media draft batch</button>
+<h3>Publisher requirements</h3><ul><li>Verified platform account access</li><li>Clear footage/music rights and synthetic voice consent</li><li>Factual human review and captions</li><li>Disclosure of affiliate relationships</li><li>No fabricated views or revenue</li></ul>
+<h3>Product</h3><p>Original $49 educational guide drafted in the repository; checkout is not enabled.</p>
+<a href="/ai-workflow-guide-preview">Open public preview</a></section>
+</div>
+<h2>Latest result</h2><pre id="result">No new content drafted.</pre><h2>Live evidence and queue</h2><pre id="dashboard">Load owner status to inspect drafted assets and verified blockers.</pre>
+<script>
+(function(){
+ const $=id=>document.getElementById(id);
+ function notice(s){$('notice').textContent=s}
+ async function request(route,init={}){
+  const token=$('key').value.trim();if(!token)throw Error('Owner token is required');
+  const r=await fetch(route,{...init,headers:{authorization:'Bearer '+token,...(init.headers||{})}});
+  let data={};try{data=await r.json()}catch{}
+  if(!r.ok)throw Error(data.error||'Request failed ('+r.status+')');
+  return data;
+ }
+ async function load(){
+  const r=await request('/api/growth-paths/v36/owner');
+  $('dashboard').textContent=JSON.stringify({metrics:r.metrics,runtime:r.runtime,phases:r.phases,assets:r.assets,models:r.models},null,2);
+  notice('Owner evidence loaded: '+r.metrics.internalAssets+' draft assets; no external publication inferred.');
+ }
+ async function draft(type,fields){
+  const r=await request('/api/growth-paths/v36/draft',{method:'POST',headers:{'content-type':'application/json'},
+   body:JSON.stringify({type,...fields})});
+  $('result').textContent=JSON.stringify(r.asset,null,2);notice('Internal draft saved. Nothing sent or posted.');await load();
+ }
+ $('load').addEventListener('click',()=>load().catch(e=>notice(e.message)));
+ $('draftCorporate').addEventListener('click',()=>draft($('kind').value,{
+  company:$('company').value,brand:$('company').value,industry:$('industry').value,
+  source:$('source').value,observation:$('observation').value,
+  volume:Number($('volume').value),minutes:Number($('minutes').value),hourlyCost:Number($('hourly').value),
+  niche:$('industry').value}).catch(e=>notice(e.message)));
+ $('draftMedia').addEventListener('click',()=>draft('SHORTS',{count:Number($('count').value)}).catch(e=>notice(e.message)));
+})();
+</script></body></html>
