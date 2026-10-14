@@ -56,7 +56,7 @@ export function rankOpportunities(items=VIDEO_ITEMS){
 export function verifyClaim({text='',sources=[],level='UNVERIFIED_SOCIAL_CLAIM'}={}){
  const claim=clean(text,350);
  const arr=Array.isArray(sources)?sources:[];
- const evidence=arr.filter(x=>typeof x==='string'&&/^https:\/\/[a-z0-9.-]+\//i.test(x)&&!/(?:localhost|\.local|example\.)/i.test(x)).slice(0,6);
+ const evidence=arr.filter(x=>{if(typeof x!=='string')return false;try{const u=new URL(x);return u.protocol==='https:'&&!u.username&&!u.password&&!u.port&&!/^(?:localhost|example\..+|.+\.(?:local|test|invalid|example))$/i.test(u.hostname)}catch{return false}}).slice(0,6);
  const riskSignals=[/\$\s?\d[\d,]*\s*(?:to|→|->)\s*\$?\s?\d/i,/(?:win rate|guaranteed|risk.free|\b\d{2,3}%\b)/i,/(?:billion records|secret|no human|instantly)/i].filter(p=>p.test(claim)).length;
  const needsCheck=!claim||!evidence.length||level!=='DOCUMENTED_OFFICIAL';
  return {claim,reportedLevel:EVIDENCE_LEVELS.includes(level)?level:'UNVERIFIED_SOCIAL_CLAIM',
