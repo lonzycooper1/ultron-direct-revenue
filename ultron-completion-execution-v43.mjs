@@ -2,7 +2,7 @@
 // A registered task, configured token, prepared plan or internal test is NEVER a real sale.
 import {COMPLETION_ITEMS,COMPLETION_GROUPS} from './ultron-500-completion-v26.mjs';
 import {CAPABILITIES,activationReport} from './ultron-work-activation-v40.mjs';
-import {independentSale,publicOperations} from './ultron-revenue-operations-v41.mjs';
+import {AUDIT_SKU,independentSale} from './ultron-revenue-operations-v41.mjs';
 
 export const EXECUTION_VERSION='43.0.0';
 const ROOT='https://ultron-direct-revenue-production.up.railway.app';
@@ -127,7 +127,7 @@ export function completionExecution({env={},payment={},commerce={},supervisor={}
  }).sort((a,b)=>priorityCode(a)-priorityCode(b)||a.id.localeCompare(b.id));
  const alerts=Object.values(ops.alerts||{}),ownerAlerts=alerts.filter(a=>a.status!=='OWNER_ACKNOWLEDGED_RECEIPT').length;
  const critical=[
-  {id:'paid-fulfillment',priority:0,status:publicOperations(allOrders,ops,env).pendingAuditReviews?'PAID_REVIEW_WORK_POSSIBLE':'NO_PAID_REVIEW_FOUND_IN_LEDGER',ownerAction:'Review protected paid-audit queue before new sales research',actionUrl:ROOT+'/revenue-operations'},
+  {id:'paid-fulfillment',priority:0,status:allOrders.some(o=>o?.product===AUDIT_SKU&&o?.status==='COMPLETED'&&o?.captureId&&!['READY_FOR_CUSTOMER_REVIEW','CUSTOMER_ACCEPTED'].includes(o?.fulfillment?.status))?'PAID_REVIEW_WORK_POSSIBLE':'NO_PAID_REVIEW_FOUND_IN_LEDGER',ownerAction:'Review protected paid-audit queue before new sales research',actionUrl:ROOT+'/revenue-operations'},
   {id:'interested-replies',priority:1,status:Object.keys(growth.replies||{}).length?'REPLIES_RECORDED_REVIEW_PRIVATE':'NO_REPLIES_RECORDED',ownerAction:'Review authenticated consented replies and opt-outs; do not automatically respond',actionUrl:ROOT+'/inbound-inbox'},
   {id:'feed-failure',priority:2,status:runtimeSources['buyer-feed'],ownerAction:'Repair or replace authorized source, use owned opt-in intake, never evade Hunter restriction',actionUrl:ROOT+'/free-response-gap-scan'},
   {id:'email-auth',priority:3,status:runtimeSources['business-email'],ownerAction:'Owner authorize correct sender and approved separate business postal address',actionUrl:ROOT+'/activation-center'},
