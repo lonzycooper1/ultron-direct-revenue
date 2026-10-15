@@ -59,3 +59,11 @@ Primary implementation references:
 - https://docs.dev.runwayml.com/guides/pricing/
 - https://docs.dev.runwayml.com/guides/setup/
 - https://github.com/runwayml/sdk-node
+
+## Deployment verification
+
+PR #32 merged as ed53126e553fc2871d9ea67fd1844a8812033abf. Railway deployment dffc8eb6-2e92-4b88-a600-8c52d0ef4e31 succeeded. All 296 tests passed both GitHub CI and Railway's configured pre-deployment checks. All five Railway services are online with no reported issues. The runtime remains pinned to this tested code commit.
+
+Studio: https://ultron-direct-revenue-production.up.railway.app/video-studio
+
+These tests establish the implemented workflow and technical checks, not equivalence to the reference. The generation-access and reviewed-sample blockers above remain outstanding.
