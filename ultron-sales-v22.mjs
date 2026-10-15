@@ -34,9 +34,9 @@ export function pruning({views=0,purchases=0,refunds=0,contributionUsd=0,openOrd
  if(refunds/purchases>0.2||contributionUsd<0)return 'REVIEW_MANUALLY';
  return 'KEEP_MEASURING';
 }
-export async function discoveryFallback(){
+export async function discoveryFallback({skipPrimary=false}={}){
  const z=await read(),date=now().slice(0,10);if(z.runs[date])return {status:'ALREADY_RAN',...z.runs[date]};
- const sources=[['primary',process.env.ULTRON_DISCOVERY_FEED_URL],['fallback',process.env.ULTRON_DISCOVERY_FALLBACK_URL]].filter(x=>x[1]);
+ const sources=[['primary',process.env.ULTRON_DISCOVERY_FEED_URL],['fallback',process.env.ULTRON_DISCOVERY_FALLBACK_URL]].filter(x=>x[1]&&(!skipPrimary||x[0]!=='primary'));
  if(!sources.length)return {status:'NO_AUTHORIZED_FEED',imported:0};
  const errors=[];for(const [provider,raw] of sources){
   try{const site=await safeWebsite(raw),r=await fetch(site,{redirect:'error',signal:AbortSignal.timeout(10000),headers:{accept:'application/json'}});
