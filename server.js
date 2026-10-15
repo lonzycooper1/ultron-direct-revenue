@@ -1,3 +1,4 @@
+import {completionExecution as v43CompletionExecution} from './ultron-completion-execution-v43.mjs';
 import {videoLabManifest,videoLabActions,appPrototype,mediaPrototype,videoLabSafeCycle,videoLabState} from './ultron-video-lab-v42.mjs';
 import {dispatchOperationalAlerts} from './ultron-alert-delivery-v41.mjs';
 import {AUDIT_SKU,TERMS,validateAuditIntake,prepareAudit,reviewAudit,acceptAudit,recordSignedCapture,independentSale,operationsState,recordOps,operationsPulse,publicOperations,renderAuditDelivery} from './ultron-revenue-operations-v41.mjs';
@@ -247,6 +248,30 @@ if(path==='/work-handoff'&&req.method==='GET'){
  res.writeHead(200,{'content-type':'text/markdown; charset=utf-8','cache-control':'public,max-age=90','x-content-type-options':'nosniff','x-frame-options':'DENY'});
  return res.end(await readFile(new URL('./ULTRON_WORK_EXECUTION_HANDOFF.md',import.meta.url),'utf8'));
 }
+// v43: PUBLIC read-only and evidence-gated; no secrets, private orders, or external actions.
+if((path==='/api/completion-execution/v43'||path==='/completion-execution')&&req.method==='GET'){
+ const [l,commerce,supervisor,verifier,growth,ops]=await Promise.all([ledger(),agentOfAgentsState(),resilienceDetail(),verifierState(),growthV19State(),operationsState()]);
+ const report=v43CompletionExecution({env:process.env,payment,commerce,supervisor,verifier,growth,ops,orders:Object.values(l.orders||{})});
+ if(path==='/api/completion-execution/v43'){
+  const offset=Math.max(0,Math.min(499,Number(u.searchParams.get('offset'))||0));
+  const limit=Math.max(1,Math.min(100,Number(u.searchParams.get('limit'))||25));
+  return json(200,{ok:true,...report,requirements:report.requirements.slice(offset,offset+limit),offset,limit,
+   note:'A 500-task register is not 500 completed outcomes. No private customer record or credential is returned.'});
+ }
+ const cards=report.critical.map(x=>'<article><small>PRIORITY '+x.priority+'</small><h3>'+esc(x.id)+'</h3><p>'+esc(x.status)+'</p><p>'+esc(x.ownerAction)+'</p><a href="'+esc(x.actionUrl)+'">Open action</a></article>').join('');
+ const groups=report.groups.map(x=>'<li>'+esc(x.name)+' — '+x.total+' requirements; independently verified here: '+x.verified+'</li>').join('');
+ res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-frame-options':'DENY'});
+ return res.end(shell('ULTRON v43 — Evidence Execution Center',
+  '<nav><a href="/">Mainframe</a><a href="/completion-500">500 Requirements</a><a href="/revenue-operations">Paid Work</a><a href="/owner-actions">Owner Actions</a></nav>'+
+  '<h1>REVENUE EXECUTION — ALL 500 REQUIREMENTS</h1><p>Prioritize independent buyer and paid fulfillment evidence. Status is bounded, never self-certified.</p>'+
+  '<section><article><h2>Requirements tracked</h2><b>'+report.totalRequirements+'</b></article><article><h2>Verified end to end here</h2><b>'+report.verifiedRequirements+'</b></article>'+
+  '<article><h2>Unrelated customer acceptance evidence recorded</h2><b>'+report.customerAcceptanceEvidenceRecorded+'</b></article></section>'+
+  '<h2>Highest-priority owner actions and fallback paths</h2><section>'+cards+'</section>'+
+  '<h2>20 audited workstreams</h2><ol>'+groups+'</ol>'+
+  '<p><a href="/api/completion-execution/v43?offset=0&limit=100">Read JSON task evidence and blockers</a> · <a href="/work-handoff">Work execution handoff</a></p>'+
+  '<p>No sends, orders, refunds, trades, access grants, or credential changes occur on this page.</p>'));
+}
+
 if(path==='/api/work-activation/v40'&&req.method==='GET'){
  const l=await ledger();
  return json(200,{ok:true,report:v40ActivationReport({env:process.env,provider:{paypal:payment},orders:Object.values(l.orders||{})})});
