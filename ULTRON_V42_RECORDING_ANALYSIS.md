@@ -44,4 +44,10 @@ The implemented tools are operational code, not a promise of income. This upgrad
 
 ## Deployment status
 
-Production push was rejected by automatic approval review because changing main would trigger deployment without explicit approval for that action. The production branch remains at 4f3423b. The upgrade is prepared for a review branch; approval is required before merging and deploying.
+The user explicitly approved merge and deployment on October 14, 2026 (America/Chicago). PR #31 was merged as 96fb52619cea22de46840694fcaf34b7ac3703ca. Railway deployment bf1b02b5-93b2-41fc-a5d1-f5d7734591c1 succeeded on October 15 UTC. The production service is pinned to this tested runtime commit.
+
+Both GitHub CI and Railway pre-deployment checks passed all 289 tests. Live HTTP checks returned 200 for /health, /api/video-lab/v42 (version 42.0.0), /video-lab and all six prototypes. Private state and tool routes returned 403 without credentials. All five Railway services are online with no reported issues or pending work. Production visual interaction testing remains blocked by the browser network policy. Owner-token values are redacted by the Railway connector, so authenticated production tools and draft-state contents were not independently read. Startup reflection completed with no v42 error reported; this alone is not direct verification of persisted draft state.
+
+Open the deployed lab: https://ultron-direct-revenue-production.up.railway.app/video-lab
+
+External connection requirements in the mapping above remain outstanding. Current runtime reports zero verified customer revenue; this deployment is not evidence of a real sale.
