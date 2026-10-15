@@ -282,7 +282,7 @@ export async function dashboard(){
 }
 export async function dailyRun(){
   const today=when().slice(0,10),s=await growthState();if(s.lastDiscoveryDate===today)return {status:'ALREADY_RAN',date:today};
-  if(!process.env.ULTRON_DISCOVERY_FEED_URL){await mutate(z=>{z.lastDiscoveryDate=today;z.sourceStatus='DISCOVERY_PROVIDER_NOT_CONFIGURED';});return {status:'PROVIDER_NOT_CONFIGURED',imported:0};}
+  if(!process.env.ULTRON_DISCOVERY_FEED_URL&&!process.env.ULTRON_DISCOVERY_FALLBACK_URL){await mutate(z=>{z.lastDiscoveryDate=today;z.sourceStatus='DISCOVERY_PROVIDER_NOT_CONFIGURED';});return {status:'PROVIDER_NOT_CONFIGURED',imported:0};}
   let businesses=[];
   try{
     const url=await safeWebsite(process.env.ULTRON_DISCOVERY_FEED_URL);
@@ -292,7 +292,25 @@ export async function dailyRun(){
     const added=await importProspects(businesses,'EXTERNAL_DISCOVERY_FEED');
     await mutate(z=>{z.lastDiscoveryDate=today;z.sourceStatus='RECEIVED_'+businesses.length+'_CANDIDATES';});
     return {status:'IMPORTED',...added,target:s.dailyTarget};
-  }catch(e){await mutate(z=>{z.errors.push({at:when(),kind:'DISCOVERY_FAILURE',message:clean(e.message)});z.errors=z.errors.slice(-100);z.sourceStatus='ERROR';});return {status:'ERROR',reason:clean(e.message)};}
+  }catch(e){
+    // Safe source fallback only. A candidate import never constitutes buyer permission or sale.
+    // Skip the already failed primary; do not retry unsafe writes or evade restricted providers.
+    const primaryError=clean(e.message);
+    if(process.env.ULTRON_DISCOVERY_FALLBACK_URL){
+      try{
+        const {discoveryFallback}=await import('./ultron-sales-v22.mjs');
+        const fallback=await discoveryFallback({skipPrimary:true});
+        if(fallback.status==='SOURCE_IMPORTED_NOT_VERIFIED_BUYERS'||fallback.status==='ALREADY_RAN'){
+          await mutate(z=>{z.lastDiscoveryDate=today;z.sourceStatus='FALLBACK_CANDIDATES_NOT_VERIFIED_BUYERS';
+            z.errors.push({at:when(),kind:'PRIMARY_DISCOVERY_FAILED_FALLBACK_USED',message:primaryError});z.errors=z.errors.slice(-100);});
+          return {status:'FALLBACK_IMPORTED_CANDIDATES_NOT_VERIFIED_BUYERS',provider:'fallback',
+            imported:fallback.imported||0,primaryFailure:primaryError};
+        }
+      }catch(err){await mutate(z=>{z.errors.push({at:when(),kind:'FALLBACK_DISCOVERY_FAILURE',message:clean(err.message)});z.errors=z.errors.slice(-100);});}
+    }
+    await mutate(z=>{z.errors.push({at:when(),kind:'DISCOVERY_FAILURE',message:primaryError});z.errors=z.errors.slice(-100);z.sourceStatus='ERROR';});
+    return {status:'ERROR',reason:primaryError,workaround:'Use owned opt-in diagnostic until permitted discovery is restored'};
+  }
 }
 export async function backgroundTick(){
   const discovered=await dailyRun();const s=await growthState(),candidates=Object.values(s.prospects)
