@@ -1,0 +1,25 @@
+import {execFile} from 'node:child_process';import {promisify} from 'node:util';import {mkdtemp,readFile,writeFile,rm} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';import {createHash} from 'node:crypto';
+const run=promisify(execFile),MAX=30*1024*1024;
+export async function inspectVideo(file,{duration=15}={}){
+ const {stdout}=await run('ffprobe',['-v','error','-show_streams','-show_format','-of','json',file],{timeout:30000,maxBuffer:1024*1024});const p=JSON.parse(stdout),v=p.streams.find(s=>s.codec_type==='video'),a=p.streams.find(s=>s.codec_type==='audio'),seconds=Number(p.format.duration),fps=v?Number(v.avg_frame_rate.split('/')[0])/Number(v.avg_frame_rate.split('/')[1]):0;
+ const checks={h264:v?.codec_name==='h264',portrait:v?.width>=720&&v?.height>=1280&&Math.abs(v.width/v.height-9/16)<0.01,pixelFormat:v?.pix_fmt==='yuv420p',duration:Math.abs(seconds-duration)<=0.7,fps:fps>=23&&fps<=61,audio:a?.codec_name==='aac',size:Number(p.format.size)>10000&&Number(p.format.size)<=MAX};
+ const detect=await run('ffmpeg',['-hide_banner','-i',file,'-af','volumedetect','-vf','freezedetect=n=0.003:d=2,blackdetect=d=0.5:pix_th=0.05','-f','null','-'],{timeout:90000,maxBuffer:2*1024*1024});
+ const mean=detect.stderr.match(/mean_volume:\s*(-?[\d.]+|-inf) dB/);checks.audible=Boolean(mean&&mean[1]!=='-inf'&&Number(mean[1])>-55&&Number(mean[1])<0);checks.noLongFreeze=!/freeze_start/.test(detect.stderr);checks.noLongBlack=!/black_start/.test(detect.stderr);
+ return {passed:Object.values(checks).every(Boolean),checks,width:v?.width||0,height:v?.height||0,seconds,fps,audioMeanDb:mean?Number(mean[1]):null,visualMeaningVerified:false};
+}
+export async function verifyEncodedVideo(base64,{duration=15}={}){
+ if(typeof base64!=='string'||base64.length>Math.ceil(MAX*4/3)+8||!/^[A-Za-z0-9+/=]+$/.test(base64))throw Error('Valid MP4 base64 up to 30 MB required');const bytes=Buffer.from(base64,'base64');if(bytes.length>MAX)throw Error('Video too large');const dir=await mkdtemp(join(tmpdir(),'ultron-qc-'));
+ try{const file=join(dir,'final.mp4');await writeFile(file,bytes);const technical=await inspectVideo(file,{duration});if(!technical.passed)throw Error('Technical quality failed: '+Object.entries(technical.checks).filter(([,v])=>!v).map(([k])=>k).join(', '));return {sha256:createHash('sha256').update(bytes).digest('hex'),bytes:bytes.length,mime:'video/mp4',base64,technical,createdAt:new Date().toISOString()}}finally{await rm(dir,{recursive:true,force:true})}
+}
+function providerUrl(raw){const u=new URL(raw);if(u.protocol!=='https:'||u.username||u.password||!['cloudfront.net','runwayml.com','runway.com','runway-media.com'].some(d=>u.hostname===d||u.hostname.endsWith('.'+d)))throw Error('Provider output must use an approved Runway/CDN host');return u.href}
+async function download(raw,file){let url=providerUrl(raw);for(let n=0;n<4;n++){const r=await fetch(url,{redirect:'manual',signal:AbortSignal.timeout(60000)});if(r.status>=300&&r.status<400){url=providerUrl(new URL(r.headers.get('location'),url).href);continue}if(!r.ok)throw Error('Provider output download failed');let total=0,chunks=[];for await(const part of r.body){total+=part.length;if(total>MAX)throw Error('Shot exceeds 30 MB');chunks.push(part)}await writeFile(file,Buffer.concat(chunks));return}throw Error('Too many asset redirects')}
+export async function assembleVideo(job,input={}){
+ if(!job.shots.every(s=>s.status==='SUCCEEDED'&&s.outputUrl))throw Error('All real provider shots must succeed before editing');
+ if(!input.audioLicenseReference||!input.audioBase64||input.audioBase64.length>12*1024*1024)throw Error('Licensed soundtrack base64 (max 9 MB) and license reference required');
+ const dir=await mkdtemp(join(tmpdir(),'ultron-edit-'));
+ try{const normalized=[];for(let i=0;i<job.shots.length;i++){const source=join(dir,'source'+i+'.mp4'),dest=join(dir,'shot'+i+'.mp4');await download(job.shots[i].outputUrl,source);await run('ffmpeg',['-v','error','-i',source,'-t',String(job.shots[i].seconds),'-vf','scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,fps=30,format=yuv420p','-an','-c:v','libx264','-preset','medium','-crf','19',dest],{timeout:120000,maxBuffer:1024*1024});normalized.push(dest)}
+ const list=join(dir,'shots.txt');await writeFile(list,normalized.map(p=>"file '"+p+"'").join('\n'));const audio=join(dir,'licensed-audio.bin');await writeFile(audio,Buffer.from(input.audioBase64,'base64'));const file=join(dir,'final.mp4');
+ await run('ffmpeg',['-v','error','-f','concat','-safe','0','-i',list,'-stream_loop','-1','-i',audio,'-map','0:v:0','-map','1:a:0','-t',String(job.story.durationSeconds),'-c:v','copy','-af','loudnorm=I=-16:TP=-1.5:LRA=11','-c:a','aac','-b:a','192k','-movflags','+faststart',file],{timeout:120000,maxBuffer:1024*1024});
+ const bytes=await readFile(file);const artifact=await verifyEncodedVideo(bytes.toString('base64'),{duration:job.story.durationSeconds});return {...artifact,audioLicenseReference:String(input.audioLicenseReference).slice(0,500),provenance:job.shots.map(s=>({taskId:s.taskId,shotId:s.id}))};
+ }finally{await rm(dir,{recursive:true,force:true})}
+}
