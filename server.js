@@ -1,4 +1,4 @@
-import {CINEMA_SKU,VIDEO_TERMS,makeStoryboard,createVideoJob,authorizeVideoJob,submitOneShot,pollVideoJob,recordVideoReview,cinematicState,publicJob,videoPreflight,salesReadiness,publicCinematic,cinematicCycle,recordVideoInquiry,makeVideoQuote,issueVideoQuote,claimVideoQuote,checkoutQuoteRecorded,ensurePaidVideoJob,customerVideo,acceptCustomerVideo,attachVideoArtifact,editVideoJob,sampleEligible} from './ultron-cinematic-v43.mjs';
+import {CINEMA_SKU,VIDEO_TERMS,makeStoryboard,createVideoJob,authorizeVideoJob,submitOneShot,pollVideoJob,recordVideoReview,cinematicState,publicJob,videoPreflight,salesReadiness,publicCinematic,cinematicCycle,recordVideoInquiry,makeVideoQuote,issueVideoQuote,claimVideoQuote,checkoutQuoteRecorded,ensurePaidVideoJob,customerVideo,acceptCustomerVideo,attachVideoArtifact,editVideoJob,retryVideoShot,sampleEligible} from './ultron-cinematic-v43.mjs';
 import {videoLabManifest,videoLabActions,appPrototype,mediaPrototype,videoLabSafeCycle,videoLabState} from './ultron-video-lab-v42.mjs';
 import {dispatchOperationalAlerts} from './ultron-alert-delivery-v41.mjs';
 import {AUDIT_SKU,TERMS,validateAuditIntake,prepareAudit,reviewAudit,acceptAudit,recordSignedCapture,independentSale,operationsState,recordOps,operationsPulse,publicOperations,renderAuditDelivery} from './ultron-revenue-operations-v41.mjs';
@@ -181,6 +181,7 @@ if(path.startsWith('/api/video-studio/v43/')&&req.method==='POST'){
  else if(action==='authorize')result=publicJob(await authorizeVideoJob(input.id,input));
  else if(action==='preflight')result=await videoPreflight();
  else if(action==='submit')result=await submitOneShot(input.id);
+ else if(action==='retry')result=publicJob(await retryVideoShot(input.id,input));
  else if(action==='poll')result=publicJob(await pollVideoJob(input.id));
  else if(action==='artifact')result=publicJob(await attachVideoArtifact(input.id,input));
  else if(action==='assemble')result=publicJob(await editVideoJob(input.id,input));
