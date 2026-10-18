@@ -62,3 +62,7 @@ Dedicated workers use `ULTRON_ENGINEER_URL` + `ULTRON_ENGINEER_TOKEN`, or `ULTRO
 Run `npm test` for the repository suite, or `npm run test:executive` for queue/idempotency/concurrency/recovery/provider-boundary checks. A live execution must independently show a provider response, appropriate tool evidence, a persisted result and review where applicable. A health response or configured key alone does not pass this check.
 
 Local validation: all 10 new runtime/HTTP checks passed. The full local run produced 298 passes and 14 failures, all requiring DATABASE_URL. This workspace cannot launch PostgreSQL under a non-root UID, so those existing database-dependent checks must be verified by the configured Railway pre-deploy test stage. No tests were pointed at the production database from this workspace.
+
+## Deployment outcome for this session
+
+Code committed on main as 544eb6f054883b4b4e93467fe7f2e4e1d288699b. Five Railway variables were staged, including cross-service references to the existing encrypted OpenAI key and model, worker enablement and a four-job daily cap. The accept-deploy tool was rejected with: "Cancelled — the user did not approve this action. No changes were made." No alternate write path was used to bypass that rejection. At the verification check, the live service still used the October 15 deployment at b7b89ee; the new runtime was not live and no live model execution was verified. The settings remain staged for review in Railway. Anthropic and isolated build/desktop workers remain unconfigured.
