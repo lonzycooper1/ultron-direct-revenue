@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import {getJson,mutateJson} from './state-store.mjs';
+import {runHostedJob} from './hosted-executor.mjs';
 
 const KEY='ultron-executive-runtime',fresh=()=>({version:1,jobs:{},schedule:{},usage:{}});
 const kinds=['research','marketing','support','finance','analysis','image','build','computer'];
@@ -13,8 +14,9 @@ export function existingOpenAIKey(env=process.env){
  try{return crypto.privateDecrypt({key:crypto.createPrivateKey({key:JSON.parse(env.OPENAI_API_KEY_PRIVATE_JWK),format:'jwk'}),oaepHash:'sha256'},Buffer.from(env.OPENAI_API_KEY_ENCRYPTED,'base64url')).toString('utf8').trim()}catch{return ''}
 }
 export function readiness(env=process.env){
- const configured={openai:Boolean(existingOpenAIKey(env)),anthropic:Boolean(env.ANTHROPIC_API_KEY&&env.ULTRON_CLAUDE_MODEL),build:Boolean(env.ULTRON_ENGINEER_URL&&env.ULTRON_ENGINEER_TOKEN),computer:Boolean(env.ULTRON_COMPUTER_URL&&env.ULTRON_COMPUTER_TOKEN&&env.ANTHROPIC_API_KEY&&env.ULTRON_CLAUDE_MODEL)};
- return {configured,verification:'Configuration is not a successful provider execution',workerEnabled:env.ULTRON_EXECUTIVE_ENABLED==='true',dailyJobLimit:dailyLimit(env),paymentProcessor:'PayPal',missing:Object.entries(configured).filter(([,v])=>!v).map(([k])=>k),externalActions:'Existing authorized application workflows only; generated text cannot grant permission'};
+ const openai=Boolean(existingOpenAIKey(env));
+ const configured={openai,anthropic:Boolean(env.ANTHROPIC_API_KEY&&env.ULTRON_CLAUDE_MODEL),build:openai||Boolean(env.ULTRON_ENGINEER_URL&&env.ULTRON_ENGINEER_TOKEN),computer:openai||Boolean(env.ULTRON_COMPUTER_URL&&env.ULTRON_COMPUTER_TOKEN)};
+ return {configured,hostedAgentsAccess:'UNVERIFIED_UNTIL_SUCCESSFUL_SESSION',verification:'Configuration is not a successful provider execution',workerEnabled:env.ULTRON_EXECUTIVE_ENABLED==='true',dailyJobLimit:dailyLimit(env),paymentProcessor:'PayPal',missing:Object.entries(configured).filter(([,v])=>!v).map(([k])=>k),externalActions:'Existing authorized application workflows only; generated text cannot grant permission'};
 }
 function dailyLimit(env){const n=Number(env.ULTRON_EXECUTIVE_DAILY_LIMIT||4);return Number.isInteger(n)&&n>=1&&n<=20?n:4}
 export function validateJob(input){
@@ -25,7 +27,7 @@ export function validateJob(input){
  if(input.idempotencyKey&&!/^[a-zA-Z0-9_.:-]{1,120}$/.test(input.idempotencyKey))throw Error('Invalid idempotency key');
  return {kind:input.kind,provider:input.provider||'openai',prompt:input.prompt.trim(),idempotencyKey:input.idempotencyKey||crypto.randomUUID()};
 }
-export function createExecutive({env=process.env,read=()=>getJson(KEY,fresh()),mutate=f=>mutateJson(KEY,fresh(),f),request=fetch,clock=Date.now}={}){
+export function createExecutive({env=process.env,read=()=>getJson(KEY,fresh()),mutate=f=>mutateJson(KEY,fresh(),f),request=fetch,clock=Date.now,hosted=runHostedJob}={}){
  const now=()=>new Date(clock()).toISOString();
  async function enqueue(input){
   const v=validateJob(input);let job;
@@ -65,7 +67,10 @@ export function createExecutive({env=process.env,read=()=>getJson(KEY,fresh()),m
  }
  async function dedicatedWorker(job){
   const prefix=job.kind==='build'?'ULTRON_ENGINEER':'ULTRON_COMPUTER',url=env[prefix+'_URL'],token=env[prefix+'_TOKEN'];
-  if(!url||!token)throw Error(job.kind+' worker credentials missing');
+  if(!url||!token){
+   const key=existingOpenAIKey(env);if(!key)throw Error(job.kind+' worker credentials missing');
+   return hosted({job,key,env,checkpoint:async update=>mutate(s=>{const j=s.jobs[job.id];if(j.claim!==job.claim)throw Error('Hosted job lease lost');const {downloadedResult,...evidence}=update;j.hosted=evidence;if(downloadedResult)j.stagedResult=downloadedResult})});
+  }
   const u=new URL(url);if(u.protocol!=='https:'||u.username||u.password)throw Error('Worker requires a configured HTTPS endpoint');
   const d=await post(url,{authorization:'Bearer '+token,'idempotency-key':job.id},{jobId:job.id,kind:job.kind,prompt:job.prompt,maxIterations:8},240000);
   if(d.status!=='completed'||!d.evidence)throw Error('Worker did not supply completed execution evidence');
@@ -80,7 +85,8 @@ export function createExecutive({env=process.env,read=()=>getJson(KEY,fresh()),m
    if((s.usage[day]?.jobs||0)>=dailyLimit(env))return;
    // One active job across all replicas; transaction/advisory lock is provided by state-store.
    if(Object.values(s.jobs).some(j=>j.status==='RUNNING'))return;
-   job=Object.values(s.jobs).find(j=>j.status==='QUEUED');if(!job)return;
+   const priority={support:0,analysis:1,finance:2,build:3,computer:3,research:4,marketing:5,image:6};
+   job=Object.values(s.jobs).filter(j=>j.status==='QUEUED').sort((a,b)=>priority[a.kind]-priority[b.kind]||a.createdAt.localeCompare(b.createdAt))[0];if(!job)return;
    job.status='RUNNING';job.claim=claim;job.startedAt=now();job.attempts++;job.leaseUntil=new Date(clock()+12*60000).toISOString();
    s.usage[day]??={jobs:0};s.usage[day].jobs++;
   });
@@ -91,12 +97,13 @@ export function createExecutive({env=process.env,read=()=>getJson(KEY,fresh()),m
    let review=null;
    if(!['image','build','computer'].includes(job.kind)&&job.provider==='openai')review=await openai(job,'Review this task and draft for unsupported claims, missing evidence and whether the requested work was actually performed. Return a concise verdict and corrections. TASK: '+job.prompt+'\nDRAFT: '+clip(result.text,18000),true);
    if(Buffer.byteLength(JSON.stringify(result))>12*1024*1024)throw Error('Deliverable exceeds durable artifact size limit');
-   await mutate(s=>{const j=s.jobs[job.id];if(j.claim!==claim||j.status!=='RUNNING')throw Error('Job lease lost');Object.assign(j,{status:'DRAFT_READY',result,review,finishedAt:now()});delete j.claim;delete j.leaseUntil});
+   await mutate(s=>{const j=s.jobs[job.id];if(j.claim!==claim||j.status!=='RUNNING')throw Error('Job lease lost');Object.assign(j,{status:'DRAFT_READY',result,review,finishedAt:now()});delete j.stagedResult;delete j.claim;delete j.leaseUntil});
    return {status:'DRAFT_READY',jobId:job.id};
   }catch(e){
    const message=clip(e.message,250);
-   await mutate(s=>{const j=s.jobs[job.id];if(j.claim===claim){j.status='BLOCKED';j.error=message;j.finishedAt=now();delete j.claim;delete j.leaseUntil}});
-   return {status:'BLOCKED',jobId:job.id,error:message};
+   const status=e.reconciliationRequired?'RECONCILIATION_REQUIRED':'BLOCKED';
+   await mutate(s=>{const j=s.jobs[job.id];if(j.claim===claim){j.status=status;j.error=message;j.finishedAt=now();delete j.claim;delete j.leaseUntil}});
+   return {status,jobId:job.id,error:message};
   }
  }
  async function schedule(orders=[]){
@@ -106,7 +113,7 @@ export function createExecutive({env=process.env,read=()=>getJson(KEY,fresh()),m
   if(research)await enqueue({kind:'marketing',idempotencyKey:'marketing:'+day,prompt:'Write one useful original blog draft and one short social draft for ULTRON based on this research and its quality review. Include concrete useful advice and a modest invitation to the public diagnostic; do not claim customer results, publish or contact anyone. RESEARCH: '+clip(research.result?.text,9000)+'\nREVIEW: '+clip(research.review?.text,3000)+'\nSOURCES: '+JSON.stringify(research.result?.citations||[]).slice(0,6000)});
   if(Object.values((await read()).jobs).some(j=>j.idempotencyKey==='finance:'+month))return {status:'SCHEDULED'};
   const completed=orders.filter(o=>o.status==='COMPLETED'&&o.captureId&&String(o.capturedAt||'').startsWith(month));
-  const evidence=completed.slice(-100).map(o=>({amount:o.amount??o.price??null,capturedAt:o.capturedAt||null,fees:o.fees??null,refunded:o.refunded??null,settled:o.settled??null}));
+  const evidence=completed.slice(-100).map(o=>({amount:o.capturedAmount??null,capturedAt:o.capturedAt||null,fees:o.paypalFeeSource==='PROVIDER'?o.paypalFeeUsd:null,refunds:(o.refunds||[]).filter(r=>r.source==='PAYPAL_SIGNED_EVENT').map(r=>({amountUsd:r.amountUsd})),settlementEvidenceRecorded:Boolean(o.settlement?.bankReference&&o.settlement?.payoutReference),costs:o.costReview?.complete===true?o.costReview.amountUsd:null}));
   await enqueue({kind:'finance',idempotencyKey:'finance:'+month,prompt:'Analyze the following PayPal application capture records with Python. They are application records, not processor statements or verified bank settlement. Do not infer missing amounts, fees or net profit. Summarize reconciliation gaps and recommend an operational improvement. Month: '+month+'; matching verified-capture records: '+completed.length+'; last 100 sanitized records: '+JSON.stringify(evidence)});
   return {status:'SCHEDULED'};
  }
@@ -117,6 +124,6 @@ export const executive=createExecutive();
 let loop;
 export function startExecutive(orders=async()=>[]){
  if(loop||process.env.ULTRON_EXECUTIVE_ENABLED!=='true')return;
- const run=async()=>{try{await executive.schedule(await orders());await executive.tick()}catch{console.error('ULTRON executive cycle unavailable; inspect private job status')}};
+ const run=async()=>{try{await executive.schedule(await orders())}catch{console.error('ULTRON executive scheduling unavailable; inspect private job status')}try{await executive.tick()}catch{console.error('ULTRON executive execution unavailable; inspect private job status')}};
  run();loop=setInterval(run,60000);loop.unref();return loop;
 }

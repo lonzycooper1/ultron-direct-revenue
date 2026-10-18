@@ -11,3 +11,7 @@ The storefront links the existing $29 Booking Starter Kit on Payhip, the Payhip 
 No bank details, credentials, orders, personal customer records or authenticated payment callbacks are stored in this repository. A public store or a payment link does not prove payment, delivery, settlement or revenue. Paid acceptance and payout checks remain required.
 
 The server exposes only the storefront and explicit public routes, never repository source or environment values.
+
+## Executive and autonomy runtime
+
+See [AUTONOMY_IMPLEMENTATION.md](AUTONOMY_IMPLEMENTATION.md) for the current agent queue, hosted coding/browser execution, event handling, preview deployment workflow, validation and live activation status.
