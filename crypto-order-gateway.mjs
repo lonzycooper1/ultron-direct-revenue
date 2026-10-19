@@ -61,14 +61,27 @@ export function validateRisk(order,risk,now=Date.now()){
   if(Math.abs(Number(order.price)/risk.price-1)>.01)throw Error('Approved reference price moved; new approval required');
 }
 export async function reconcileProposal(id,{pool=safetyPool(),lookup=reconcileExchangeOrder}={}){
+  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id||''))throw Error('Invalid proposal ID');
   await initializeSafety(pool);
   const {rows}=await pool.query('SELECT * FROM crypto_order_ledger WHERE proposal_id=$1',[id]);
   if(rows.length!==1)throw Error('Order reservation missing');
   const row=rows[0];
-  // Reconciliation is strictly read-only at the exchange. Absence is never rejection.
+  // Terminal records cannot be rewritten by a stale read or later lookup.
+  if(['REJECTED','RECONCILED'].includes(row.state))return {state:row.state,alreadyFinal:true};
+  // Reconciliation queries the exchange only. Unknown/missing/partial history
+  // must never be interpreted as rejection or proof of final settlement.
   const evidence=await lookup(row.client_oid,row.order_params);
-  if(!evidence.verified)return {state:row.state,requiresInvestigation:true};
-  const state=evidence.status==='REJECTED'?'REJECTED':'RECONCILED';
-  await pool.query(`UPDATE crypto_order_ledger SET state=$2,evidence=COALESCE(evidence,'{}'::jsonb)||$3::jsonb,updated_at=now() WHERE proposal_id=$1`,[id,state,JSON.stringify({reconciliation:evidence})]);
-  return {state,evidence};
+  if(!evidence?.verified||evidence.clientOid!==row.client_oid||!String(evidence.orderId||'')||!Number.isFinite(evidence.filledQuantity)||evidence.filledQuantity<0)return {state:row.state,requiresInvestigation:true};
+  // ACTIVE, CANCELED and EXPIRED may still have fills or unresolved settlement.
+  // Reject only a fully verified zero-fill rejection. A FILLED status requires
+  // positive independently matched fills. All other statuses stay unresolved.
+  const finalState=evidence.status==='REJECTED'&&evidence.filledQuantity===0?'REJECTED':
+    evidence.status==='FILLED'&&evidence.filledQuantity>0?'RECONCILED':null;
+  if(!finalState)return {state:row.state,requiresInvestigation:true,evidence};
+  // Compare-and-swap ensures concurrent reconciliation cannot overwrite
+  // a terminal decision or a more recent ledger state.
+  const updated=await pool.query(`UPDATE crypto_order_ledger SET state=$2,evidence=COALESCE(evidence,'{}'::jsonb)||$3::jsonb,updated_at=now() WHERE proposal_id=$1 AND state=$4 RETURNING state`,
+    [id,finalState,JSON.stringify({reconciliation:evidence}),row.state]);
+  if(updated.rows.length!==1)return {state:row.state,requiresInvestigation:true,concurrentChange:true};
+  return {state:finalState,evidence};
 }
