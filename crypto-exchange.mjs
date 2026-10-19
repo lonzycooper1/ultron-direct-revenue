@@ -33,9 +33,9 @@ export function buildSignedRequest(method,params={},nonce=Date.now()){
   return {id:String(id),method,api_key:apiKey,sig,nonce:String(nonce),params};
 }
 
-async function privateCall(method,params){
+async function privateCall(method,params,{transport=fetch,timeoutMs=8000}={}){
   const body=buildSignedRequest(method,params);
-  const r=await fetch(API_BASE+'/'+method,{method:'POST',headers:{'content-type':'application/json','accept':'application/json'},body:JSON.stringify(body)});
+  const r=await transport(API_BASE+'/'+method,{method:'POST',headers:{'content-type':'application/json','accept':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(timeoutMs)});
   const data=await r.json().catch(()=>({}));
   if(!r.ok)throw Error('Crypto.com HTTP '+r.status);
   if(Number(data.code)!==0)throw Error('Crypto.com '+String(data.message||data.code||'order rejected'));
@@ -84,4 +84,16 @@ export async function executeApprovedSpotOrder(envelope){
     submittedAt:new Date().toISOString(),
     note:'Exchange create-order is asynchronous; acceptance does not guarantee final fill.'
   };
+}
+
+// Read-only Exchange verification. No create-order calls or trading permission probes.
+export async function verifyExchangeReadAccess({transport=fetch}={}){
+  if(!liveExecutionConfig().apiConfigured)return {verified:false,reason:'CREDENTIALS_MISSING'};
+  try{
+    const data=await privateCall('private/get-account-summary',{}, {transport});
+    if(!data||!Array.isArray(data.result?.accounts))return {verified:false,reason:'UNEXPECTED_ACCOUNT_RESPONSE'};
+    return {verified:true,provider:'Crypto.com Exchange',checkedAt:new Date().toISOString(),accountCount:data.result.accounts.length};
+  }catch(error){
+    return {verified:false,reason:'READ_ONLY_VERIFICATION_FAILED',detail:String(error?.message||error).slice(0,160)};
+  }
 }
