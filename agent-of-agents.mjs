@@ -266,3 +266,11 @@ export function agentOfAgentsManifest(){
     }
   };
 }
+
+/** One bounded commerce research/draft cycle, using the normalized v45 job queue.
+ * Publication, ads, banking and financial transfers still use the existing owner's approval gates.
+ */
+export async function runEnterpriseCommerceCycle(){
+ const {enterpriseCycle}=await import('./enterprise-cycle-v45.mjs');
+ return enterpriseCycle.pulse();
+}

@@ -151,3 +151,11 @@ export function startExecutive(orders=async()=>[]){
  const run=async()=>{try{await executive.schedule(await orders())}catch{console.error('ULTRON executive scheduling unavailable; inspect private job status')}try{await executive.tick()}catch{console.error('ULTRON executive execution unavailable; inspect private job status')}};
  run();loop=setInterval(run,60000);loop.unref();return loop;
 }
+
+/** Enterprise worker uses the same persistent executive queue and existing provider credential flow.
+ * Starts the independent evidence-to-draft loop; neither creates a separate agent identity nor grants new scopes.
+ */
+export async function startEnterpriseExecutive(){
+ const {startEnterpriseCycle}=await import('./enterprise-cycle-v45.mjs');
+ return startEnterpriseCycle();
+}
