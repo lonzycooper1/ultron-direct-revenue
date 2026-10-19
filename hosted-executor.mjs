@@ -52,7 +52,13 @@ export async function runHostedJob({job,key,env=process.env,checkpoint=async()=>
   return output;
  }catch(e){
   if(evidence.sessionId){await sessions.events.create(evidence.sessionId,{events:[{type:'agent.session.input.cancel'}]}).catch(()=>{});await checkpoint({...evidence,reconciliationRequired:true})}
-  const failure=Error(e.status?'Hosted provider HTTP '+e.status:clean(e.message));failure.reconciliationRequired=Boolean(evidence.sessionId)||!e.status;throw failure;
+  // A fixed acceptance prompt contains no customer data. Retain sanitized validation
+  // diagnostics for that check so an HTTP 400 can be resolved instead of guessed.
+  let diagnostic='';
+  if(e.status===400&&job.idempotencyKey?.startsWith('verification:')){
+   diagnostic=clean(e.error?.message||e.message).split(key).join('[REDACTED]').replace(/sk-[A-Za-z0-9_-]+/g,'[REDACTED]').slice(0,350);
+  }
+  const failure=Error(e.status?'Hosted provider HTTP '+e.status+(diagnostic?': '+diagnostic:''):clean(e.message));failure.reconciliationRequired=Boolean(evidence.sessionId)||!e.status;throw failure;
  }finally{
   clearTimeout(timer);stream?.controller?.abort();
   // Preserve uncertain sessions for reconciliation. Download first; deletion removes artifacts.
