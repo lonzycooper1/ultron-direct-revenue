@@ -20,7 +20,7 @@
     "test:v44": "node --test ultron-mainframe-v44.test.mjs runtime-budget-v44.test.mjs",
     "test:v45": "node --check server.js && node --test enterprise-v45.test.mjs",
     "test:v46": "node --check server.js && node --test live-demand-v46.test.mjs",
-    "test:crypto-safety": "node --check crypto-bot-runtime.mjs && node --test crypto-safety.test.mjs crypto-live-approval.test.mjs crypto-gateway.test.mjs crypto-http-route-safety.test.mjs crypto-readiness.test.mjs crypto-trade-history.test.mjs"
+    "test:crypto-safety": "node --check crypto-bot-runtime.mjs && node --test crypto-safety.test.mjs crypto-live-approval.test.mjs crypto-gateway.test.mjs crypto-http-route-safety.test.mjs crypto-readiness.test.mjs crypto-trade-history.test.mjs crypto-reserved-dispatch.test.mjs crypto-daily-accounting.test.mjs"
   },
   "dependencies": {
     "express": "^5.1.0",

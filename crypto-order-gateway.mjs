@@ -2,26 +2,48 @@
 import {Pool} from 'pg';
 import {installSafetySchema,setEmergencyStop,assertNotStopped,reserveOrder} from './crypto-durable-safety.mjs';
 import {LIVE_APPROVAL_RULES} from './crypto-live-approval.mjs';
-import {readExchangeRisk,reconcileExchangeOrder} from './crypto-exchange.mjs';
+import {readExchangeRisk,reconcileExchangeOrder,buildSpotOrderParams,privateCall} from './crypto-exchange.mjs';
+import {dispatchReservedOrder} from './crypto-reserved-dispatch.mjs';
 let singleton;
+const schemas=new WeakMap();
 export function safetyPool(){
   if(!process.env.DATABASE_URL)throw Error('PostgreSQL safety database required');
   return singleton ||= new Pool({connectionString:process.env.DATABASE_URL,connectionTimeoutMillis:3000,query_timeout:10000});
 }
 export async function initializeSafety(pool=safetyPool()){
+  if(schemas.has(pool))return schemas.get(pool);
+  const ready=(async()=>{
   await installSafetySchema(pool);
   await pool.query(`ALTER TABLE crypto_order_ledger ADD COLUMN IF NOT EXISTS evidence jsonb;
-    ALTER TABLE crypto_order_ledger ADD COLUMN IF NOT EXISTS order_params jsonb;`);
+    ALTER TABLE crypto_order_ledger ADD COLUMN IF NOT EXISTS order_params jsonb;
+    CREATE TABLE IF NOT EXISTS crypto_live_proposals(id uuid PRIMARY KEY,payload jsonb NOT NULL,status text NOT NULL,expires_at timestamptz NOT NULL,created_at timestamptz NOT NULL DEFAULT now());`);
+  })().catch(error=>{schemas.delete(pool);throw error});
+  schemas.set(pool,ready);return ready;
 }
 export async function stopExecution(pool=safetyPool()){
   await initializeSafety(pool);
-  await setEmergencyStop(pool);
+  const c=await pool.connect();
+  try{await c.query("SELECT pg_advisory_lock(hashtext('crypto_order_dispatch'))");await setEmergencyStop(c)}
+  finally{await c.query("SELECT pg_advisory_unlock(hashtext('crypto_order_dispatch'))").catch(()=>{});c.release()}
 }
 export async function trustedProposalRisk(instrument){return readExchangeRisk(instrument)}
-export async function guardedApproval(envelope,{pool=safetyPool(),readRisk=readExchangeRisk}={}){
+export async function persistLiveProposal(proposal,{pool=safetyPool()}={}){
+  await initializeSafety(pool);
+  const result=await pool.query(`INSERT INTO crypto_live_proposals(id,payload,status,expires_at) VALUES($1,$2,'AWAITING_HUMAN_APPROVAL',$3) ON CONFLICT DO NOTHING RETURNING id`,[proposal.id,JSON.stringify(proposal),proposal.expiresAt]);
+  if(result.rows.length!==1)throw Error('Proposal already exists');
+  return proposal;
+}
+export async function loadLiveProposal(id,{pool=safetyPool()}={}){
+  await initializeSafety(pool);
+  const {rows}=await pool.query('SELECT payload,status FROM crypto_live_proposals WHERE id=$1',[id]);
+  return rows[0]?{...rows[0].payload,status:rows[0].status}:null;
+}
+const orderFields=['instrument','side','price','notional','leverage'];
+export async function guardedApproval(envelope,{pool=safetyPool(),readRisk=readExchangeRisk,buildParams=buildSpotOrderParams,call=privateCall}={}){
   await initializeSafety(pool);
   const c=await pool.connect();
   try{
+    await c.query("SELECT pg_advisory_lock(hashtext('crypto_order_dispatch'))");
     await c.query('BEGIN');
     // All orders and the durable stop serialize on the same control row.
     await c.query('SELECT id FROM crypto_execution_control WHERE id=1 FOR UPDATE');
@@ -32,23 +54,29 @@ export async function guardedApproval(envelope,{pool=safetyPool(),readRisk=readE
     const approved=Date.parse(envelope.approval.approvedAt),expiry=Date.parse(envelope.approval.expiresAt);
     if(!Number.isFinite(approved)||!Number.isFinite(expiry)||approved>Date.now()||expiry<=Date.now()||Date.now()-approved>LIVE_APPROVAL_RULES.approvalTtlSeconds*1000)throw Error('Approval expired or invalid');
     // Any unresolved earlier order blocks every new proposal, including after restart.
-    const pending=await c.query("SELECT proposal_id FROM crypto_order_ledger WHERE state<>'REJECTED' LIMIT 1");
+    const pending=await c.query("SELECT proposal_id FROM crypto_order_ledger WHERE state NOT IN ('REJECTED','RECONCILED') LIMIT 1");
     if(pending.rows.length)throw Error('Existing order requires reconciliation and risk review');
     const order=envelope.order||{},notional=Number(order.notional);
     if(!LIVE_APPROVAL_RULES.instruments.includes(order.instrument)||!['BUY','SELL'].includes(order.side)||order.leverage!==1||!Number.isFinite(notional)||notional<1||notional>LIVE_APPROVAL_RULES.maxOrderUsd)throw Error('Order violates server policy');
     const risk=await readRisk(order.instrument);
     validateRisk(order,risk);
+    const params=buildParams(envelope);
+    const proposal=(await c.query('SELECT payload,status,expires_at FROM crypto_live_proposals WHERE id=$1 FOR UPDATE',[id])).rows[0];
+    if(!proposal||proposal.status!=='AWAITING_HUMAN_APPROVAL'||
+      Date.parse(proposal.expires_at)<=Date.now()||Date.parse(proposal.expires_at)!==expiry||
+      orderFields.some(key=>proposal.payload[key]!==order[key]))throw Error('Durable proposal missing, changed, expired or consumed');
     await reserveOrder(c,id,id);
-    await c.query('UPDATE crypto_order_ledger SET evidence=$2,order_params=$3 WHERE proposal_id=$1',[id,JSON.stringify(risk),JSON.stringify(order)]);
-    // Certification is not complete and NO exchange dispatch will occur.
-    // Reject within the transaction so its speculative reservation is rolled
-    // back. Committing a RESERVED row when no order was submitted creates a
-    // phantom unresolved order and permanently blocks future approvals.
-    // When a reviewed dispatch path is built, it must commit its reservation
-    // before any exchange request, with durable uncertainty handling.
-    throw Error('Live order execution blocked: deployment safety certification pending');
-  }catch(error){await c.query('ROLLBACK').catch(()=>{});throw error}finally{c.release()}
+    await c.query('UPDATE crypto_order_ledger SET evidence=$2,order_params=$3 WHERE proposal_id=$1',[id,JSON.stringify({risk,approval:envelope.approval}),JSON.stringify(order)]);
+    await c.query("UPDATE crypto_live_proposals SET status='CONSUMED' WHERE id=$1",[id]);
+    await c.query('COMMIT');
+    // Reservation and consumption survive a crash before network dispatch.
+    // The session lock serializes stop, risk checks and dispatch. The exchange
+    // adapter never retries; every uncertain outcome requires reconciliation.
+    return await dispatchReservedOrder(c,id,params,{call});
+  }catch(error){await c.query('ROLLBACK').catch(()=>{});throw error}
+  finally{await c.query("SELECT pg_advisory_unlock(hashtext('crypto_order_dispatch'))").catch(()=>{});c.release()}
 }
+
 export function validateRisk(order,risk,now=Date.now()){
   const finite=v=>typeof v==='number'&&Number.isFinite(v);
   if(!risk||!finite(risk.checkedAt)||now-risk.checkedAt>5000||risk.checkedAt>now||!finite(risk.equity)||risk.equity<=0||!finite(risk.dailyPnlPct)||!finite(risk.availableUsd)||risk.availableUsd<0||!finite(risk.baseAvailable)||risk.baseAvailable<0||!finite(risk.exposureUsd)||risk.exposureUsd<0||!finite(risk.price)||risk.price<=0)throw Error('Trusted risk data missing, stale or invalid');

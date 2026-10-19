@@ -34,6 +34,7 @@ test('PostgreSQL deployment controls: concurrency, restart persistence, ambiguit
  const database=new URL(process.env.DATABASE_URL);
  assert.match(database.hostname,/^(localhost|127\.0\.0\.1)$/,'Integration tests require an isolated loopback database');
  assert.match(database.pathname,/test/i,'Integration tests require a test database');
+ const savedLive=process.env.CRYPTOCOM_LIVE_TRADING;process.env.CRYPTOCOM_LIVE_TRADING='false';
  const pool=new Pool({connectionString:process.env.DATABASE_URL});
  try{
   await initializeSafety(pool);
@@ -51,9 +52,9 @@ test('PostgreSQL deployment controls: concurrency, restart persistence, ambiguit
   // This gate did not dispatch to an exchange. A blocked request MUST NOT
   // commit a phantom RESERVED row, even under concurrent approval retries.
   assert.equal(rows.length,0);
-  assert.ok(results.every(x=>x.status==='rejected'&&/certification/.test(x.reason?.message)));
+  assert.ok(results.every(x=>x.status==='rejected'&&/certification|Live trading is disabled|credentials/.test(x.reason?.message)));
   await assert.rejects(reconcileProposal(env.approval.proposalId,{pool,lookup:async()=>({verified:false})}),/Order reservation missing/);
-  await assert.rejects(guardedApproval(envelope(),{pool,readRisk:risk}),/certification/);
+  await assert.rejects(guardedApproval(envelope(),{pool,readRisk:risk}),/certification|Live trading is disabled|credentials/);
   // Legacy/uncertain reservations cannot be declared reconciled on partial
   // history, ACTIVE, canceled, or a rejected order with existing fills.
   const id=randomUUID();
@@ -81,5 +82,5 @@ test('PostgreSQL deployment controls: concurrency, restart persistence, ambiguit
   assert.equal(state.state,'RECONCILED');
   await assert.rejects(reconcileProposal('invalid-proposal-id',{pool,lookup:async()=>{throw Error('No external calls')}}),/Invalid proposal ID/);
   await stopExecution(pool);
- }finally{await pool.end()}
+ }finally{await pool.end();if(savedLive===undefined)delete process.env.CRYPTOCOM_LIVE_TRADING;else process.env.CRYPTOCOM_LIVE_TRADING=savedLive}
 });

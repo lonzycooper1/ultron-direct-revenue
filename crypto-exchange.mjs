@@ -68,8 +68,8 @@ export function buildSpotOrderParams(envelope){
   if(Number(order.leverage||1)!==1)throw Error('Live execution is spot-only; leverage must be 1');
   const notional=Number(order.notional);
   const price=Number(order.price||envelope?.proposal?.price);
-  if(!(notional>=1))throw Error('Invalid notional');
-  const params={instrument_name:instrument,side:String(order.side||'').toUpperCase(),type:'MARKET',client_oid:String(envelope.approval.proposalId).slice(0,36)};
+  if(!Number.isFinite(notional)||notional<1||notional>Number(process.env.CRYPTO_MAX_ORDER_USD||100))throw Error('Invalid notional');
+  const params={instrument_name:instrument,side:String(order.side||'').toUpperCase(),type:'MARKET',spot_margin:'SPOT',client_oid:String(envelope.approval.proposalId).slice(0,36)};
   if(!['BUY','SELL'].includes(params.side))throw Error('Invalid side');
   if(params.side==='BUY')params.notional=notional.toFixed(2);
   else{
