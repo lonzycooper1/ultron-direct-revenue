@@ -7,6 +7,7 @@ import {fetchPublicDemand,createLiveDemandListener} from './live-demand-v46.mjs'
 import {createDemandAssetFactory,demandPrompt,verifyMarkdown} from './demand-asset-v46.mjs';
 import {confirmCapturedOrderForDelivery} from './payment-runtime.mjs';
 import {issueCatalogCheckout} from './paypal-business-billing.mjs';
+import {createApp} from './server.js';
 
 const time=Date.parse('2026-10-18T23:00:00Z');
 const githubUrl='https://github.com/community/example/issues/123';
@@ -90,4 +91,14 @@ test('Real PayPal Orders helper uses authoritative catalog product price',async(
  assert.equal(seen.endpoint,'/v2/checkout/orders');assert.equal(seen.body.purchase_units[0].amount.value,'99.00');
  assert.equal(result.orderId,'ORDER12345');
  assert.ok(result.approvalUrl.includes('paypal.com'));
+});
+
+test('Live PayPal receiver rejects missing signatures before provider calls',async()=>{
+ const server=createApp().listen(0,'127.0.0.1');
+ await new Promise(resolve=>server.once('listening',resolve));
+ try{
+  const r=await fetch('http://127.0.0.1:'+server.address().port+'/api/checkout-webhook',{
+   method:'POST',headers:{'content-type':'application/json'},body:'{}'});
+  assert.equal(r.status,400);
+ }finally{await new Promise(resolve=>server.close(resolve))}
 });
