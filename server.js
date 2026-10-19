@@ -197,6 +197,19 @@ if(path.startsWith('/api/enterprise/v45/')||path==='/webhooks/stripe'){
 
 if(path==='/api/demand/v46/offers'&&req.method==='GET')return json(200,{offers:await demandAssetFactory.publicOffers()});
 if(path==='/api/demand/v46/review'&&req.method==='POST'){if(!v13Owner())return json(403,{error:'Owner login required'});let raw='';for await(const x of req){raw+=x;if(raw.length>2000)return json(413,{error:'Too large'})}const data=JSON.parse(raw||'{}');return json(200,await demandAssetFactory.approveForSale(data.id,data.productId,data.review||{}))}
+if(path==='/digital-asset'&&req.method==='GET'){
+ const t=u.searchParams.get('token')||'';
+ if(!/^[a-f0-9]{48}$/.test(t))return json(404,{error:'Unavailable'});
+ const order=Object.values((await ledger()).orders||{}).find(x=>x.status==='COMPLETED'&&x.captureId&&x.demandAssetId&&x.fulfillment?.token===t);
+ if(!order)return json(404,{error:'Unavailable'});
+ try{
+  const file=await demandAssetFactory.getApprovedArtifact(order.demandAssetId,order.product);
+  res.writeHead(200,{'content-type':'text/markdown; charset=utf-8',
+   'content-disposition':'attachment; filename="'+file.filename+'"','content-length':file.bytes.length,
+   'cache-control':'private,no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'});
+  return res.end(file.bytes);
+ }catch{return json(404,{error:'Resource is not ready'})}
+}
 if(path==='/api/demand/v46/status'&&req.method==='GET'){
  const allowed=v13Owner();
  return json(200,{ok:true,discovery:await liveDemandListener.snapshot(allowed),assets:await demandAssetFactory.status(allowed)});
