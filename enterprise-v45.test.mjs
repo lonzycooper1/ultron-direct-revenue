@@ -81,6 +81,7 @@ test('Express enterprise status is truthful and does not leak credentials',async
  const app=createEnterpriseGateway({env:{STRIPE_SECRET_KEY:'hidden'},
   storeHealth:async()=>({ok:true,backend:'postgres'})});
  const server=app.listen(0,'127.0.0.1');
+ await new Promise(resolve=>server.once('listening',resolve));
  try{
   const port=server.address().port;
   const r=await fetch('http://127.0.0.1:'+port+'/api/enterprise/v45/health');
