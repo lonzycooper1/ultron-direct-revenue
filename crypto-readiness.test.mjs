@@ -29,3 +29,20 @@ test('read authentication distinguishes funds evidence and cannot certify tradin
   assert.equal(rejected.verified,false);assert.equal(rejected.providerCode,40101);assert.doesNotMatch(JSON.stringify(rejected),/PRIVATE/);
  }finally{for(const [i,key] of ['CRYPTOCOM_API_KEY','CRYPTOCOM_API_SECRET'].entries())if(old[i]===undefined)delete process.env[key];else process.env[key]=old[i]}
 });
+
+test('HTTP authentication diagnostics retain only status, reason code and bounded category',async()=>{
+ const old=[process.env.CRYPTOCOM_API_KEY,process.env.CRYPTOCOM_API_SECRET];
+ process.env.CRYPTOCOM_API_KEY='fixture';process.env.CRYPTOCOM_API_SECRET='fixture';
+ try{
+  for(const [status,code,category] of [[401,40101,'KEY_OR_SIGNATURE_REJECTED'],[401,40103,'IP_NOT_ALLOWLISTED'],[400,40102,'TIMESTAMP_REJECTED'],[403,undefined,'HTTP_ACCESS_DENIED'],[400,202,'ACCOUNT_SUSPENDED']]){
+   const result=await verifyExchangeReadAccess({transport:async()=>({ok:false,status,json:async()=>({code,message:'PRIVATE',original:'SECRET'})})});
+   assert.equal(result.verified,false);assert.equal(result.httpStatus,status);assert.equal(result.diagnostic,category);
+   const logs=[];await checkReadOnlyStartup({verify:async()=>result,log:(...args)=>logs.push(args.join(' '))});
+   assert.match(logs[0],new RegExp(category));assert.doesNotMatch(JSON.stringify(result)+logs[0],/PRIVATE|SECRET|fixture/);
+  }
+  process.env.CRYPTOCOM_API_SECRET=' fixture ';
+  let calls=0;
+  const result=await verifyExchangeReadAccess({transport:async()=>{calls++;throw Error('should not send malformed credentials')}});
+  assert.equal(calls,0);assert.equal(result.diagnostic,'CREDENTIAL_FORMAT_INVALID');
+ }finally{for(const [i,key] of ['CRYPTOCOM_API_KEY','CRYPTOCOM_API_SECRET'].entries())if(old[i]===undefined)delete process.env[key];else process.env[key]=old[i]}
+});

@@ -28,6 +28,8 @@ export function liveExecutionConfig(){
 export function buildSignedRequest(method,params={},nonce=Date.now()){
   const apiKey=process.env.CRYPTOCOM_API_KEY||'',secret=process.env.CRYPTOCOM_API_SECRET||'';
   if(!apiKey||!secret)throw Error('Crypto.com API credentials are not configured');
+  if(apiKey.trim()!==apiKey||secret.trim()!==secret)throw Object.assign(Error('Credential whitespace requires correction'),{diagnostic:'CREDENTIAL_FORMAT_INVALID'});
+  if(!Number.isSafeInteger(nonce)||nonce<0)throw Error('Invalid request timestamp');
   const id=nonce;
   const payload=method+id+apiKey+objectToString(params)+nonce;
   const sig=crypto.createHmac('sha256',secret).update(payload).digest('hex');
@@ -38,9 +40,15 @@ export async function privateCall(method,params,{transport=fetch,timeoutMs=8000}
   const body=buildSignedRequest(method,params);
   const r=await transport(API_BASE+'/'+method,{method:'POST',headers:{'content-type':'application/json','accept':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(timeoutMs)});
   const data=await r.json().catch(()=>({}));
-  if(!r.ok)throw Error('Crypto.com HTTP '+r.status);
+  if(!r.ok){
+    const error=Error('Crypto.com HTTP '+r.status);
+    error.httpStatus=r.status;
+    if(Number.isSafeInteger(data?.code))error.providerCode=data.code;
+    throw error;
+  }
   if(data?.code!==0){
     const error=Error('Crypto.com rejected or malformed response');
+    error.httpStatus=r.status||200;
     if(Number.isSafeInteger(data?.code))error.providerCode=data.code;
     throw error;
   }
@@ -92,8 +100,16 @@ export async function verifyExchangeReadAccess({transport=fetch}={}){
       tradePermission:'UNVERIFIED',accountEligibility:'UNVERIFIED',withdrawalPermission:'UNVERIFIED',
       note:'Read authentication is not trading authorization. No order or permission-changing request was sent.'};
   }catch(error){
-    return {verified:false,reason:'READ_ONLY_VERIFICATION_FAILED',...(Number.isSafeInteger(error?.providerCode)?{providerCode:error.providerCode}:{}),detail:String(error?.message||error).slice(0,160)};
+    return {verified:false,reason:'READ_ONLY_VERIFICATION_FAILED',...authenticationDiagnostic(error)};
   }
+}
+
+export function authenticationDiagnostic(error){
+ const code=error?.providerCode,status=error?.httpStatus;
+ const mapped={40101:'KEY_OR_SIGNATURE_REJECTED',40102:'TIMESTAMP_REJECTED',40103:'IP_NOT_ALLOWLISTED',40104:'ACCOUNT_TIER_REJECTED',202:'ACCOUNT_SUSPENDED',42901:'RATE_LIMITED'};
+ const diagnostic=error?.diagnostic==='CREDENTIAL_FORMAT_INVALID'?'CREDENTIAL_FORMAT_INVALID':mapped[code]||
+  (error?.name==='TimeoutError'?'REQUEST_TIMEOUT':status===403?'HTTP_ACCESS_DENIED':status===401?'HTTP_UNAUTHORIZED':status?'HTTP_OR_PROVIDER_ERROR':'NETWORK_OR_CONFIGURATION_ERROR');
+ return {diagnostic,...(Number.isSafeInteger(code)?{providerCode:code}:{}),...(Number.isInteger(status)&&status>=100&&status<=599?{httpStatus:status}:{})};
 }
 
 const strictNumber=value=>{
