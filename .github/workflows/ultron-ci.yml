@@ -32,5 +32,5 @@ jobs:
           node-version: 22
       - name: Ensure FFmpeg media checks are available
         run: command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
-      - run: npm install --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
       - run: npm test
