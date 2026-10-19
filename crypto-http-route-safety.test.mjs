@@ -37,6 +37,17 @@ test('crypto HTTP owner-only state and manual cycles reject unauthenticated user
       const response=await fetch(base+path,{method,headers:{'content-type':'application/json'},body:method==='POST'?'{}':undefined,signal:AbortSignal.timeout(2000)});
       assert.equal(response.status,401,path+' must reject unauthenticated requests; '+stderr);
     }
+    // Parse the shipped browser script, not just the Node server file.
+    // Corrupt server-side route text inside this inline script previously
+    // passed node --check while breaking the dashboard in browsers.
+    const dashboardResponse=await fetch(base+'/dashboard',{signal:AbortSignal.timeout(2000)});
+    assert.equal(dashboardResponse.status,200);
+    const dashboard=await dashboardResponse.text();
+    const scripts=[...dashboard.matchAll(/<script>([\s\S]*?)<\/script>/g)];
+    assert.equal(scripts.length,1,'research dashboard must supply one browser script');
+    assert.doesNotMatch(scripts[0][1],/const u=new URL\(req\.url/,'server-side router code must not leak into browser JS');
+    assert.doesNotThrow(()=>new Function(scripts[0][1]),'browser dashboard script must parse');
+    assert.match(dashboard,/research only; trading disabled/,'research status must not promise executable orders');
     const allowed=await fetch(base+'/state',{headers:{'x-ultron-approval-key':token},signal:AbortSignal.timeout(2000)});
     assert.equal(allowed.status,200,'authenticated owner must retain state access');
     assert.equal((await allowed.json()).mode,'live-market-research');
