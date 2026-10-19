@@ -1,8 +1,10 @@
+import {stopExecution,trustedProposalRisk,reconcileProposal} from './crypto-order-gateway.mjs';
 import {createServer} from 'node:http';
 import crypto from 'node:crypto';
 import {CRYPTO_BOT_RULES,CRYPTO_AGENTS,researchDecision,cryptoCapabilityManifest} from './crypto-bots.mjs';
 import {LIVE_APPROVAL_RULES,proposeLiveOrder,approveProposal,executionEnvelope} from './crypto-live-approval.mjs';
-import {liveExecutionConfig,executeApprovedSpotOrder} from './crypto-exchange.mjs';
+import {liveExecutionConfig,executeApprovedSpotOrder,verifyExchangeReadAccess} from './crypto-exchange.mjs';
+import {checkReadOnlyStartup} from './crypto-readiness.mjs';
 import {evaluateStrategies,rankOpportunities,buildProposalCandidates,portfolioRiskSummary} from './crypto-opportunity-engine.mjs';
 
 const PORT=Number(process.env.PORT||3000);
@@ -10,6 +12,7 @@ const INTERVAL=Math.max(1,Number(process.env.CRYPTO_BOT_INTERVAL_MINUTES||1));
 const APPROVAL_SECRET=String(process.env.CRYPTO_APPROVAL_SECRET||'');
 const state={mode:'live-market-research',cycles:0,lastCycleAt:null,lastResults:[],rankedOpportunities:[],proposalCandidates:[],portfolioRisk:null,journal:[],startedAt:new Date().toISOString(),liveExecutionDisabled:false};
 const proposals=new Map();
+checkReadOnlyStartup().catch(()=>console.error('ULTRON exchange read verification unavailable; live orders remain blocked'));
 
 async function candles(product='BTC-USD',granularity=300){
  const u=new URL('https://api.exchange.coinbase.com/products/'+encodeURIComponent(product)+'/candles');
@@ -62,10 +65,12 @@ function latest(instrument){return state.lastResults.find(x=>x.instrument===inst
 function prune(){const now=Date.now();for(const [id,p] of proposals){if(p.status==='AWAITING_HUMAN_APPROVAL'&&now>Date.parse(p.expiresAt)+60000)proposals.delete(id)}}
 function approvalPage(key){
  const cfg=liveExecutionConfig(), rows=state.lastResults.map(r=>`<tr><td>${esc(r.instrument)}</td><td>${esc(r.lastPrice||'')}</td><td>${esc(r.analysis?.signal||r.error||'')}</td><td>${esc(r.analysis?.confidence||'')}</td></tr>`).join(''), ranked=state.rankedOpportunities.map(r=>`<tr><td>${esc(r.instrument)}</td><td>${esc(r.direction)}</td><td>${esc(r.score)}</td><td>${esc(r.regime)}</td></tr>`).join('');
- return `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>ULTRON Crypto Approval</title><style>:root{color-scheme:dark;--cyan:#62e9ff;--violet:#a76cff;--green:#6dffb0}*{box-sizing:border-box}html{background:#030711}body{margin:0;background:radial-gradient(circle at 16% 7%,rgba(54,115,255,.18),transparent 34%),radial-gradient(circle at 86% 16%,rgba(151,68,255,.15),transparent 30%),linear-gradient(180deg,#050914,#030711 74%);color:#f4fbff;font:16px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;max-width:940px;margin:auto;padding:24px;min-height:100vh;perspective:1200px}h1,h2{letter-spacing:-.025em;text-shadow:0 0 24px rgba(98,233,255,.15)}article,.hero,.card{position:relative;background:linear-gradient(145deg,rgba(17,27,46,.92),rgba(8,13,24,.82));border:1px solid rgba(98,233,255,.2);border-radius:22px;padding:18px;margin:12px 0;box-shadow:0 18px 54px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.055),0 0 30px rgba(98,233,255,.06);backdrop-filter:blur(18px)}input,select,button{padding:12px;margin:5px 0;width:100%;border-radius:12px;border:1px solid rgba(98,233,255,.2);background:rgba(9,16,28,.9);color:white;font:inherit}button{font-weight:900;background:linear-gradient(135deg,#75edff,#b487ff);color:#04111b;cursor:pointer;touch-action:manipulation;box-shadow:0 10px 28px rgba(97,156,255,.18)}table{width:100%;border-collapse:collapse}td,th{padding:9px;border-bottom:1px solid rgba(98,233,255,.12);text-align:left}.ok{color:#7dff8a}.warn{color:#ffd26e}.muted{color:#98a7b8}.grid{display:grid;gap:12px}.row{display:flex;justify-content:space-between;gap:12px;align-items:center}.coin{font-size:21px;font-weight:850}.action{font-size:30px;font-weight:950}.BUY{color:#55e58a}.SELL{color:#ff6b74}.HOLD{color:#ffd166}.meter{height:9px;background:#172131;border-radius:99px;overflow:hidden;margin:11px 0}.fill{height:100%;background:linear-gradient(90deg,#5bc0ff,#82ffad,#b88cff);border-radius:99px}.small{font-size:13px}.facts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:13px}.fact{background:rgba(16,25,39,.82);padding:10px;border-radius:13px;border:1px solid rgba(98,233,255,.08)}.btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0}a.btn{text-align:center;text-decoration:none;border-radius:15px;padding:14px 12px;font-weight:900;background:linear-gradient(135deg,#75edff,#b487ff);color:#06111e}.secondary{background:rgba(21,30,40,.88)!important;color:#eaf2ff!important;border:1px solid rgba(98,233,255,.22)!important}.install{display:none;margin:12px 0;padding:14px;border-radius:16px;background:rgba(16,24,32,.8);border:1px solid rgba(98,233,255,.18)}.footer{font-size:12px;color:#7e8997;margin-top:16px;line-height:1.5}.empty{padding:30px;text-align:center;color:#8f9aa7;border:1px dashed rgba(98,233,255,.18);border-radius:18px}pre{white-space:pre-wrap;overflow:auto}@media(max-width:640px){body{padding:16px}.facts,.btns{grid-template-columns:1fr}}</style><h1>ULTRON Crypto Approval</h1><article><p><b>Mode:</b> live market intelligence + human-approved real spot orders.</p><p class="${cfg.liveTradingEnabled&&cfg.apiConfigured?'ok':'warn'}">API configured: ${cfg.apiConfigured} · live adapter enabled: ${cfg.liveTradingEnabled} · autonomous live orders: ${cfg.autonomousLiveOrders}</p><p>Every live order requires a fresh proposal and this page's explicit approval. No withdrawals. Live execution is spot-only and leverage is fixed at 1.</p></article><article><h2>Latest research</h2><table><tr><th>Market</th><th>Price</th><th>Signal</th><th>Confidence</th></tr>${rows}</table></article><article><h2>Ranked opportunities</h2><table><tr><th>Market</th><th>Direction</th><th>Score</th><th>Regime</th></tr>${ranked}</table><pre>${esc(JSON.stringify({proposalCandidates:state.proposalCandidates,portfolioRisk:state.portfolioRisk},null,2))}</pre></article><article><h2>Create one live-order proposal</h2><form id="f"><label>Instrument<select name="instrument">${CRYPTO_BOT_RULES.instruments.map(x=>'<option>'+esc(x)+'</option>').join('')}</select></label><label>Side<select name="side"><option>BUY</option><option>SELL</option></select></label><label>Order value (USD)<input name="notional" type="number" min="1" max="${LIVE_APPROVAL_RULES.maxOrderUsd}" value="25"></label><label>Account equity for risk cap (USD)<input name="equity" type="number" min="1" value="1000"></label><label>Rationale<input name="rationale" value="Manual approval from ULTRON control"></label><button>Create proposal</button></form><div id="result"></div></article><script>
+ return `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>ULTRON Crypto Approval</title><style>:root{color-scheme:dark;--cyan:#62e9ff;--violet:#a76cff;--green:#6dffb0}*{box-sizing:border-box}html{background:#030711}body{margin:0;background:radial-gradient(circle at 16% 7%,rgba(54,115,255,.18),transparent 34%),radial-gradient(circle at 86% 16%,rgba(151,68,255,.15),transparent 30%),linear-gradient(180deg,#050914,#030711 74%);color:#f4fbff;font:16px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;max-width:940px;margin:auto;padding:24px;min-height:100vh;perspective:1200px}h1,h2{letter-spacing:-.025em;text-shadow:0 0 24px rgba(98,233,255,.15)}article,.hero,.card{position:relative;background:linear-gradient(145deg,rgba(17,27,46,.92),rgba(8,13,24,.82));border:1px solid rgba(98,233,255,.2);border-radius:22px;padding:18px;margin:12px 0;box-shadow:0 18px 54px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.055),0 0 30px rgba(98,233,255,.06);backdrop-filter:blur(18px)}input,select,button{padding:12px;margin:5px 0;width:100%;border-radius:12px;border:1px solid rgba(98,233,255,.2);background:rgba(9,16,28,.9);color:white;font:inherit}button{font-weight:900;background:linear-gradient(135deg,#75edff,#b487ff);color:#04111b;cursor:pointer;touch-action:manipulation;box-shadow:0 10px 28px rgba(97,156,255,.18)}table{width:100%;border-collapse:collapse}td,th{padding:9px;border-bottom:1px solid rgba(98,233,255,.12);text-align:left}.ok{color:#7dff8a}.warn{color:#ffd26e}.muted{color:#98a7b8}.grid{display:grid;gap:12px}.row{display:flex;justify-content:space-between;gap:12px;align-items:center}.coin{font-size:21px;font-weight:850}.action{font-size:30px;font-weight:950}.BUY{color:#55e58a}.SELL{color:#ff6b74}.HOLD{color:#ffd166}.meter{height:9px;background:#172131;border-radius:99px;overflow:hidden;margin:11px 0}.fill{height:100%;background:linear-gradient(90deg,#5bc0ff,#82ffad,#b88cff);border-radius:99px}.small{font-size:13px}.facts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:13px}.fact{background:rgba(16,25,39,.82);padding:10px;border-radius:13px;border:1px solid rgba(98,233,255,.08)}.btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0}a.btn{text-align:center;text-decoration:none;border-radius:15px;padding:14px 12px;font-weight:900;background:linear-gradient(135deg,#75edff,#b487ff);color:#06111e}.secondary{background:rgba(21,30,40,.88)!important;color:#eaf2ff!important;border:1px solid rgba(98,233,255,.22)!important}.install{display:none;margin:12px 0;padding:14px;border-radius:16px;background:rgba(16,24,32,.8);border:1px solid rgba(98,233,255,.18)}.footer{font-size:12px;color:#7e8997;margin-top:16px;line-height:1.5}.empty{padding:30px;text-align:center;color:#8f9aa7;border:1px dashed rgba(98,233,255,.18);border-radius:18px}pre{white-space:pre-wrap;overflow:auto}@media(max-width:640px){body{padding:16px}.facts,.btns{grid-template-columns:1fr}}</style><h1>ULTRON Crypto Approval</h1><article><p><b>Mode:</b> research only. Live exchange orders are disabled pending safety certification.</p><p class="${cfg.liveTradingEnabled&&cfg.apiConfigured?'ok':'warn'}">API configured: ${cfg.apiConfigured} · live adapter enabled: ${cfg.liveTradingEnabled} · autonomous live orders: ${cfg.autonomousLiveOrders}</p><p>Order placement is currently blocked. No form submission or owner approval on this page can override the persistent safety stop.</p></article><article><h2>Latest research</h2><table><tr><th>Market</th><th>Price</th><th>Signal</th><th>Confidence</th></tr>${rows}</table></article><article><h2>Ranked opportunities</h2><table><tr><th>Market</th><th>Direction</th><th>Score</th><th>Regime</th></tr>${ranked}</table><pre>${esc(JSON.stringify({proposalCandidates:state.proposalCandidates,portfolioRisk:state.portfolioRisk},null,2))}</pre></article><article><h2>Create one live-order proposal</h2><form id="f"><label>Instrument<select name="instrument">${CRYPTO_BOT_RULES.instruments.map(x=>'<option>'+esc(x)+'</option>').join('')}</select></label><label>Side<select name="side"><option>BUY</option><option>SELL</option></select></label><label>Order value (USD)<input name="notional" type="number" min="1" max="${LIVE_APPROVAL_RULES.maxOrderUsd}" value="25"></label><label>Account equity for risk cap (USD)<input name="equity" type="number" min="1" value="1000"></label><label>Rationale<input name="rationale" value="Manual approval from ULTRON control"></label><button disabled title="Live execution is disabled pending verification">Order proposal unavailable until safety certification</button></form><div id="result"></div></article><script>
 const key=${JSON.stringify(key)};
+// Remove the owner token from the visible address bar after initial authorization.
+if(location.search)history.replaceState(null,'','/approval');
 const out=document.getElementById('result');
-document.getElementById('f').onsubmit=async e=>{e.preventDefault();const v=Object.fromEntries(new FormData(e.target));v.notional=Number(v.notional);v.equity=Number(v.equity);const r=await fetch('/api/proposals?key='+encodeURIComponent(key),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(v)});const d=await r.json();if(!r.ok){out.innerHTML='<pre>'+JSON.stringify(d,null,2)+'</pre>';return}out.innerHTML='<h3>Review carefully</h3><pre>'+JSON.stringify(d.proposal,null,2)+'</pre><button id="approve">APPROVE & PLACE THIS ONE REAL-MONEY ORDER</button>';document.getElementById('approve').onclick=async()=>{if(!confirm('This will submit one real-money market order to Crypto.com. Continue?'))return;const x=await fetch('/api/proposals/'+encodeURIComponent(d.proposal.id)+'/approve?key='+encodeURIComponent(key),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({approved:true,confirmation:d.proposal.id})});const y=await x.json();out.innerHTML='<pre>'+JSON.stringify(y,null,2)+'</pre>'}}
+document.getElementById('f').onsubmit=async e=>{e.preventDefault();const v=Object.fromEntries(new FormData(e.target));v.notional=Number(v.notional);v.equity=Number(v.equity);const r=await fetch('/api/proposals',{method:'POST',headers:{'content-type':'application/json','x-ultron-approval-key':key},body:JSON.stringify(v)});const d=await r.json();if(!r.ok){out.innerHTML='<pre>'+JSON.stringify(d,null,2)+'</pre>';return}out.innerHTML='<h3>Review carefully</h3><pre>'+JSON.stringify(d.proposal,null,2)+'</pre><button id="approve" disabled>Order execution disabled pending safety certification</button>';document.getElementById('approve').onclick=async()=>{if(!confirm('This will submit one real-money market order to Crypto.com. Continue?'))return;const x=await fetch('/api/proposals/'+encodeURIComponent(d.proposal.id)+'/approve',{method:'POST',headers:{'content-type':'application/json','x-ultron-approval-key':key},body:JSON.stringify({approved:true,confirmation:d.proposal.id})});const y=await x.json();out.innerHTML='<pre>'+JSON.stringify(y,null,2)+'</pre>'}}
 </script>`;
 }
 
@@ -84,75 +89,85 @@ function dashboardPage(){
 <div class="footer"><span id="updated">Waiting for first update…</span><br>Dashboard refreshes every 20 seconds. Browser alerts work while this app is open. Strong-signal ChatGPT alerts are configured separately.</div>
 </main>
 <script>
-const cards=document.getElementById('cards'),updated=document.getElementById('updated'),live=document.getElementById('live');
-const ios=/iPhone|iPad|iPod/i.test(navigator.userAgent), standalone=window.navigator.standalone===true||matchMedia('(display-mode: standalone)').matches;
+'use strict';
+const cards=document.getElementById('cards');
+const updated=document.getElementById('updated');
+const live=document.getElementById('live');
+const ios=/iPhone|iPad|iPod/i.test(navigator.userAgent);
+const standalone=window.navigator.standalone===true||matchMedia('(display-mode: standalone)').matches;
 if(ios&&!standalone)document.getElementById('install').style.display='block';
-let previous={};
-function actionOf(x){if(!x||!['BULLISH','BEARISH'].includes(x.direction)||Number(x.score)<0.65)return 'HOLD';return x.direction==='BULLISH'?'BUY':'SELL'}
-function money(n){return Number(n||0).toLocaleString(undefined,{maximumFractionDigits:2})}
-function pct(n){return Math.round(Number(n||0)*100)}
-function maybeNotify(x,a){
- if(Notification.permission!=='granted'||a==='HOLD')return;
- const old=previous[x.instrument]; if(old===a)return;
- new Notification('ULTRON '+a+' signal',{body:x.instrument+' · '+pct(x.score)+'% confidence · {const u=new URL(req.url,'http://local');try{
- const cfg=liveExecutionConfig();prune();
- if(u.pathname==='/dashboard'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store'});return res.end(dashboardPage())}
- if(u.pathname==='/manifest.webmanifest'){res.writeHead(200,{'content-type':'application/manifest+json','cache-control':'public,max-age=300'});return res.end(JSON.stringify(manifest()))}
- if(u.pathname==='/sw.js'){res.writeHead(200,{'content-type':'application/javascript; charset=utf-8','cache-control':'no-cache','service-worker-allowed':'/'});return res.end(serviceWorker())}
- if(u.pathname==='/health')return json(res,200,{ok:true,service:'ULTRON Crypto Intelligence',mode:state.mode,liveMarketData:true,liveOrders:cfg.liveTradingEnabled&&cfg.apiConfigured&&!state.liveExecutionDisabled,approvalGated:true,approvalControlConfigured:Boolean(APPROVAL_SECRET),autonomousLiveOrders:false,agents:CRYPTO_AGENTS.length,cycles:state.cycles,lastCycleAt:state.lastCycleAt,intervalMinutes:INTERVAL,rankedOpportunities:state.rankedOpportunities.length,proposalCandidates:state.proposalCandidates.length});
- if(u.pathname==='/agents')return json(res,200,{agents:CRYPTO_AGENTS,flow:'live public market data -> multi-signal analysis -> proposal -> explicit human approval -> one live spot order',capabilities:cryptoCapabilityManifest(),approvalRules:LIVE_APPROVAL_RULES});
- if(u.pathname==='/state')return json(res,200,{...state,proposals:Array.from(proposals.values()).map(p=>({...p,approvalSecret:undefined})),liveConfig:cfg});
- if(u.pathname==='/api/config')return json(res,200,{ok:true,liveConfig:cfg,approvalRules:LIVE_APPROVAL_RULES,liveExecutionDisabled:state.liveExecutionDisabled});
- if(u.pathname==='/opportunities')return json(res,200,{ok:true,ranked:state.rankedOpportunities,proposalCandidates:state.proposalCandidates,portfolioRisk:state.portfolioRisk,lastCycleAt:state.lastCycleAt});
- if(u.pathname==='/approval'){if(!authorized(req,u))return json(res,401,{error:'approval key required'});res.writeHead(200,{'content-type':'text/html','cache-control':'no-store'});return res.end(approvalPage(suppliedKey(req,u)))}
- if(u.pathname==='/api/proposals'&&req.method==='POST'){if(!authorized(req,u))return json(res,401,{error:'approval key required'});if(state.liveExecutionDisabled)return json(res,423,{error:'live execution disabled by kill switch'});const b=await body(req),m=latest(b.instrument);if(!m||!(m.lastPrice>0))return json(res,409,{error:'no fresh market price available'});const p=proposeLiveOrder({instrument:b.instrument,side:String(b.side||'').toUpperCase(),price:m.lastPrice,notional:b.notional,leverage:1,equity:b.equity,dailyPnlPct:Number(b.dailyPnlPct||0),rationale:b.rationale||('Latest signal: '+(m.analysis?.signal||'unknown'))});proposals.set(p.id,p);state.journal.push({at:new Date().toISOString(),type:'live-proposal-created',proposalId:p.id,instrument:p.instrument,side:p.side,notional:p.notional});return json(res,201,{ok:true,proposal:p,execution:'NOT_SUBMITTED_UNTIL_APPROVED'})}
- const approveMatch=/^\/api\/proposals\/([^/]+)\/approve$/.exec(u.pathname);
- if(approveMatch&&req.method==='POST'){if(!authorized(req,u))return json(res,401,{error:'approval key required'});if(state.liveExecutionDisabled)return json(res,423,{error:'live execution disabled by kill switch'});const id=decodeURIComponent(approveMatch[1]),p=proposals.get(id);if(!p)return json(res,404,{error:'proposal not found or expired'});const b=await body(req),a=approveProposal(p,b),env=executionEnvelope(a);try{const execution=await executeApprovedSpotOrder(env);const done={...a,status:'SUBMITTED',execution};proposals.set(id,done);state.journal.push({at:new Date().toISOString(),type:'live-order-submitted',proposalId:id,execution});return json(res,200,{ok:true,proposal:done,execution})}catch(e){const failed={...a,status:'EXECUTION_FAILED',error:String(e?.message||e)};proposals.set(id,failed);state.journal.push({at:new Date().toISOString(),type:'live-order-failed',proposalId:id,error:failed.error});return json(res,502,{ok:false,proposal:failed,error:failed.error})}}
- if(u.pathname==='/cycle'&&req.method==='POST')return json(res,200,{ok:true,results:await cycle(),state});
- if(u.pathname==='/live/disable'&&req.method==='POST'){if(!authorized(req,u))return json(res,401,{error:'approval key required'});state.liveExecutionDisabled=true;return json(res,200,{ok:true,liveExecutionDisabled:true,message:'New live order submissions are disabled until service restart or redeploy.'})}
- if(u.pathname==='/kill'&&req.method==='POST'){if(!authorized(req,u))return json(res,401,{error:'approval key required'});clearInterval(timer);timer=null;state.liveExecutionDisabled=true;return json(res,200,{ok:true,killed:true,message:'Continuous market-intelligence cycles and new live order submissions stopped.'})}
- return json(res,200,{service:'ULTRON Crypto Intelligence',mode:state.mode,endpoints:['/dashboard','/health','/agents','/state','/api/config','/opportunities','/approval?key=...','POST /api/proposals','POST /api/proposals/:id/approve','POST /cycle','POST /live/disable','POST /kill']});
- }catch(e){return json(res,500,{ok:false,error:String(e?.message||e)})}}).listen(PORT,'0.0.0.0',()=>{const cfg=liveExecutionConfig();console.log('ULTRON crypto intelligence listening on',PORT,'mode='+state.mode);console.log('ULTRON live config',JSON.stringify({apiConfigured:cfg.apiConfigured,liveTradingEnabled:cfg.liveTradingEnabled,humanApprovalRequired:cfg.humanApprovalRequired,autonomousLiveOrders:cfg.autonomousLiveOrders,approvalControlConfigured:Boolean(APPROVAL_SECRET),intervalMinutes:INTERVAL,maxOrderUsd:LIVE_APPROVAL_RULES.maxOrderUsd,maxPositionPct:LIVE_APPROVAL_RULES.maxPositionPct,maxDailyLossPct:LIVE_APPROVAL_RULES.maxDailyLossPct}));});
-+money(x.lastPrice)});
+const previous=new Map();
+const pct=n=>Math.max(0,Math.min(100,Math.round(Number(n||0)*100)));
+const money=n=>Number(n||0).toLocaleString(undefined,{maximumFractionDigits:2});
+const make=(tag,className,value)=>{
+ const e=document.createElement(tag);
+ if(className)e.className=className;
+ if(value!==undefined)e.textContent=String(value);
+ return e;
+};
+function direction(x){
+ if(!x||!['BULLISH','BEARISH'].includes(x.direction)||Number(x.score)<0.65)return 'HOLD';
+ return x.direction==='BULLISH'?'BUY':'SELL';
+}
+function notify(x,action){
+ if(!('Notification' in window)||Notification.permission!=='granted'||action==='HOLD')return;
+ if(previous.get(x.instrument)===action)return;
+ try{new Notification('ULTRON '+action+' research signal',{body:String(x.instrument)+' · '+pct(x.score)+'% model score · research only, not an order'});}catch{}
+}
+function renderCard(x){
+ const action=direction(x);
+ const card=make('section','card');
+ const header=make('div','row');
+ const left=make('div');
+ left.append(make('div','coin',x.instrument||'Unknown asset'),make('div','muted small',String(x.regime||'unknown')+' regime'));
+ header.append(left,make('div','action '+action,action));
+ card.append(header);
+ const meter=make('div','meter'),fill=make('div','fill');
+ fill.style.width=pct(x.score)+'%';
+ meter.append(fill);
+ card.append(meter);
+ const meta=make('div','row');
+ meta.append(make('b','',pct(x.score)+'% research model score'),make('b','','$'+money(x.lastPrice)));
+ card.append(meta);
+ const facts=make('div','facts');
+ for(const [label,value] of [
+  ['Market model',pct(x.marketConfidence)+'%'],
+  ['Strategy model',pct(x.strategyConfidence)+'%'],
+  ['Agreement',x.agreement?'YES':'MIXED'],
+  ['Direction',x.direction||'NEUTRAL']
+ ]){
+  const fact=make('div','fact');
+  fact.append(make('span','muted small',label),make('div','',value));
+  facts.append(fact);
+ }
+ card.append(facts,make('p','small muted',x.rationale||'Research output only. No live orders.'));
+ notify(x,action);
+ previous.set(x.instrument,action);
+ return card;
 }
 async function load(){
  try{
-  const r=await fetch('/opportunities',{cache:'no-store'}); if(!r.ok)throw Error('HTTP '+r.status);
-  const d=await r.json(), ranked=Array.isArray(d.ranked)?d.ranked:[];
-  live.textContent='LIVE';live.style.color='#55e58a';
-  cards.innerHTML=ranked.length?'':'<div class="empty">No ranked opportunities yet. ULTRON is still scanning.</div>';
-  ranked.forEach(x=>{
-   const a=actionOf(x); maybeNotify(x,a); previous[x.instrument]=a;
-   const div=document.createElement('section');div.className='card';
-   div.innerHTML='<div class="row"><div><div class="coin">'+x.instrument+'</div><div class="muted small">'+(x.regime||'unknown')+' regime</div></div><div class="action '+a+'">'+a+'</div></div>'+
-    '<div class="meter"><div class="fill" style="width:'+Math.min(100,pct(x.score))+'%"></div></div>'+
-    '<div class="row"><b>'+pct(x.score)+'% confidence</b><b>{const u=new URL(req.url,'http://local');try{
- const cfg=liveExecutionConfig();prune();
- if(u.pathname==='/health')return json(res,200,{ok:true,service:'ULTRON Crypto Intelligence',mode:state.mode,liveMarketData:true,liveOrders:cfg.liveTradingEnabled&&cfg.apiConfigured&&!state.liveExecutionDisabled,approvalGated:true,approvalControlConfigured:Boolean(APPROVAL_SECRET),autonomousLiveOrders:false,agents:CRYPTO_AGENTS.length,cycles:state.cycles,lastCycleAt:state.lastCycleAt,intervalMinutes:INTERVAL,rankedOpportunities:state.rankedOpportunities.length,proposalCandidates:state.proposalCandidates.length});
- if(u.pathname==='/agents')return json(res,200,{agents:CRYPTO_AGENTS,flow:'live public market data -> multi-signal analysis -> proposal -> explicit human approval -> one live spot order',capabilities:cryptoCapabilityManifest(),approvalRules:LIVE_APPROVAL_RULES});
- if(u.pathname==='/state')return json(res,200,{...state,proposals:Array.from(proposals.values()).map(p=>({...p,approvalSecret:undefined})),liveConfig:cfg});
- if(u.pathname==='/api/config')return json(res,200,{ok:true,liveConfig:cfg,approvalRules:LIVE_APPROVAL_RULES,liveExecutionDisabled:state.liveExecutionDisabled});
- if(u.pathname==='/opportunities')return json(res,200,{ok:true,ranked:state.rankedOpportunities,proposalCandidates:state.proposalCandidates,portfolioRisk:state.portfolioRisk,lastCycleAt:state.lastCycleAt});
- if(u.pathname==='/approval'){if(!authorized(req,u))return json(res,401,{error:'approval key required'});res.writeHead(200,{'content-type':'text/html','cache-control':'no-store'});return res.end(approvalPage(suppliedKey(req,u)))}
- if(u.pathname==='/api/proposals'&&req.method==='POST'){if(!authorized(req,u))return json(res,401,{error:'approval key required'});if(state.liveExecutionDisabled)return json(res,423,{error:'live execution disabled by kill switch'});const b=await body(req),m=latest(b.instrument);if(!m||!(m.lastPrice>0))return json(res,409,{error:'no fresh market price available'});const p=proposeLiveOrder({instrument:b.instrument,side:String(b.side||'').toUpperCase(),price:m.lastPrice,notional:b.notional,leverage:1,equity:b.equity,dailyPnlPct:Number(b.dailyPnlPct||0),rationale:b.rationale||('Latest signal: '+(m.analysis?.signal||'unknown'))});proposals.set(p.id,p);state.journal.push({at:new Date().toISOString(),type:'live-proposal-created',proposalId:p.id,instrument:p.instrument,side:p.side,notional:p.notional});return json(res,201,{ok:true,proposal:p,execution:'NOT_SUBMITTED_UNTIL_APPROVED'})}
- const approveMatch=/^\/api\/proposals\/([^/]+)\/approve$/.exec(u.pathname);
- if(approveMatch&&req.method==='POST'){if(!authorized(req,u))return json(res,401,{error:'approval key required'});if(state.liveExecutionDisabled)return json(res,423,{error:'live execution disabled by kill switch'});const id=decodeURIComponent(approveMatch[1]),p=proposals.get(id);if(!p)return json(res,404,{error:'proposal not found or expired'});const b=await body(req),a=approveProposal(p,b),env=executionEnvelope(a);try{const execution=await executeApprovedSpotOrder(env);const done={...a,status:'SUBMITTED',execution};proposals.set(id,done);state.journal.push({at:new Date().toISOString(),type:'live-order-submitted',proposalId:id,execution});return json(res,200,{ok:true,proposal:done,execution})}catch(e){const failed={...a,status:'EXECUTION_FAILED',error:String(e?.message||e)};proposals.set(id,failed);state.journal.push({at:new Date().toISOString(),type:'live-order-failed',proposalId:id,error:failed.error});return json(res,502,{ok:false,proposal:failed,error:failed.error})}}
- if(u.pathname==='/cycle'&&req.method==='POST')return json(res,200,{ok:true,results:await cycle(),state});
- if(u.pathname==='/live/disable'&&req.method==='POST'){if(!authorized(req,u))return json(res,401,{error:'approval key required'});state.liveExecutionDisabled=true;return json(res,200,{ok:true,liveExecutionDisabled:true,message:'New live order submissions are disabled until service restart or redeploy.'})}
- if(u.pathname==='/kill'&&req.method==='POST'){if(!authorized(req,u))return json(res,401,{error:'approval key required'});clearInterval(timer);timer=null;state.liveExecutionDisabled=true;return json(res,200,{ok:true,killed:true,message:'Continuous market-intelligence cycles and new live order submissions stopped.'})}
- return json(res,200,{service:'ULTRON Crypto Intelligence',mode:state.mode,endpoints:['/health','/agents','/state','/api/config','/opportunities','/approval?key=...','POST /api/proposals','POST /api/proposals/:id/approve','POST /cycle','POST /live/disable','POST /kill']});
- }catch(e){return json(res,500,{ok:false,error:String(e?.message||e)})}}).listen(PORT,'0.0.0.0',()=>{const cfg=liveExecutionConfig();console.log('ULTRON crypto intelligence listening on',PORT,'mode='+state.mode);console.log('ULTRON live config',JSON.stringify({apiConfigured:cfg.apiConfigured,liveTradingEnabled:cfg.liveTradingEnabled,humanApprovalRequired:cfg.humanApprovalRequired,autonomousLiveOrders:cfg.autonomousLiveOrders,approvalControlConfigured:Boolean(APPROVAL_SECRET),intervalMinutes:INTERVAL,maxOrderUsd:LIVE_APPROVAL_RULES.maxOrderUsd,maxPositionPct:LIVE_APPROVAL_RULES.maxPositionPct,maxDailyLossPct:LIVE_APPROVAL_RULES.maxDailyLossPct}));});
-+money(x.lastPrice)+'</b></div>'+
-    '<div class="facts"><div class="fact"><span class="muted small">Market model</span><br><b>'+pct(x.marketConfidence)+'%</b></div><div class="fact"><span class="muted small">Strategy model</span><br><b>'+pct(x.strategyConfidence)+'%</b></div><div class="fact"><span class="muted small">Agreement</span><br><b>'+(x.agreement?'YES':'MIXED')+'</b></div><div class="fact"><span class="muted small">Direction</span><br><b>'+(x.direction||'NEUTRAL')+'</b></div></div>'+
-    '<p class="small muted">'+(x.rationale||'')+'</p>';
-   cards.appendChild(div);
-  });
-  updated.textContent='Last ULTRON cycle: '+(d.lastCycleAt?new Date(d.lastCycleAt).toLocaleString():'not available');
- }catch(e){live.textContent='RETRYING';live.style.color='#ffd166';updated.textContent='Signal refresh error: '+e.message}
+  const response=await fetch('/opportunities',{cache:'no-store',signal:AbortSignal.timeout(8000)});
+  if(!response.ok)throw Error('HTTP '+response.status);
+  const data=await response.json();
+  const ranked=Array.isArray(data.ranked)?data.ranked:[];
+  live.textContent='RESEARCH ONLINE';live.style.color='#55e58a';
+  cards.replaceChildren();
+  if(!ranked.length)cards.append(make('div','empty','No ranked opportunities yet. ULTRON is still scanning.'));
+  for(const x of ranked)cards.append(renderCard(x));
+  updated.textContent='Last research cycle: '+(data.lastCycleAt?new Date(data.lastCycleAt).toLocaleString():'not available')+' · research only; trading disabled';
+ }catch(error){
+  live.textContent='RETRYING';live.style.color='#ffd166';
+  updated.textContent='Research refresh error: '+String(error.message||error);
+ }
 }
-document.getElementById('refresh').onclick=load;
-document.getElementById('alerts').onclick=async()=>{if(!('Notification'in window)){alert('Notifications are not supported in this browser view.');return}const p=await Notification.requestPermission();document.getElementById('alerts').textContent=p==='granted'?'Alerts enabled':'Alerts not enabled'};
-if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
+document.getElementById('refresh').addEventListener('click',load);
+document.getElementById('alerts').addEventListener('click',async()=>{
+ if(!('Notification' in window)){alert('Notifications are not supported in this browser view.');return;}
+ const permission=await Notification.requestPermission();
+ document.getElementById('alerts').textContent=permission==='granted'?'On-screen alerts enabled':'Alerts not enabled';
+});
+if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
 load();setInterval(load,20000);
 </script></body></html>`;
 }
@@ -164,18 +179,32 @@ function serviceWorker(){
 }
 
 createServer(async(req,res)=>{const u=new URL(req.url,'http://local');try{
+ if(u.pathname==='/api/exchange/verify'){
+  if(!authorized(req,u))return json(res,401,{error:'approval key required'});
+  if(req.method!=='POST')return json(res,405,{error:'POST required'});
+  const verification=await verifyExchangeReadAccess();
+  // Authentication evidence only. This must never activate execution or
+  // imply that risk accounting, permissions, fills or settlement are verified.
+  return json(res,verification.verified?200:503,{ok:verification.verified,verification,liveOrders:false,scope:'READ_ONLY_ACCOUNT_ACCESS'});
+ }
+ const reconcileMatch=/^\/api\/proposals\/([^/]+)\/reconcile$/.exec(u.pathname);if(reconcileMatch&&req.method==='POST'){if(!authorized(req,u))return json(res,401,{error:'approval key required'});return json(res,200,await reconcileProposal(decodeURIComponent(reconcileMatch[1])))}
+
+ if(req.method==='GET'&&u.pathname==='/'){res.writeHead(302,{'location':'/dashboard','cache-control':'no-store'});return res.end()}
+ if(req.method==='GET'&&u.pathname==='/dashboard'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store'});return res.end(dashboardPage())}
+ if(req.method==='GET'&&u.pathname==='/manifest.webmanifest'){res.writeHead(200,{'content-type':'application/manifest+json','cache-control':'public,max-age=300'});return res.end(JSON.stringify(manifest()))}
+ if(req.method==='GET'&&u.pathname==='/sw.js'){res.writeHead(200,{'content-type':'application/javascript; charset=utf-8','cache-control':'no-cache','service-worker-allowed':'/'});return res.end(serviceWorker())}
  const cfg=liveExecutionConfig();prune();
- if(u.pathname==='/health')return json(res,200,{ok:true,service:'ULTRON Crypto Intelligence',mode:state.mode,liveMarketData:true,liveOrders:cfg.liveTradingEnabled&&cfg.apiConfigured&&!state.liveExecutionDisabled,approvalGated:true,approvalControlConfigured:Boolean(APPROVAL_SECRET),autonomousLiveOrders:false,agents:CRYPTO_AGENTS.length,cycles:state.cycles,lastCycleAt:state.lastCycleAt,intervalMinutes:INTERVAL,rankedOpportunities:state.rankedOpportunities.length,proposalCandidates:state.proposalCandidates.length});
- if(u.pathname==='/agents')return json(res,200,{agents:CRYPTO_AGENTS,flow:'live public market data -> multi-signal analysis -> proposal -> explicit human approval -> one live spot order',capabilities:cryptoCapabilityManifest(),approvalRules:LIVE_APPROVAL_RULES});
- if(u.pathname==='/state')return json(res,200,{...state,proposals:Array.from(proposals.values()).map(p=>({...p,approvalSecret:undefined})),liveConfig:cfg});
+ if(u.pathname==='/health')return json(res,200,{ok:true,service:'ULTRON Crypto Intelligence',mode:state.mode,liveMarketData:true,liveOrders:false,approvalGated:true,approvalControlConfigured:Boolean(APPROVAL_SECRET),autonomousLiveOrders:false,agents:CRYPTO_AGENTS.length,cycles:state.cycles,lastCycleAt:state.lastCycleAt,intervalMinutes:INTERVAL,rankedOpportunities:state.rankedOpportunities.length,proposalCandidates:state.proposalCandidates.length});
+ if(u.pathname==='/agents')return json(res,200,{agents:CRYPTO_AGENTS,flow:'market data -> research signals -> safety-gated proposals; exchange order execution disabled pending certification',capabilities:cryptoCapabilityManifest(),approvalRules:LIVE_APPROVAL_RULES});
+ if(u.pathname==='/state'){if(!authorized(req,u))return json(res,401,{error:'approval key required'});return json(res,200,{...state,proposals:Array.from(proposals.values()).map(p=>({...p,approvalSecret:undefined})),liveConfig:cfg})}
  if(u.pathname==='/api/config')return json(res,200,{ok:true,liveConfig:cfg,approvalRules:LIVE_APPROVAL_RULES,liveExecutionDisabled:state.liveExecutionDisabled});
  if(u.pathname==='/opportunities')return json(res,200,{ok:true,ranked:state.rankedOpportunities,proposalCandidates:state.proposalCandidates,portfolioRisk:state.portfolioRisk,lastCycleAt:state.lastCycleAt});
  if(u.pathname==='/approval'){if(!authorized(req,u))return json(res,401,{error:'approval key required'});res.writeHead(200,{'content-type':'text/html','cache-control':'no-store'});return res.end(approvalPage(suppliedKey(req,u)))}
- if(u.pathname==='/api/proposals'&&req.method==='POST'){if(!authorized(req,u))return json(res,401,{error:'approval key required'});if(state.liveExecutionDisabled)return json(res,423,{error:'live execution disabled by kill switch'});const b=await body(req),m=latest(b.instrument);if(!m||!(m.lastPrice>0))return json(res,409,{error:'no fresh market price available'});const p=proposeLiveOrder({instrument:b.instrument,side:String(b.side||'').toUpperCase(),price:m.lastPrice,notional:b.notional,leverage:1,equity:b.equity,dailyPnlPct:Number(b.dailyPnlPct||0),rationale:b.rationale||('Latest signal: '+(m.analysis?.signal||'unknown'))});proposals.set(p.id,p);state.journal.push({at:new Date().toISOString(),type:'live-proposal-created',proposalId:p.id,instrument:p.instrument,side:p.side,notional:p.notional});return json(res,201,{ok:true,proposal:p,execution:'NOT_SUBMITTED_UNTIL_APPROVED'})}
+ if(u.pathname==='/api/proposals'&&req.method==='POST'){if(!authorized(req,u))return json(res,401,{error:'approval key required'});if(state.liveExecutionDisabled)return json(res,423,{error:'live execution disabled by kill switch'});const b=await body(req),m=latest(b.instrument);if(!m||!(m.lastPrice>0))return json(res,409,{error:'no fresh market price available'});const trusted=await trustedProposalRisk(b.instrument);const p=proposeLiveOrder({instrument:b.instrument,side:String(b.side||'').toUpperCase(),price:m.lastPrice,notional:b.notional,leverage:1,equity:trusted.equity,dailyPnlPct:trusted.dailyPnlPct,rationale:b.rationale||('Latest signal: '+(m.analysis?.signal||'unknown'))});proposals.set(p.id,p);state.journal.push({at:new Date().toISOString(),type:'live-proposal-created',proposalId:p.id,instrument:p.instrument,side:p.side,notional:p.notional});return json(res,201,{ok:true,proposal:p,execution:'NOT_SUBMITTED_UNTIL_APPROVED'})}
  const approveMatch=/^\/api\/proposals\/([^/]+)\/approve$/.exec(u.pathname);
  if(approveMatch&&req.method==='POST'){if(!authorized(req,u))return json(res,401,{error:'approval key required'});if(state.liveExecutionDisabled)return json(res,423,{error:'live execution disabled by kill switch'});const id=decodeURIComponent(approveMatch[1]),p=proposals.get(id);if(!p)return json(res,404,{error:'proposal not found or expired'});const b=await body(req),a=approveProposal(p,b),env=executionEnvelope(a);try{const execution=await executeApprovedSpotOrder(env);const done={...a,status:'SUBMITTED',execution};proposals.set(id,done);state.journal.push({at:new Date().toISOString(),type:'live-order-submitted',proposalId:id,execution});return json(res,200,{ok:true,proposal:done,execution})}catch(e){const failed={...a,status:'EXECUTION_FAILED',error:String(e?.message||e)};proposals.set(id,failed);state.journal.push({at:new Date().toISOString(),type:'live-order-failed',proposalId:id,error:failed.error});return json(res,502,{ok:false,proposal:failed,error:failed.error})}}
- if(u.pathname==='/cycle'&&req.method==='POST')return json(res,200,{ok:true,results:await cycle(),state});
- if(u.pathname==='/live/disable'&&req.method==='POST'){if(!authorized(req,u))return json(res,401,{error:'approval key required'});state.liveExecutionDisabled=true;return json(res,200,{ok:true,liveExecutionDisabled:true,message:'New live order submissions are disabled until service restart or redeploy.'})}
- if(u.pathname==='/kill'&&req.method==='POST'){if(!authorized(req,u))return json(res,401,{error:'approval key required'});clearInterval(timer);timer=null;state.liveExecutionDisabled=true;return json(res,200,{ok:true,killed:true,message:'Continuous market-intelligence cycles and new live order submissions stopped.'})}
+ if(u.pathname==='/cycle'&&req.method==='POST'){if(!authorized(req,u))return json(res,401,{error:'approval key required'});return json(res,200,{ok:true,results:await cycle(),state})}
+ if(u.pathname==='/live/disable'&&req.method==='POST'){if(!authorized(req,u))return json(res,401,{error:'approval key required'});state.liveExecutionDisabled=true;await stopExecution();return json(res,200,{ok:true,liveExecutionDisabled:true,message:'Persistent emergency stop is active across restarts and deployments.'})}
+ if(u.pathname==='/kill'&&req.method==='POST'){if(!authorized(req,u))return json(res,401,{error:'approval key required'});clearInterval(timer);timer=null;state.liveExecutionDisabled=true;await stopExecution();return json(res,200,{ok:true,killed:true,message:'Continuous market-intelligence cycles and new live order submissions stopped.'})}
  return json(res,200,{service:'ULTRON Crypto Intelligence',mode:state.mode,endpoints:['/health','/agents','/state','/api/config','/opportunities','/approval?key=...','POST /api/proposals','POST /api/proposals/:id/approve','POST /cycle','POST /live/disable','POST /kill']});
  }catch(e){return json(res,500,{ok:false,error:String(e?.message||e)})}}).listen(PORT,'0.0.0.0',()=>{const cfg=liveExecutionConfig();console.log('ULTRON crypto intelligence listening on',PORT,'mode='+state.mode);console.log('ULTRON live config',JSON.stringify({apiConfigured:cfg.apiConfigured,liveTradingEnabled:cfg.liveTradingEnabled,humanApprovalRequired:cfg.humanApprovalRequired,autonomousLiveOrders:cfg.autonomousLiveOrders,approvalControlConfigured:Boolean(APPROVAL_SECRET),intervalMinutes:INTERVAL,maxOrderUsd:LIVE_APPROVAL_RULES.maxOrderUsd,maxPositionPct:LIVE_APPROVAL_RULES.maxPositionPct,maxDailyLossPct:LIVE_APPROVAL_RULES.maxDailyLossPct}));});
