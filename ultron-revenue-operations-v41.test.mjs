@@ -54,6 +54,17 @@ test('encrypted backup restore rejects wrong key and tampering',()=>{
  assert.throws(()=>decryptSnapshot(b,randomBytes(32).toString('base64')));
  assert.throws(()=>decryptSnapshot({...b,sha256:'wrong'},key),/digest/);
 });
+test('incomplete financial evidence never becomes zero fees, costs, refunds or settled cash',()=>{
+ for(const invalid of [null,undefined,'','  ',false,true,[],{},-1,Infinity,'NaN']){
+  const o=paid();o.paypalFeeSource='PROVIDER';o.paypalFeeUsd=18;o.costReview={complete:true,reference:'FIXTURE',amountUsd:50};
+  o.paypalFeeUsd=invalid;assert.equal(financialSummary([o]).paypalFeesUsd,null);assert.equal(financialSummary([o]).recordedContributionProfitUsd,null);
+  o.paypalFeeUsd=18;o.costReview.amountUsd=invalid;assert.equal(financialSummary([o]).recordedCostsUsd,null);
+  o.costReview.amountUsd=50;o.capturedAmount=invalid;assert.equal(financialSummary([o]).grossCapturedUsd,null);
+  o.capturedAmount=500;o.refunds=[{source:'PAYPAL_SIGNED_EVENT',amountUsd:invalid}];assert.equal(financialSummary([o]).providerRefundsUsd,null);assert.equal(financialSummary([o]).recordedContributionProfitUsd,null);
+  o.refunds=[];o.settlement={source:'OWNER_RECONCILED_DOCUMENTS',payoutReference:'PAYOUT',bankReference:'BANK',bankAmountUsd:invalid};assert.equal(financialSummary([o]).recordedBankSettlementUsd,null);assert.equal(financialSummary([o]).bankSettlementStatus,'UNVERIFIED');
+ }
+ const o=paid();o.paypalFeeSource='PROVIDER';o.paypalFeeUsd='0.00';o.costReview={complete:true,reference:'FIXTURE',amountUsd:0};assert.equal(financialSummary([o]).recordedContributionProfitUsd,500);
+});
 test('bounded recovery retries transient reads and never retries ambiguous operations',async()=>{
  let n=0;const x=await safeRead(async()=>{n++;if(n===1){const e=Error('temporary');e.retryable=true;throw e}return 'recovered'},{wait:async()=>{}});
  assert.equal(x,'recovered');assert.equal(n,2);
