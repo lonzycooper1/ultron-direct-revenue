@@ -127,3 +127,24 @@ export function prospectMissionStatus(enriched=[]){
     sending:'not autonomous'
   };
 }
+
+/**
+ * Automated one-to-one follow-up is limited to an actual evidenced opt-in.
+ * Public directories or discovery feeds alone never authorize bulk sending.
+ */
+export async function sendPermissionedProspectMessage(prospect,{env=process.env,transport}={}){
+ if(env.ULTRON_PERMISSIONED_OUTREACH_ENABLED!=='true')throw Error('Permissioned outbound mode disabled');
+ if(!prospect||prospect.permissionedContact!==true||!prospect.consentEvidence||
+   prospect.optedOut===true||prospect.suppressed===true)throw Error('Explicit prior consent and non-suppression required');
+ if(!env.ULTRON_BUSINESS_POSTAL_ADDRESS||!env.ULTRON_UNSUBSCRIBE_URL)throw Error('Business postal address and functioning unsubscribe URL required');
+ const address=String(env.ULTRON_BUSINESS_POSTAL_ADDRESS);
+ if(address.length<12||address.length>250)throw Error('Invalid business postal address');
+ const draft=personalizedEmailDraft(prospect);
+ if(!draft.to)throw Error('Opt-in email address missing');
+ const link=new URL(env.ULTRON_UNSUBSCRIBE_URL);
+ if(link.protocol!=='https:')throw Error('HTTPS unsubscribe route required');
+ const {sendSmtp}=await import('./enterprise-mail-v45.mjs');
+ const send=transport||sendSmtp;
+ return send({to:draft.to,subject:draft.subject,
+   text:draft.body+'\n\nBusiness mailing address: '+address+'\nUnsubscribe: '+link.toString(),env});
+}
