@@ -57,3 +57,15 @@ Not complete. Not deployment ready. No push, merge, production deployment, or ex
 - Verify the deployed credentials with read-only account calls. No production credential verification was performed.
 
 The hard block remains regardless of live-trading environment flags. A passing subset of mock tests must not be described as complete deployment verification.
+
+## October 19 read-only credential diagnostic — tested, deployment rejected
+
+- Code commit [4871613279af8c91e117ad839d2a4f2be260a924](https://github.com/lonzycooper1/ultron-direct-revenue/commit/4871613279af8c91e117ad839d2a4f2be260a924) adds crypto-readiness.mjs and crypto-readiness.test.mjs and runs one read-only balance authentication check at startup.
+- The startup log is a fixed summary: read-authentication result and numeric provider reason code only. No keys, balances or arbitrary provider messages are logged. HTTP error bodies retain only a numeric reason code for diagnosis.
+- Owner-only verification can report whether unreserved USD funds are present when the provider fields exist. Trading permissions, account eligibility and withdrawal permissions remain UNVERIFIED. A successful read would establish only that the current server request was accepted.
+- Exact final code was tested in a disposable Vercel VM with PostgreSQL 18, FFmpeg and clean npm ci: npm test yielded **360 main + 18 crypto/readiness/HTTP passes, zero failures and zero skips**, followed by FULL_SUITE_EXIT=0. The VM was stopped after testing.
+- CI for the final code: https://github.com/lonzycooper1/ultron-direct-revenue/actions/runs/39334099924 (still in progress at this checkpoint; do not infer a passing CI conclusion from the isolated result).
+- Staged the trading service at the exact tested commit with CRYPTOCOM_LIVE_TRADING=false, CRYPTO_AUTONOMOUS_LIVE_ORDERS=false, CRYPTO_LIVE_APPROVAL_REQUIRED=true, CRYPTO_MAX_LEVERAGE=1 and the existing Postgres reference. No credential values were retrieved or changed.
+- The accept-deploy action for this disabled-order/read-only release was rejected: "Cancelled — the user did not approve this action. No changes were made." No alternate deployment path or retry was used.
+- Consequently the new production credential check has **not run**. Key/secret presence is known; successful authentication, IP acceptance, real funds, trade permission and account eligibility are not verified. The service remains on its previously observed deployment; the tested release remains staged.
+- Daily P&L accounting, complete history reconciliation and an executable submission boundary remain unfinished. No live order was placed or activated. This continuation does not complete steps 1–4 or certify live execution.
