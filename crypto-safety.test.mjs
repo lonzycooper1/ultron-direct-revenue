@@ -17,7 +17,7 @@ test('read-only verifier uses account summary, never order endpoint',async()=>{
   let count=0;
   try{
     const result=await verifyExchangeReadAccess({transport:async(url)=>{
-      count++;assert.match(url,/private\\/get-account-summary$/);
+      count++;assert.match(url,/private\/get-account-summary$/);
       return {ok:true,json:async()=>({code:0,result:{accounts:[{currency:'USD'}]}})};
     }});
     assert.equal(result.verified,true);assert.equal(count,1);
