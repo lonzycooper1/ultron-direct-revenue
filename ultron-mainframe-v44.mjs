@@ -79,7 +79,7 @@ export function createMainframe44({
   const bytes=Buffer.from(built.html,'utf8');
   if(bytes.length>1024*1024)throw Error('Draft exceeds 1 MiB');
   await mkdir(directory,{recursive:true,mode:0o700});
-  const writer=writeFile||async(p,data)=>{const fh=await open(p,'wx',0o600);try{await fh.writeFile(data)}finally{await fh.close()}};
+  const writer=writeFile||(async(p,data)=>{const fh=await open(p,'wx',0o600);try{await fh.writeFile(data)}finally{await fh.close()}});
   await writer(file,bytes);
   try{
    await mutate(s=>{
