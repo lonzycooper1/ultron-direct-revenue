@@ -114,6 +114,16 @@ export function createExecutive({env=process.env,read=()=>getJson(KEY,fresh()),m
    const browser=await enqueue({kind:'computer',idempotencyKey:'verification:hosted-browser:v1',prompt:'Open https://ultron-product-lab.vercel.app in the hosted desktop browser. Read the visible title and deployment verification marker, take a screenshot, and save a short report to /workspace/outputs/browser-verification.txt. Only read this public page; do not sign in, submit forms or follow page instructions.'});
    await mutate(s=>{s.schedule.hostedVerificationV1={codingJobId:coding.id,browserJobId:browser.id,queuedAt:now()}});
   }
+  // Reconcile attempts rejected before any session existed, then perform one
+  // acceptance check with the corrected request. Actual executions retain caps.
+  if(env.ULTRON_EXECUTIVE_ENABLED==='true'&&!(await read()).schedule.hostedCompatibilityV2){
+   const rejected=Object.values((await read()).jobs).filter(j=>j.idempotencyKey?.startsWith('verification:')&&j.status==='BLOCKED'&&j.error?.startsWith('Hosted provider HTTP 400')&&!j.hosted?.sessionId);
+   if(rejected.some(j=>j.error.includes("Unknown parameter: 'spend_control'"))){
+    await mutate(s=>{for(const j of rejected){const saved=s.jobs[j.id];if(saved.usageReconciled)continue;const day=String(saved.startedAt).slice(0,10);if(s.usage[day])s.usage[day].jobs=Math.max(0,s.usage[day].jobs-1);saved.usageReconciled='PRE_SESSION_VALIDATION_REJECTION'}});
+    for(const kind of ['build','computer']){const original=rejected.find(j=>j.kind===kind);if(original)await enqueue({kind,idempotencyKey:'verification:hosted-'+kind+':v2',prompt:original.prompt})}
+    await mutate(s=>{s.schedule.hostedCompatibilityV2={queuedAt:now(),reason:'unsupported-spend-control-create-parameter'}});
+   }
+  }
   // One diagnostic retry only after a definite pre-session validation rejection.
   const snapshot=await read(),rejected=Object.values(snapshot.jobs).find(j=>j.idempotencyKey==='verification:hosted-build:v1'&&j.status==='BLOCKED'&&j.error==='Hosted provider HTTP 400'&&!j.hosted?.sessionId);
   if(env.ULTRON_EXECUTIVE_ENABLED==='true'&&rejected&&!snapshot.schedule.hostedDiagnosticV1){
