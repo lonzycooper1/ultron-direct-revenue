@@ -22,6 +22,7 @@
   "dependencies": {
     "express": "^5.1.0",
     "openai": "^7.38.0",
-    "pg": "^8.13.1"
+    "pg": "^8.13.1",
+    "nodemailer": "^7.0.0"
   }
 }
