@@ -196,6 +196,7 @@ if(path.startsWith('/api/enterprise/v45/')||path==='/webhooks/stripe'){
 
 
 if(path==='/api/demand/v46/offers'&&req.method==='GET')return json(200,{offers:await demandAssetFactory.publicOffers()});
+if(path==='/api/demand/v46/review'&&req.method==='POST'){if(!v13Owner())return json(403,{error:'Owner login required'});let raw='';for await(const x of req){raw+=x;if(raw.length>2000)return json(413,{error:'Too large'})}const data=JSON.parse(raw||'{}');return json(200,await demandAssetFactory.approveForSale(data.id,data.productId,data.review||{}))}
 if(path==='/api/demand/v46/status'&&req.method==='GET'){
  const allowed=v13Owner();
  return json(200,{ok:true,discovery:await liveDemandListener.snapshot(allowed),assets:await demandAssetFactory.status(allowed)});
