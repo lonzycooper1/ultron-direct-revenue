@@ -27,7 +27,10 @@ export function calculateDailyAccounting({opening,closing,trades,flows,coverage,
   b.quantity-=quantity;b.cost-=cost;return cost;
  };
  const seen=new Set(),events=[...trades.map(e=>({...e,kind:'TRADE'})),...flows.map(e=>({...e,kind:'FLOW'}))].sort((a,b)=>a.at-b.at||String(a.id).localeCompare(String(b.id)));
+ let previousTime=null;
  for(const e of events){
+  if(previousTime===e.at)throw Error('Ambiguous event ordering requires provider nanosecond evidence');
+  previousTime=e.at;
   const id=e.kind+':'+e.id;
   if(typeof e.id!=='string'||!e.id||seen.has(id)||!Number.isSafeInteger(e.at)||e.at<periodStart||e.at>=periodEnd)throw Error('Duplicate, missing or out-of-period evidence');
   seen.add(id);

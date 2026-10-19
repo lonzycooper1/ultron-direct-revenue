@@ -23,3 +23,7 @@ test('incomplete history, unknown cost basis, mismatched balances and unsupporte
  }
  const duplicate=input();duplicate.flows=[{id:'x',at:start+1,asset:'USD',direction:'IN',quantity:'1'},{id:'x',at:start+2,asset:'USD',direction:'IN',quantity:'1'}];assert.throws(()=>calculate(duplicate),/Duplicate/);
 });
+
+test('same-millisecond events cannot silently invent a cost-basis ordering',()=>{
+ const x=input();x.flows=[{id:'a',at:start+1,asset:'USD',direction:'IN',quantity:'1'},{id:'b',at:start+1,asset:'USD',direction:'OUT',quantity:'1'}];assert.throws(()=>calculate(x),/Ambiguous event ordering/);
+});
