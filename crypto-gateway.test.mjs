@@ -9,8 +9,9 @@ const order={instrument:'BTC-USD',side:'BUY',notional:25,price:60000,leverage:1}
 function envelope(){const id=randomUUID();return {order,proposal:{id},approval:{proposalId:id,permission:'ONE_ORDER_ONLY',approvedAt:new Date().toISOString(),expiresAt:new Date(Date.now()+120000).toISOString()}}}
 test('risk rejects stale, missing, nonfinite, loss, aggregate exposure and funds',()=>{
   validateRisk(order,risk());
-  for(const patch of [{checkedAt:Date.now()-6000},{dailyPnlPct:NaN},{dailyPnlPct:-.03},{equity:Infinity},{exposureUsd:499},{availableUsd:25},{price:59000}])assert.throws(()=>validateRisk(order,{...risk(),...patch}));
+  for(const patch of [{checkedAt:Date.now()-6000},{dailyPnlPct:NaN},{dailyPnlPct:-.03},{equity:Infinity},{exposureUsd:499},{exposureUsd:-1},{availableUsd:25},{availableUsd:-1},{baseAvailable:-1},{price:59000}])assert.throws(()=>validateRisk(order,{...risk(),...patch}));
   assert.throws(()=>validateRisk({...order,side:'SELL'},{...risk(),baseAvailable:0}));
+  for(const price of [undefined,NaN,0,-1,Infinity])assert.throws(()=>validateRisk({...order,price},risk()));
 });
 test('exchange read-only risk cannot substitute session P&L for daily P&L',async()=>{
   const old=[process.env.CRYPTOCOM_API_KEY,process.env.CRYPTOCOM_API_SECRET];
@@ -47,13 +48,12 @@ test('PostgreSQL deployment controls: concurrency, restart persistence, ambiguit
   const results=await Promise.allSettled(Array.from({length:8},()=>guardedApproval(env,{pool,readRisk:risk})));
   assert.equal(results.filter(x=>x.status==='fulfilled').length,0);
   const rows=(await pool.query('SELECT * FROM crypto_order_ledger')).rows;
-  assert.equal(rows.length,1);assert.equal(rows[0].state,'RESERVED');
-  assert.ok(results.some(x=>/certification/.test(x.reason?.message)));
-  assert.ok(results.some(x=>/reconciliation/.test(x.reason?.message)));
-  const uncertain=await reconcileProposal(env.approval.proposalId,{pool,lookup:async()=>({verified:false})});
-  assert.equal(uncertain.requiresInvestigation,true);
-  assert.equal((await pool.query('SELECT state FROM crypto_order_ledger')).rows[0].state,'RESERVED');
-  await assert.rejects(guardedApproval(envelope(),{pool,readRisk:risk}),/reconciliation/);
+  // This gate did not dispatch to an exchange. A blocked request MUST NOT
+  // commit a phantom RESERVED row, even under concurrent approval retries.
+  assert.equal(rows.length,0);
+  assert.ok(results.every(x=>x.status==='rejected'&&/certification/.test(x.reason?.message)));
+  await assert.rejects(reconcileProposal(env.approval.proposalId,{pool,lookup:async()=>({verified:false})}),/Order reservation missing/);
+  await assert.rejects(guardedApproval(envelope(),{pool,readRisk:risk}),/certification/);
   await stopExecution(pool);
  }finally{await pool.end()}
 });
