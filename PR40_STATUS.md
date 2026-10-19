@@ -27,6 +27,16 @@ Not complete. Not deployment ready. No push, merge, production deployment, or ex
 - Expanded crypto safety suite: 14 tests, 13 passed, 1 failed. The PostgreSQL deployment integration check requires DATABASE_URL.
 - PostgreSQL is not running in this sandbox. The package installation attempt failed under its OS permissions. No production database credentials were used.
 
+## October 19 continuation — verified evidence
+
+- Added terminal-only read-only reconciliation with immutable final decisions and compare-and-swap ledger update; `ACTIVE`, `CANCELED`, `EXPIRED`, mismatched identity and partial history stay unresolved. This is not complete order submission or final exchange accounting.
+- Added isolated PostgreSQL tests for partial/nonterminal histories, mismatched IDs, zero-fill rejection, completed fills, immutable final decisions and malformed proposal IDs.
+- [CI run 39326000231](https://github.com/lonzycooper1/ultron-direct-revenue/actions/runs/39326000231), commit `a6e6c8672a21130eefd216bc079563d529fc0e43`, PASSED: main suite 360/360, crypto safety suite 14/14, zero failures, using isolated PostgreSQL 16.
+- Explicit Railway production safety configuration applied to the separate legacy `ultron-trading-engine` service, WITHOUT merging PR #40: `CRYPTOCOM_LIVE_TRADING=false`, `CRYPTO_AUTONOMOUS_LIVE_ORDERS=false`, `CRYPTO_LIVE_APPROVAL_REQUIRED=true`. Railway deployment `4bdcb023-e32a-48fd-97f1-fdea95062ea6` was SUCCESS. Startup logs confirmed `liveTradingEnabled:false`, `autonomousLiveOrders:false`, `humanApprovalRequired:true`. This is a safety shutdown, not certification.
+- The legacy deployed service remains pinned to an older source commit and must not be considered protected by the unmerged PR implementation. The production flags were explicitly disabled. No real order was placed.
+- Vercel `ultron-product-lab` still returns 403 Forbidden on team `lonzycooper5-5987`. User must restore permission to that exact project/team; do not deploy into another scope.
+- Railway revenue services are online, but zero externally verified sales have been demonstrated. Provider OAuth/configuration, first real buyer and fulfillment, and external outcomes remain separate unverified workstreams.
+
 ## Required remaining work
 
 - Implement and validate daily account P&L with an explicit period, complete accounting history, fees, transfers, spot cost basis and unrealized valuation. Exchange session P&L is deliberately not substituted for daily P&L. The current readExchangeRisk function explicitly rejects execution for this missing component.
