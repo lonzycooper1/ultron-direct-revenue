@@ -38,7 +38,11 @@ export async function privateCall(method,params,{transport=fetch,timeoutMs=8000}
   const r=await transport(API_BASE+'/'+method,{method:'POST',headers:{'content-type':'application/json','accept':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(timeoutMs)});
   const data=await r.json().catch(()=>({}));
   if(!r.ok)throw Error('Crypto.com HTTP '+r.status);
-  if(data?.code!==0)throw Error('Crypto.com rejected or malformed response');
+  if(data?.code!==0){
+    const error=Error('Crypto.com rejected or malformed response');
+    if(Number.isSafeInteger(data?.code))error.providerCode=data.code;
+    throw error;
+  }
   return data;
 }
 
@@ -78,9 +82,16 @@ export async function verifyExchangeReadAccess({transport=fetch}={}){
   try{
     const data=await privateCall('private/user-balance',{}, {transport});
     if(!Array.isArray(data.result?.data)||data.result.data.length!==1||data.result.data[0]?.instrument_name!=='USD')return {verified:false,reason:'UNEXPECTED_ACCOUNT_RESPONSE'};
-    return {verified:true,provider:'Crypto.com Exchange',checkedAt:new Date().toISOString(),accountCount:data.result.data.length};
+    const account=data.result.data[0],positions=account.position_balances;
+    const usd=Array.isArray(positions)?positions.filter(p=>p?.instrument_name==='USD'):[];
+    const amount=x=>(typeof x==='number'||typeof x==='string'&&x.trim()!=='')&&Number.isFinite(Number(x))&&Number(x)>=0;
+    const available=usd.length===1&&amount(usd[0].quantity)&&amount(usd[0].reserved_qty)?Number(usd[0].quantity)-Number(usd[0].reserved_qty):null;
+    return {verified:true,provider:'Crypto.com Exchange',endpoint:API_BASE,checkedAt:new Date().toISOString(),accountCount:data.result.data.length,
+      currentServerRequestAccepted:true,usdFundsAvailable:available===null?null:available>0,
+      tradePermission:'UNVERIFIED',accountEligibility:'UNVERIFIED',withdrawalPermission:'UNVERIFIED',
+      note:'Read authentication is not trading authorization. No order or permission-changing request was sent.'};
   }catch(error){
-    return {verified:false,reason:'READ_ONLY_VERIFICATION_FAILED',detail:String(error?.message||error).slice(0,160)};
+    return {verified:false,reason:'READ_ONLY_VERIFICATION_FAILED',...(Number.isSafeInteger(error?.providerCode)?{providerCode:error.providerCode}:{}),detail:String(error?.message||error).slice(0,160)};
   }
 }
 

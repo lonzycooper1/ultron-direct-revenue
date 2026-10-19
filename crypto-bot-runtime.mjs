@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import {CRYPTO_BOT_RULES,CRYPTO_AGENTS,researchDecision,cryptoCapabilityManifest} from './crypto-bots.mjs';
 import {LIVE_APPROVAL_RULES,proposeLiveOrder,approveProposal,executionEnvelope} from './crypto-live-approval.mjs';
 import {liveExecutionConfig,executeApprovedSpotOrder,verifyExchangeReadAccess} from './crypto-exchange.mjs';
+import {checkReadOnlyStartup} from './crypto-readiness.mjs';
 import {evaluateStrategies,rankOpportunities,buildProposalCandidates,portfolioRiskSummary} from './crypto-opportunity-engine.mjs';
 
 const PORT=Number(process.env.PORT||3000);
@@ -11,6 +12,7 @@ const INTERVAL=Math.max(1,Number(process.env.CRYPTO_BOT_INTERVAL_MINUTES||1));
 const APPROVAL_SECRET=String(process.env.CRYPTO_APPROVAL_SECRET||'');
 const state={mode:'live-market-research',cycles:0,lastCycleAt:null,lastResults:[],rankedOpportunities:[],proposalCandidates:[],portfolioRisk:null,journal:[],startedAt:new Date().toISOString(),liveExecutionDisabled:false};
 const proposals=new Map();
+checkReadOnlyStartup().catch(()=>console.error('ULTRON exchange read verification unavailable; live orders remain blocked'));
 
 async function candles(product='BTC-USD',granularity=300){
  const u=new URL('https://api.exchange.coinbase.com/products/'+encodeURIComponent(product)+'/candles');
