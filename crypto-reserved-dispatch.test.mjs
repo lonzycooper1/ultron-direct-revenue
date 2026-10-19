@@ -36,7 +36,7 @@ test('committed dispatch boundary survives concurrency, timeout, restart and mal
   const changed=structuredClone(envelope);changed.order.notional=26;
   await assert.rejects(guardedApproval(changed,gatewayOptions),/Durable proposal/);
   const concurrent=await Promise.allSettled(Array.from({length:8},()=>guardedApproval(envelope,gatewayOptions)));
-  assert.equal(gatewayCalls,1);assert.equal(concurrent.filter(r=>r.status==='fulfilled').length,1);
+  assert.equal(gatewayCalls,1,JSON.stringify(concurrent.map(r=>r.reason?.message||r.value)));assert.equal(concurrent.filter(r=>r.status==='fulfilled').length,1);
   assert.equal((await loadLiveProposal(proposal.id,{pool})).status,'CONSUMED');
   await assert.rejects(guardedApproval(envelope,gatewayOptions),/reconciliation/);
   await stopExecution(pool);
@@ -56,6 +56,13 @@ test('committed dispatch boundary survives concurrency, timeout, restart and mal
    const malformedId=await reserve();
    assert.equal((await dispatchReservedOrder(pool,malformedId,{client_oid:malformedId},{call:async()=>response})).state,'SUBMISSION_UNKNOWN');
   }
+  const lostAck=await reserve();
+  const unavailable={query:async(sql,args)=>{if(sql.includes("state='ACCEPTED'"))throw Error('database unavailable after exchange acceptance');return pool.query(sql,args)}};
+  assert.equal((await dispatchReservedOrder(unavailable,lostAck,{client_oid:lostAck},{call:async()=>({code:0,result:{order_id:'123',client_oid:lostAck}})})).state,'SUBMISSION_UNKNOWN');
+  assert.equal((await pool.query('SELECT state FROM crypto_order_ledger WHERE proposal_id=$1',[lostAck])).rows[0].state,'SUBMISSION_UNKNOWN');
+  let preclaimCalls=0;
+  await assert.rejects(dispatchReservedOrder({query:async()=>{throw Error('database down')}},randomUUID(),{client_oid:'unused'},{call:async()=>{preclaimCalls++}}),/database down/);
+  assert.equal(preclaimCalls,0);
   const mismatch=await reserve();let dispatched=false;
   await assert.rejects(dispatchReservedOrder(pool,mismatch,{client_oid:'other'},{call:async()=>{dispatched=true}}),/identifier mismatch/);
   assert.equal(dispatched,false);

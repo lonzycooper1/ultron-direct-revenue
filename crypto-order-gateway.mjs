@@ -63,7 +63,7 @@ export async function guardedApproval(envelope,{pool=safetyPool(),readRisk=readE
     const params=buildParams(envelope);
     const proposal=(await c.query('SELECT payload,status,expires_at FROM crypto_live_proposals WHERE id=$1 FOR UPDATE',[id])).rows[0];
     if(!proposal||proposal.status!=='AWAITING_HUMAN_APPROVAL'||
-      Date.parse(proposal.expires_at)<=Date.now()||Date.parse(proposal.expires_at)!==expiry||
+      new Date(proposal.expires_at).getTime()<=Date.now()||new Date(proposal.expires_at).getTime()!==expiry||
       orderFields.some(key=>proposal.payload[key]!==order[key]))throw Error('Durable proposal missing, changed, expired or consumed');
     await reserveOrder(c,id,id);
     await c.query('UPDATE crypto_order_ledger SET evidence=$2,order_params=$3 WHERE proposal_id=$1',[id,JSON.stringify({risk,approval:envelope.approval}),JSON.stringify(order)]);

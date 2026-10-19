@@ -37,6 +37,8 @@ export function buildSignedRequest(method,params={},nonce=Date.now()){
 }
 
 export async function privateCall(method,params,{transport=fetch,timeoutMs=8000}={}){
+  const methods=new Set(['private/user-balance','private/get-order-detail','private/get-trades','private/get-transactions','private/get-open-orders','private/get-positions','private/get-account-settings','private/get-accounts','private/user-balance-history','private/get-instrument-fee-rate','private/create-order']);
+  if(!methods.has(method))throw Error('Exchange method prohibited by server policy');
   const body=buildSignedRequest(method,params);
   const r=await transport(API_BASE+'/'+method,{method:'POST',headers:{'content-type':'application/json','accept':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(timeoutMs)});
   const data=await r.json().catch(()=>({}));
@@ -52,6 +54,7 @@ export async function privateCall(method,params,{transport=fetch,timeoutMs=8000}
     if(Number.isSafeInteger(data?.code))error.providerCode=data.code;
     throw error;
   }
+  if((data.id!==undefined&&String(data.id)!==body.id)||(data.method!==undefined&&data.method!==method)||(method==='private/create-order'&&(String(data.id)!==body.id||data.method!==method)))throw Error('Exchange response identity mismatch');
   return data;
 }
 
