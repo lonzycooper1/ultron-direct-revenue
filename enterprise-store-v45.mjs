@@ -5,6 +5,7 @@ const {Pool}=pg;
 let pool, schemaPromise;
 const db=()=>{if(!process.env.DATABASE_URL)throw Error('DATABASE_URL required');return pool??=new Pool({connectionString:process.env.DATABASE_URL,max:5,connectionTimeoutMillis:6000,idleTimeoutMillis:30000,statement_timeout:15000,application_name:'ultron-v45'})};
 const id=x=>typeof x==='string'&&/^[A-Za-z0-9_.:-]{1,160}$/.test(x);
+const canonical=v=>JSON.stringify(v,(_,x)=>x&&typeof x==='object'&&!Array.isArray(x)?Object.fromEntries(Object.keys(x).sort().map(k=>[k,x[k]])):x);
 const asJson=(v,limit=32000)=>{const s=JSON.stringify(v);if(!s||Buffer.byteLength(s)>limit)throw Error('Invalid or oversized JSON');return s};
 export async function initEnterpriseStore(){
  if(schemaPromise)return schemaPromise;
@@ -20,13 +21,13 @@ async function tx(fn){await initEnterpriseStore();const c=await db().connect();t
 export async function enqueueEnterpriseJob({kind,dedupeKey,payload}){
  if(!id(kind)||!id(dedupeKey)||!payload||typeof payload!=='object')throw Error('Invalid job');
  await initEnterpriseStore();
- const r=await db().query("INSERT INTO ultron_v45_jobs(id,dedupe_key,kind,payload) VALUES($1,$2,$3,$4::jsonb) ON CONFLICT(dedupe_key) DO UPDATE SET updated_at=ultron_v45_jobs.updated_at RETURNING id,status,kind,dedupe_key",[crypto.randomUUID(),dedupeKey,kind,asJson(payload,24000)]);
- return r.rows[0];
+ const r=await db().query("INSERT INTO ultron_v45_jobs(id,dedupe_key,kind,payload) VALUES($1,$2,$3,$4::jsonb) ON CONFLICT(dedupe_key) DO UPDATE SET updated_at=ultron_v45_jobs.updated_at WHERE ultron_v45_jobs.payload=EXCLUDED.payload AND ultron_v45_jobs.kind=EXCLUDED.kind RETURNING id,status,kind,dedupe_key",[crypto.randomUUID(),dedupeKey,kind,asJson(payload,24000)]);
+ if(!r.rows[0])throw Error('Conflicting durable job dedupe key');return r.rows[0];
 }
 export async function claimEnterpriseJob({kinds=['RESEARCH'],leaseSeconds=300}={}){
  if(!kinds.length||kinds.some(x=>!id(x))||!Number.isInteger(leaseSeconds)||leaseSeconds<30||leaseSeconds>900)throw Error('Invalid lease');
  const lease=crypto.randomUUID();
- return tx(async c=>{const r=await c.query("WITH selected AS (SELECT id FROM ultron_v45_jobs WHERE status='QUEUED' AND kind=ANY($1::text[]) ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1) UPDATE ultron_v45_jobs j SET status='RUNNING',attempts=j.attempts+1,lease_id=$2::uuid,lease_until=now()+($3::integer*interval '1 second'),updated_at=now() FROM selected WHERE j.id=selected.id RETURNING j.id,j.kind,j.payload,j.lease_id,j.attempts",[kinds,lease,leaseSeconds]);return r.rows[0]||null});
+ return tx(async c=>{await c.query("UPDATE ultron_v45_jobs SET status='REVIEW_REQUIRED',result='{}'::jsonb,lease_id=NULL,lease_until=NULL,updated_at=now() WHERE status='RUNNING' AND lease_until<now()");const r=await c.query("WITH selected AS (SELECT id FROM ultron_v45_jobs WHERE status='QUEUED' AND kind=ANY($1::text[]) ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1) UPDATE ultron_v45_jobs j SET status='RUNNING',attempts=j.attempts+1,lease_id=$2::uuid,lease_until=now()+($3::integer*interval '1 second'),updated_at=now() FROM selected WHERE j.id=selected.id RETURNING j.id,j.kind,j.payload,j.lease_id,j.attempts",[kinds,lease,leaseSeconds]);return r.rows[0]||null});
 }
 export async function finishEnterpriseJob(job,{status='DONE',result={}}={}){
  if(!job?.id||!job?.lease_id||!['DONE','REVIEW_REQUIRED'].includes(status))throw Error('Invalid completion lease');
@@ -41,10 +42,10 @@ export async function appendEnterpriseAudit({eventId,kind,payload}){
  return tx(async c=>{
  await c.query('SELECT pg_advisory_xact_lock(hashtext($1))',['ultron-v45-audit-chain']);
  const raw=asJson(payload),old=await c.query('SELECT kind,payload,event_hmac FROM ultron_v45_audit WHERE event_id=$1',[eventId]);
- if(old.rows.length){if(old.rows[0].kind!==kind||JSON.stringify(old.rows[0].payload)!==raw)throw Error('Conflicting event ID');return {eventId,duplicate:true,signature:old.rows[0].event_hmac}}
+ if(old.rows.length){if(old.rows[0].kind!==kind||canonical(old.rows[0].payload)!==canonical(payload))throw Error('Conflicting event ID');return {eventId,duplicate:true,signature:old.rows[0].event_hmac}}
  const prev=await c.query('SELECT event_hmac FROM ultron_v45_audit ORDER BY seq DESC LIMIT 1');
  const prevHash=prev.rows[0]?.event_hmac||'GENESIS';
- const h=crypto.createHmac('sha256',secret).update(JSON.stringify({eventId,kind,payload,prevHash})).digest('hex');
+ const h=crypto.createHmac('sha256',secret).update(canonical({eventId,kind,payload,prevHash})).digest('hex');
  await c.query('INSERT INTO ultron_v45_audit(event_id,kind,payload,prev_hash,event_hmac) VALUES($1,$2,$3::jsonb,$4,$5)',[eventId,kind,raw,prevHash,h]);return {eventId,duplicate:false,signature:h};
  });
 }
