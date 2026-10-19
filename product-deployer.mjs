@@ -53,3 +53,7 @@ export async function dispatchVerifiedProduct(order,{buyerEmail,baseUrl=process.
  const {deliverVerifiedDigitalOrder}=await import('./enterprise-mail-v45.mjs');
  return deliverVerifiedDigitalOrder({order,buyerEmail,baseUrl});
 }
+
+// Direct, tailored OpenAI draft generation from source-attributed public demand signals.
+// Draft artifacts are SHA-256 verified on the private Railway disk; publishing still requires review.
+export {demandPrompt,verifyMarkdown,createDemandAssetFactory,demandAssetFactory} from './demand-asset-v46.mjs';

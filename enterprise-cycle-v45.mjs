@@ -4,6 +4,8 @@ import {executive} from './executive-runtime.mjs';
 import {mainframe44} from './ultron-mainframe-v44.mjs';
 import {safeWebsite} from './ultron-growth-runtime-v19.mjs';
 import {validateBrief} from './factory-new/product-factory.mjs';
+import {liveDemandListener} from './live-demand-v46.mjs';
+import {demandAssetFactory} from './demand-asset-v46.mjs';
 let interval,busy=false;
 const clean=(x,n=600)=>String(x??'').replace(/[\u0000-\u001f]/g,' ').trim().slice(0,n);
 const https=x=>{try{const u=new URL(x);return u.protocol==='https:'&&!u.username&&!u.password?u.toString():null}catch{return null}};
@@ -80,8 +82,12 @@ export const enterpriseCycle=createEnterpriseCycle();
 export function startEnterpriseCycle(){
  if(interval||process.env.ULTRON_ENTERPRISE_ENABLED!=='true')return false;
  const run=async()=>{if(busy)return;busy=true;try{
+  const live=await liveDemandListener.poll();
+  const reconcile=await demandAssetFactory.reconcile();
+  const scheduled=await demandAssetFactory.schedule();
   const result=await enterpriseCycle.pulse();
+  if(live.status==='FEED_UNAVAILABLE'||scheduled.status==='QUEUE_UNAVAILABLE')console.warn('ULTRON demand feed/asset requires review');
   if(result.status!=='CYCLE_EXECUTED')console.warn('ULTRON v45 enterprise cycle:',result.status);
  }catch(e){console.error('ULTRON v45 cycle needs investigation:',String(e.message).slice(0,180))}finally{busy=false}};
- void run();interval=setInterval(run,5*60*1000);interval.unref();return true;
+ void run();interval=setInterval(run,30*60*1000);interval.unref();return true;
 }

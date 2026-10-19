@@ -42,7 +42,7 @@ export async function deliverVerifiedDigitalOrder({order,buyerEmail,baseUrl,send
  const receipt=await claimDelivery({provider:'paypal',captureId:order.captureId,toEmail:buyerEmail,
    artifactSha256:crypto.createHash('sha256').update(order.id+':'+token).digest('hex')});
  if(!receipt)return {status:'ALREADY_CLAIMED_NO_DUPLICATE_SEND'};
- const url=new URL('/fulfillment',link);url.searchParams.set('token',token);
+ const url=new URL(order.demandAssetId?'/digital-asset':'/fulfillment',link);url.searchParams.set('token',token);
  try{
   const result=await send({to:buyerEmail,subject:'Your ULTRON digital order',
    text:'Your payment has been confirmed for an eligible digital product. Your private delivery link:\n'+url.href+
