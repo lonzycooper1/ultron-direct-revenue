@@ -26,14 +26,14 @@ test('crypto HTTP owner-only state and manual cycles reject unauthenticated user
   const token='isolated-ci-owner-token';
   const child=spawn(process.execPath,['crypto-bot-runtime.mjs'],{
     cwd:dirname(fileURLToPath(import.meta.url)),
-    env:{...process.env,PORT:String(port),CRYPTO_APPROVAL_SECRET:token,CRYPTOCOM_LIVE_TRADING:'false',CRYPTO_AUTONOMOUS_LIVE_ORDERS:'false'},
+    env:{...process.env,PORT:String(port),CRYPTO_APPROVAL_SECRET:token,CRYPTOCOM_API_KEY:'',CRYPTOCOM_API_SECRET:'',CRYPTOCOM_LIVE_TRADING:'false',CRYPTO_AUTONOMOUS_LIVE_ORDERS:'false'},
     stdio:['ignore','pipe','pipe']
   });
   let stderr='';
   child.stderr.on('data',chunk=>{stderr=(stderr+chunk.toString()).slice(-3000)});
   try{
     await waitForHealth(base,child);
-    for(const [path,method] of [['/state','GET'],['/cycle','POST'],['/api/proposals','POST']]){
+    for(const [path,method] of [['/state','GET'],['/cycle','POST'],['/api/proposals','POST'],['/api/exchange/verify','POST']]){
       const response=await fetch(base+path,{method,headers:{'content-type':'application/json'},body:method==='POST'?'{}':undefined,signal:AbortSignal.timeout(2000)});
       assert.equal(response.status,401,path+' must reject unauthenticated requests; '+stderr);
     }
@@ -51,12 +51,20 @@ test('crypto HTTP owner-only state and manual cycles reject unauthenticated user
     const approvalResponse=await fetch(base+'/approval?key='+encodeURIComponent(token),{signal:AbortSignal.timeout(2000)});
     assert.equal(approvalResponse.status,200);
     const approvalHtml=await approvalResponse.text();
-    assert.match(approvalHtml,/history\\.replaceState/,'owner secret should be cleared from visible navigation');
-    assert.doesNotMatch(approvalHtml,/fetch\\('\\/api\\/proposals\\?key=/,'approval API requests must not send secret in query');
+    assert.match(approvalHtml,/history\.replaceState/,'owner secret should be cleared from visible navigation');
+    assert.ok(!approvalHtml.includes("fetch('/api/proposals?key="),'approval API requests must not send secret in query');
     assert.match(approvalHtml,/disabled[^>]*>Order proposal unavailable/,'orders must visibly remain disabled');
     const allowed=await fetch(base+'/state',{headers:{'x-ultron-approval-key':token},signal:AbortSignal.timeout(2000)});
     assert.equal(allowed.status,200,'authenticated owner must retain state access');
     assert.equal((await allowed.json()).mode,'live-market-research');
+    const headers={'x-ultron-approval-key':token};
+    assert.equal((await fetch(base+'/api/exchange/verify',{headers})).status,405);
+    const verification=await fetch(base+'/api/exchange/verify',{method:'POST',headers});
+    assert.equal(verification.status,503);
+    const evidence=await verification.json();
+    assert.equal(evidence.verification.reason,'CREDENTIALS_MISSING');
+    assert.equal(evidence.liveOrders,false);
+    assert.equal(evidence.scope,'READ_ONLY_ACCOUNT_ACCESS');
     for(const path of ['/health','/opportunities']){
       const response=await fetch(base+path,{signal:AbortSignal.timeout(2000)});
       assert.equal(response.status,200,path+' should remain public for non-sensitive status');
