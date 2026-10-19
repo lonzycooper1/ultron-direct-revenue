@@ -11,7 +11,16 @@ Not complete. Not deployment ready. No push, merge, production deployment, or ex
 - Crypto safety checks added to the standard test command.
 - Lockfile repaired after clean dependency installation found nodemailer missing.
 
-## Observed verification
+## Verified GitHub Actions result — 2026-10-19
+
+- [ULTRON CI run 39324202033](https://github.com/lonzycooper1/ultron-direct-revenue/actions/runs/39324202033) completed successfully on commit `d48ba59aaf66a6a999718c6bc266706d1128bb5a`.
+- Command: `npm test`, Node.js 22, isolated PostgreSQL 16 service using a loopback `ultron_test` database.
+- Main suite: **360 tests passed, 0 failed, 0 skipped**.
+- Crypto safety suite: **14 tests passed, 0 failed, 0 skipped**.
+- Follow-up commits `1d108da` and `d48ba59` fix a phantom RESERVED ledger row caused by committing before rejecting an unsubmitted order, add regression coverage for concurrent blocked approvals, and reject invalid/negative trusted risk data and missing/invalid approval prices.
+- These tests confirm the fail-closed implementation and its mocked/isolated PostgreSQL behavior. **They do not prove exchange accounting, real order submission/reconciliation, live credentials, or production deployment. Live trading stays disabled.**
+
+## Prior local verification (historical)
 
 - Syntax checks and git diff whitespace checks passed.
 - Existing full suite: 360 tests, 343 passed, 15 failed, 2 skipped. Failures require DATABASE_URL.
