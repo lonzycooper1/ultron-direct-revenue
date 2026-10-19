@@ -24,7 +24,7 @@ export async function stopExecution(pool=safetyPool()){
   await initializeSafety(pool);
   const c=await pool.connect();
   try{await c.query("SELECT pg_advisory_lock(hashtext('crypto_order_dispatch'))");await setEmergencyStop(c)}
-  finally{await c.query("SELECT pg_advisory_unlock(hashtext('crypto_order_dispatch'))").catch(()=>{});c.release()}
+  finally{let cleanupError;try{await c.query("SELECT pg_advisory_unlock(hashtext('crypto_order_dispatch'))")}catch(error){cleanupError=error}c.release(cleanupError)}
 }
 export async function trustedProposalRisk(instrument){return readExchangeRisk(instrument)}
 export async function persistLiveProposal(proposal,{pool=safetyPool()}={}){
@@ -74,7 +74,7 @@ export async function guardedApproval(envelope,{pool=safetyPool(),readRisk=readE
     // adapter never retries; every uncertain outcome requires reconciliation.
     return await dispatchReservedOrder(c,id,params,{call});
   }catch(error){await c.query('ROLLBACK').catch(()=>{});throw error}
-  finally{await c.query("SELECT pg_advisory_unlock(hashtext('crypto_order_dispatch'))").catch(()=>{});c.release()}
+  finally{let cleanupError;try{await c.query("SELECT pg_advisory_unlock(hashtext('crypto_order_dispatch'))")}catch(error){cleanupError=error}c.release(cleanupError)}
 }
 
 export function validateRisk(order,risk,now=Date.now()){

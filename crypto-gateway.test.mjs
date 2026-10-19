@@ -84,3 +84,15 @@ test('PostgreSQL deployment controls: concurrency, restart persistence, ambiguit
   await stopExecution(pool);
  }finally{await pool.end();if(savedLive===undefined)delete process.env.CRYPTOCOM_LIVE_TRADING;else process.env.CRYPTOCOM_LIVE_TRADING=savedLive}
 });
+
+test('failed advisory lock cleanup destroys the pooled client instead of retaining a session lock',async()=>{
+ const cleanupError=Error('unlock failed');let released;
+ const client={query:async sql=>{
+  if(sql.includes('pg_advisory_lock('))throw Error('lock acquisition failed');
+  if(sql.includes('pg_advisory_unlock('))throw cleanupError;
+  return {rows:[]};
+ },release:error=>{released=error}};
+ const pool={query:async()=>({rows:[]}),connect:async()=>client};
+ await assert.rejects(guardedApproval({}, {pool}),/lock acquisition failed/);
+ assert.equal(released,cleanupError);
+});
