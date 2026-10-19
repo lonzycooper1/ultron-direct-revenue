@@ -1,5 +1,6 @@
 import {executive,startExecutive} from './executive-runtime.mjs';
 import {mainframe44} from './ultron-mainframe-v44.mjs';
+import {payhipReceiver} from './payhip-runtime-v44.mjs';
 import {businessRuntime,executiveBusinessPulse,verifyBusinessWebhook} from './executive-business.mjs';
 import {productDeployer} from './product-deployer.mjs';
 import {completionExecution as v43CompletionExecution} from './ultron-completion-execution-v43.mjs';
@@ -173,6 +174,19 @@ const v13Owner=()=>Boolean(ACQ_TOKEN)&&((req.headers.authorization||'')==='Beare
 if((path==='/mainframe'||path==='/autonomy-mainframe')&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-frame-options':'DENY','referrer-policy':'no-referrer'});return res.end(await readFile(new URL('./public/mainframe-v44.html',import.meta.url),'utf8'))}
 if(path==='/api/mainframe/v44'&&req.method==='GET'){return json(200,await mainframe44.snapshot(false))}
 if(path==='/api/mainframe/v44/owner'&&req.method==='GET'){if(!v13Owner())return json(403,{error:'Owner authorization required'});return json(200,await mainframe44.snapshot(true))}
+if(path==='/api/mainframe/v44/payhip'&&req.method==='GET'){
+ if(!v13Owner())return json(403,{error:'Owner authorization required'});
+ return json(200,await payhipReceiver.status())
+}
+if(path==='/webhooks/payhip'&&req.method==='POST'){
+ if(!process.env.ULTRON_PAYHIP_API_KEY)return json(503,{error:'Payhip webhook provider credentials not configured'});
+ if(!(req.headers['content-type']||'').startsWith('application/json'))return json(415,{error:'JSON required'});
+ let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>16000)return json(413,{error:'Request too large'})}
+ try{
+  const receipt=await payhipReceiver.receive(JSON.parse(raw||'{}'));
+  return json(200,{ok:true,...receipt});
+ }catch(e){return json(401,{ok:false,error:'Invalid, conflicting or unverified Payhip event'})}
+}
 if(path==='/api/leads'&&req.method==='POST'){
  if(!(req.headers['content-type']||'').startsWith('application/json'))return json(415,{error:'JSON required'});
  let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>4096)return json(413,{error:'Request too large'})}
