@@ -45,3 +45,11 @@ export function createProductDeployer({env=process.env,request=fetch,read=()=>ge
  return {submit,poll,status:read};
 }
 export const productDeployer=createProductDeployer();
+
+/** Dispatches eligible, capture-verified existing digital goods via a private delivery link.
+ * Idempotency is enforced by the enterprise PostgreSQL delivery claim.
+ */
+export async function dispatchVerifiedProduct(order,{buyerEmail,baseUrl=process.env.PUBLIC_BASE_URL}={}){
+ const {deliverVerifiedDigitalOrder}=await import('./enterprise-mail-v45.mjs');
+ return deliverVerifiedDigitalOrder({order,buyerEmail,baseUrl});
+}
