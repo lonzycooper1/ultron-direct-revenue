@@ -21,7 +21,7 @@ test('exchange read-only risk cannot substitute session P&L for daily P&L',async
 test('reconciliation checks identity and fills; never calls create-order',async()=>{
  const old=[process.env.CRYPTOCOM_API_KEY,process.env.CRYPTOCOM_API_SECRET];process.env.CRYPTOCOM_API_KEY='mock';process.env.CRYPTOCOM_API_SECRET='mock';
  const calls=[];let qty='.001',oid='client';
- const transport=async(url)=>{calls.push(url);assert.doesNotMatch(url,/create-order/);return {ok:true,json:async()=>({code:0,result:url.endsWith('get-order-detail')?{client_oid:oid,order_id:'1',instrument_name:'BTC_USD',side:'BUY',status:'FILLED',cumulative_quantity:'.001'}:{data:[{order_id:'1',traded_quantity:qty}]}})}};
+ const transport=async(url)=>{calls.push(url);assert.doesNotMatch(url,/create-order/);return {ok:true,json:async()=>({code:0,result:url.endsWith('get-order-detail')?{client_oid:oid,order_id:'1',instrument_name:'BTC_USD',side:'BUY',status:'FILLED',cumulative_quantity:'.001',create_time:'1'}:{data:[{trade_id:'1',order_id:'1',client_oid:'client',instrument_name:'BTC_USD',side:'BUY',create_time:'2',traded_quantity:qty}]}})}};
  try{
   assert.equal((await reconcileExchangeOrder('client',order,{transport})).verified,true);
   qty='.0005';assert.equal((await reconcileExchangeOrder('client',order,{transport})).verified,false);
