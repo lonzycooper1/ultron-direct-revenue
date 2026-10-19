@@ -48,6 +48,12 @@ test('crypto HTTP owner-only state and manual cycles reject unauthenticated user
     assert.doesNotMatch(scripts[0][1],/const u=new URL\(req\.url/,'server-side router code must not leak into browser JS');
     assert.doesNotThrow(()=>new Function(scripts[0][1]),'browser dashboard script must parse');
     assert.match(dashboard,/research only; trading disabled/,'research status must not promise executable orders');
+    const approvalResponse=await fetch(base+'/approval?key='+encodeURIComponent(token),{signal:AbortSignal.timeout(2000)});
+    assert.equal(approvalResponse.status,200);
+    const approvalHtml=await approvalResponse.text();
+    assert.match(approvalHtml,/history\\.replaceState/,'owner secret should be cleared from visible navigation');
+    assert.doesNotMatch(approvalHtml,/fetch\\('\\/api\\/proposals\\?key=/,'approval API requests must not send secret in query');
+    assert.match(approvalHtml,/disabled[^>]*>Order proposal unavailable/,'orders must visibly remain disabled');
     const allowed=await fetch(base+'/state',{headers:{'x-ultron-approval-key':token},signal:AbortSignal.timeout(2000)});
     assert.equal(allowed.status,200,'authenticated owner must retain state access');
     assert.equal((await allowed.json()).mode,'live-market-research');
