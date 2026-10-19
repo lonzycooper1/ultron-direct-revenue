@@ -3,7 +3,7 @@ import {createServer} from 'node:http';
 import crypto from 'node:crypto';
 import {CRYPTO_BOT_RULES,CRYPTO_AGENTS,researchDecision,cryptoCapabilityManifest} from './crypto-bots.mjs';
 import {LIVE_APPROVAL_RULES,proposeLiveOrder,approveProposal,executionEnvelope} from './crypto-live-approval.mjs';
-import {liveExecutionConfig,executeApprovedSpotOrder} from './crypto-exchange.mjs';
+import {liveExecutionConfig,executeApprovedSpotOrder,verifyExchangeReadAccess} from './crypto-exchange.mjs';
 import {evaluateStrategies,rankOpportunities,buildProposalCandidates,portfolioRiskSummary} from './crypto-opportunity-engine.mjs';
 
 const PORT=Number(process.env.PORT||3000);
@@ -177,6 +177,14 @@ function serviceWorker(){
 }
 
 createServer(async(req,res)=>{const u=new URL(req.url,'http://local');try{
+ if(u.pathname==='/api/exchange/verify'){
+  if(!authorized(req,u))return json(res,401,{error:'approval key required'});
+  if(req.method!=='POST')return json(res,405,{error:'POST required'});
+  const verification=await verifyExchangeReadAccess();
+  // Authentication evidence only. This must never activate execution or
+  // imply that risk accounting, permissions, fills or settlement are verified.
+  return json(res,verification.verified?200:503,{ok:verification.verified,verification,liveOrders:false,scope:'READ_ONLY_ACCOUNT_ACCESS'});
+ }
  const reconcileMatch=/^\/api\/proposals\/([^/]+)\/reconcile$/.exec(u.pathname);if(reconcileMatch&&req.method==='POST'){if(!authorized(req,u))return json(res,401,{error:'approval key required'});return json(res,200,await reconcileProposal(decodeURIComponent(reconcileMatch[1])))}
 
  if(req.method==='GET'&&u.pathname==='/'){res.writeHead(302,{'location':'/dashboard','cache-control':'no-store'});return res.end()}
