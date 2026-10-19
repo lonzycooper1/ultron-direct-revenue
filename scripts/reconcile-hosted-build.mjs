@@ -1,0 +1,21 @@
+import OpenAI from 'openai';
+import {getJson,mutateJson} from '../state-store.mjs';
+import {existingOpenAIKey} from '../executive-runtime.mjs';
+import {recoverHostedBuild} from '../hosted-executor.mjs';
+import {deploymentFiles} from '../product-deployer.mjs';
+const id=process.argv[2];
+if(!id)throw Error('Supply the saved unresolved build job ID');
+const key='ultron-executive-runtime',state=await getJson(key,{}),job=state.jobs?.[id];
+if(!job)throw Error('Saved job not found');
+const sessions=new OpenAI({apiKey:existingOpenAIKey(),maxRetries:0,timeout:30000}).beta.agents.sessions;
+const result=await recoverHostedBuild({job,sessions});
+deploymentFiles({...job,status:'DRAFT_READY',result});
+await mutateJson(key,{},s=>{
+ const current=s.jobs?.[id];
+ if(current?.status!=='RECONCILIATION_REQUIRED'||current.hosted?.sessionId!==job.hosted.sessionId||current.hosted?.turnId!==job.hosted.turnId)throw Error('Saved job changed during reconciliation');
+ current.reconciliation={previousError:current.error,verifiedAt:new Date().toISOString(),method:'PROVIDER_COMPLETED_TURN_AND_ORIGINAL_TEST_RECEIPTS'};
+ Object.assign(current,{status:'DRAFT_READY',result,hosted:result.evidence});
+ delete current.error;delete current.stagedResult;
+});
+console.log(JSON.stringify({jobId:id,status:'DRAFT_READY',artifacts:result.artifacts.map(a=>({path:a.path,bytes:a.bytes,sha256:a.sha256})),providerSessionRetained:true}));
+process.exit(0);

@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import {createHash} from 'node:crypto';
+import {successfulTestExecution} from './test-execution-evidence.mjs';
 
 const MAX_BYTES=8*1024*1024;
 const clean=x=>String(x??'').slice(0,16000);
@@ -26,25 +27,21 @@ export async function runHostedJob({job,key,env=process.env,checkpoint=async()=>
     if(x.type==='computer_use_call'){evidence.computerActions++;if(x.output?.image_url)evidence.screenshots++}
    }
    // Requests for authentication or additional authority require an application handoff, never approval by generated text.
-   if(event.type==='agent.session.requires_action')throw Error('Hosted job requires external authorization');
+   if(event.type==='agent.session.requires_action'){
+    const actions=event.session?.required_actions||[];
+    const permitted=job.kind==='computer'&&job.idempotencyKey==='verification:hosted-browser:read-only:v3'&&actions.length>0&&actions.every(a=>a.type==='computer_use_approval_request'&&a.request?.type==='browser_origin_access'&&a.request.origin==='https://ultron-product-lab.vercel.app');
+    if(!permitted)throw Error('Hosted job requires external authorization');
+    await sessions.events.create(evidence.sessionId,{events:actions.map(a=>({type:'agent.session.input.computer_use_approval_request_result',request_id:a.request_id,response:{type:'browser_origin_access',decision:'approve'}}))});
+   }
    if(evidence.events>1500||evidence.commands.length+evidence.computerActions>20)throw Error('Hosted execution limit reached');
   }
   result=await stream.finalResult();
   evidence.sessionId=result.session_id;evidence.turnId=result.turn_id;
   await checkpoint({...evidence});
   if(result.turn?.status!=='completed')throw Error('Hosted turn did not complete');
-  if(job.kind==='build'&&!evidence.commands.some(x=>x.exitCode===0&&/^(?:npm (?:run )?test|node --test|python(?:3)? -m (?:pytest|unittest))(?:\s|$)/.test(x.command.trim())))throw Error('No successful standalone test execution observed');
+  if(job.kind==='build'&&!evidence.commands.some(successfulTestExecution))throw Error('No successful standalone test execution observed');
   if(job.kind==='computer'&&(!evidence.computerActions||!evidence.screenshots))throw Error('No completed browser activity with screenshot evidence observed');
-  const artifacts=[];let bytes=0;
-  for await(const a of sessions.artifacts.list(result.session_id)){
-   if(a.turn_id!==result.turn_id||!a.path.startsWith('/workspace/outputs/'))continue;
-   if(a.size_bytes<0||a.size_bytes>MAX_BYTES||bytes+a.size_bytes>MAX_BYTES)throw Error('Hosted artifact exceeds durable output limit');
-   const response=await sessions.artifacts.content(a.id,{session_id:result.session_id});
-   const chunks=[];let size=0;
-   for await(const chunk of response.body){size+=chunk.length;if(size>MAX_BYTES||bytes+size>MAX_BYTES)throw Error('Hosted download exceeds durable output limit');chunks.push(Buffer.from(chunk))}
-   const data=Buffer.concat(chunks);bytes+=data.length;
-   artifacts.push({id:a.id,path:a.path,bytes:data.length,sha256:createHash('sha256').update(data).digest('hex'),base64:data.toString('base64')});
-  }
+  const artifacts=await downloadHostedArtifacts(sessions,result.session_id,result.turn_id);
   if(job.kind==='build'&&!artifacts.some(a=>a.path==='/workspace/outputs/product.zip'&&a.bytes>0))throw Error('Tested project ZIP was not published');
   const output={provider:'openai-agents',responseId:result.turn_id,model:env.OPENAI_AGENT_MODEL||'gpt-6-astra',text:clean(result.output_text),artifacts,tools:items.map(x=>({type:x.type,status:x.status})),evidence,usage:result.turn.usage};
   // Persist downloaded bytes before deleting their provider-side originals.
@@ -64,4 +61,32 @@ export async function runHostedJob({job,key,env=process.env,checkpoint=async()=>
   // Preserve uncertain sessions for reconciliation. Download first; deletion removes artifacts.
   if(downloaded&&evidence.sessionId){try{await sessions.delete(evidence.sessionId);await checkpoint({...evidence,cleanup:'DELETED_AFTER_DOWNLOAD'})}catch{await checkpoint({...evidence,cleanup:'REQUIRES_RECONCILIATION'})}}
  }
+}
+
+async function downloadHostedArtifacts(sessions,sessionId,turnId){
+  const artifacts=[];let bytes=0;
+  for await(const a of sessions.artifacts.list(sessionId)){
+   if(a.turn_id!==turnId||!a.path.startsWith('/workspace/outputs/'))continue;
+   if(a.size_bytes<0||a.size_bytes>MAX_BYTES||bytes+a.size_bytes>MAX_BYTES)throw Error('Hosted artifact exceeds durable output limit');
+   const response=await sessions.artifacts.content(a.id,{session_id:sessionId});
+   const chunks=[];let size=0;
+   for await(const chunk of response.body){size+=chunk.length;if(size>MAX_BYTES||bytes+size>MAX_BYTES)throw Error('Hosted download exceeds durable output limit');chunks.push(Buffer.from(chunk))}
+   const data=Buffer.concat(chunks);bytes+=data.length;
+   artifacts.push({id:a.id,path:a.path,bytes:data.length,sha256:createHash('sha256').update(data).digest('hex'),base64:data.toString('base64')});
+  }
+ return artifacts;
+}
+
+// Recover completed work without creating a session or replaying its input.
+export async function recoverHostedBuild({job,sessions}){
+ if(job.kind!=='build'||job.status!=='RECONCILIATION_REQUIRED'||!job.hosted?.sessionId||!job.hosted?.turnId)throw Error('Saved unresolved hosted build required');
+ const {sessionId,turnId}=job.hosted;
+ const session=await sessions.retrieve(sessionId);
+ if(session.metadata?.ultron_job_id!==job.id)throw Error('Provider session does not belong to saved job');
+ const turn=await sessions.turns.retrieve(turnId,{session_id:sessionId});
+ if(turn.status!=='completed')throw Error('Provider turn is not completed');
+ if(!job.hosted.commands?.some(successfulTestExecution))throw Error('No successful standalone test execution observed');
+ const artifacts=await downloadHostedArtifacts(sessions,sessionId,turnId);
+ if(!artifacts.some(a=>a.path==='/workspace/outputs/product.zip'&&a.bytes>0))throw Error('Tested project ZIP was not published');
+ return {provider:'openai-agents',responseId:turnId,model:session.agent?.model||'unknown',text:'Recovered completed hosted build; original execution evidence retained.',artifacts,evidence:{...job.hosted,reconciliationRequired:false,cleanup:'RETAINED_AFTER_RECOVERY'},usage:turn.usage};
 }

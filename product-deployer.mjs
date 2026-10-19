@@ -1,8 +1,9 @@
 import {createHash} from 'node:crypto';
+import {successfulTestExecution} from './test-execution-evidence.mjs';
 import {getJson,mutateJson} from './state-store.mjs';
 const KEY='ultron-product-deployments',fresh=()=>({deployments:{}});
 export function deploymentFiles(job){
- if(job.status!=='DRAFT_READY'||job.kind!=='build'||!job.result?.evidence?.commands?.some(c=>c.exitCode===0&&/^(npm (run )?test|node --test|python3? -m (pytest|unittest))(\s|$)/.test(c.command.trim())))throw Error('Saved build with successful test execution required');
+ if(job.status!=='DRAFT_READY'||job.kind!=='build'||!job.result?.evidence?.commands?.some(successfulTestExecution))throw Error('Saved build with successful test execution required');
  const artifact=job.result.artifacts.find(a=>a.path==='/workspace/outputs/vercel-files.json');
  if(!artifact?.base64)throw Error('Build has no deployment file manifest');
  const bytes=Buffer.from(artifact.base64,'base64');
