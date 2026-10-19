@@ -1,4 +1,4 @@
-import {randomBytes} from 'node:crypto';
+import {randomBytes,createHmac,timingSafeEqual} from 'node:crypto';
 
 function moneyString(value){
   const n=Number(value);
@@ -95,4 +95,38 @@ export async function verifyPayPalRuntime({paypal,webhookId,publicBaseUrl}){
   }catch(e){
     return {ok:false,apiAuthorized:false,webhookEndpointVerified:false,captureEventsSubscribed:false,checkedAt,error:String(e?.message||e)};
   }
+}
+
+/**
+ * Stripe optionally complements the existing verified PayPal implementation.
+ * Verify the exact raw request bytes and independently retrieve the paid checkout.
+ * Webhook receipt alone never marks a financial settlement or completed service.
+ */
+export function verifyStripeEvent(rawBody,signatureHeader,secret,{clock=Date.now,toleranceSeconds=300}={}){
+ if(!secret||typeof secret!=='string'||secret.length<16)throw Error('Stripe signing secret unavailable');
+ if(!Buffer.isBuffer(rawBody)||rawBody.length>128*1024)throw Error('Stripe webhook raw bytes required');
+ if(typeof signatureHeader!=='string')throw Error('Stripe signature header missing');
+ const values=signatureHeader.split(',').map(s=>s.trim().split('='));
+ const timestamp=values.find(([k])=>k==='t')?.[1];
+ if(!/^\\d{10}$/.test(timestamp||'')||Math.abs(clock()/1000-Number(timestamp))>toleranceSeconds)throw Error('Expired Stripe signature');
+ const sigs=values.filter(([k,v])=>k==='v1'&&/^[a-f0-9]{64}$/i.test(v||'')).map(([,v])=>Buffer.from(v,'hex'));
+ if(!sigs.length)throw Error('Stripe signature absent');
+ const expected=createHmac('sha256',secret).update(timestamp+'.').update(rawBody).digest();
+ if(!sigs.some(x=>x.length===expected.length&&timingSafeEqual(x,expected)))throw Error('Invalid Stripe signature');
+ const parsed=JSON.parse(rawBody.toString('utf8'));
+ if(!parsed||!/^evt_[A-Za-z0-9]+$/.test(parsed.id||'')||typeof parsed.type!=='string')throw Error('Unsupported Stripe event');
+ return parsed;
+}
+export async function getVerifiedStripeCheckout(sessionId,{apiKey=process.env.STRIPE_SECRET_KEY,request=fetch}={}){
+ if(!apiKey||!/^cs_(test|live)_[A-Za-z0-9_]+$/.test(sessionId||''))throw Error('Stripe API connection or session missing');
+ const response=await request('https://api.stripe.com/v1/checkout/sessions/'+encodeURIComponent(sessionId),{
+  headers:{authorization:'Bearer '+apiKey,accept:'application/json'},
+  redirect:'error',signal:AbortSignal.timeout(12000)
+ });
+ if(!response.ok)throw Error('Stripe session verification HTTP '+response.status);
+ const session=await response.json();
+ if(session.id!==sessionId||session.payment_status!=='paid'||session.status!=='complete'||!Number.isSafeInteger(session.amount_total)||session.amount_total<1||!/^[a-z]{3}$/.test(session.currency||''))throw Error('Stripe session is not a verified completed payment');
+ return {provider:'stripe',sessionId,amountCents:session.amount_total,currency:session.currency.toUpperCase(),
+  paymentIntentId:String(session.payment_intent||''),buyerEmail:session.customer_details?.email||null,
+  productId:String(session.metadata?.ultronProductId||''),bankSettlementVerified:false};
 }
