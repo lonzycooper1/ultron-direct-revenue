@@ -25,10 +25,10 @@ export function createProductDeployer({env=process.env,request=fetch,read=()=>ge
   if(!claimed)return existing;
   const query=env.ULTRON_VERCEL_TEAM_ID?'?teamId='+encodeURIComponent(env.ULTRON_VERCEL_TEAM_ID):'';
   try{
-   const r=await request('https://api.vercel.com/v13/deployments'+query,{method:'POST',headers:{authorization:'Bearer '+env.ULTRON_VERCEL_TOKEN,'content-type':'application/json'},body:JSON.stringify({name:env.ULTRON_VERCEL_PROJECT_NAME||'ultron-product-lab',project:env.ULTRON_VERCEL_PROJECT_ID,target:'preview',files,meta:{ultronJobId:job.id}}),signal:AbortSignal.timeout(30000),redirect:'error'});
+   const r=await request('https://api.vercel.com/v13/deployments'+query,{method:'POST',headers:{authorization:'Bearer '+env.ULTRON_VERCEL_TOKEN,'content-type':'application/json'},body:JSON.stringify({name:env.ULTRON_VERCEL_PROJECT_NAME||'ultron-product-lab',project:env.ULTRON_VERCEL_PROJECT_ID,files,meta:{ultronJobId:job.id}}),signal:AbortSignal.timeout(30000),redirect:'error'});
    if(!r.ok){await mutate(s=>{s.deployments[job.id].status='PROVIDER_REJECTED';s.deployments[job.id].httpStatus=r.status});throw Error('Vercel deployment HTTP '+r.status)}
    const d=await r.json();if(!d.id)throw Error('Vercel deployment receipt missing');
-   await mutate(s=>{Object.assign(s.deployments[job.id],{deploymentId:d.id,url:d.url||null,status:'SUBMITTED_NOT_VERIFIED'})});return (await read()).deployments[job.id];
+   await mutate(s=>{Object.assign(s.deployments[job.id],{deploymentId:d.id,url:d.url||null,providerTarget:d.target??'preview',status:'SUBMITTED_NOT_VERIFIED'})});return (await read()).deployments[job.id];
   }catch(e){await mutate(s=>{const x=s.deployments[job.id];if(x.status!=='PROVIDER_REJECTED')x.status='RECONCILIATION_REQUIRED'});throw e}
  }
  async function poll(){
@@ -37,7 +37,7 @@ export function createProductDeployer({env=process.env,request=fetch,read=()=>ge
   for(const x of Object.values((await read()).deployments).filter(d=>d.deploymentId&&d.status==='SUBMITTED_NOT_VERIFIED').slice(0,5)){
    const r=await request('https://api.vercel.com/v13/deployments/'+encodeURIComponent(x.deploymentId)+query,{headers:{authorization:'Bearer '+env.ULTRON_VERCEL_TOKEN},signal:AbortSignal.timeout(10000),redirect:'error'});
    if(!r.ok)continue;const d=await r.json(),state=d.readyState||d.status;
-   if(['READY','ERROR','CANCELED'].includes(state))await mutate(s=>{Object.assign(s.deployments[x.jobId],{status:state==='READY'?'DEPLOYED_PROVIDER_VERIFIED':'DEPLOYMENT_FAILED',providerState:state,url:d.url||null,checkedAt:new Date().toISOString()})});
+   if(['READY','ERROR','CANCELED'].includes(state))await mutate(s=>{Object.assign(s.deployments[x.jobId],{status:state==='READY'?'DEPLOYED_PROVIDER_VERIFIED':'DEPLOYMENT_FAILED',providerState:state,providerTarget:d.target??'preview',url:d.url||null,checkedAt:new Date().toISOString()})});
   }
   return {status:'CHECKED'};
  }
