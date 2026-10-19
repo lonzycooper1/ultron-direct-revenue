@@ -28,7 +28,7 @@ export async function sendSmtp({to,subject,text,replyTo,env=process.env}={}){
 }
 export function eligibleDigitalDelivery(order){
  return Boolean(order&&order.status==='COMPLETED'&&order.captureId&&
-   order.fulfillment?.token&&order.product!=='ai-revenue-audit-500'&&
+   order.fulfillment?.token&&Array.isArray(order.fulfillment.sections)&&order.fulfillment.sections.length>=3&&Number(order.capturedAmount??order.amount)<=99&&order.product!=='ai-revenue-audit-500'&&
    order.fulfillment?.status!=='PENDING'&&order.fulfillment?.status!=='REVIEW_REQUIRED'&&
    !order.auditIntake&&!order.videoQuote);
 }
