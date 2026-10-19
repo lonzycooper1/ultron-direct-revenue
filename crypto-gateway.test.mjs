@@ -57,7 +57,7 @@ test('PostgreSQL deployment controls: concurrency, restart persistence, ambiguit
   // Legacy/uncertain reservations cannot be declared reconciled on partial
   // history, ACTIVE, canceled, or a rejected order with existing fills.
   const id=randomUUID();
-  await pool.query("INSERT INTO crypto_order_ledger(proposal_id,client_oid,state) VALUES($1,$1,'SUBMISSION_UNKNOWN')",[id]);
+  await pool.query("INSERT INTO crypto_order_ledger(proposal_id,client_oid,state) VALUES($1::uuid,$1::text,'SUBMISSION_UNKNOWN')",[id]);
   const evidence=(status,filledQuantity)=>({verified:true,clientOid:id,orderId:'exchange-test-1',status,filledQuantity});
   let state=await reconcileProposal(id,{pool,lookup:async()=>evidence('ACTIVE',0)});
   assert.equal(state.requiresInvestigation,true);
@@ -74,7 +74,7 @@ test('PostgreSQL deployment controls: concurrency, restart persistence, ambiguit
   assert.equal(state.alreadyFinal,true);
   assert.equal((await pool.query('SELECT state FROM crypto_order_ledger WHERE proposal_id=$1',[id])).rows[0].state,'REJECTED');
   const secondId=randomUUID();
-  await pool.query("INSERT INTO crypto_order_ledger(proposal_id,client_oid,state) VALUES($1,$1,'SUBMISSION_UNKNOWN')",[secondId]);
+  await pool.query("INSERT INTO crypto_order_ledger(proposal_id,client_oid,state) VALUES($1::uuid,$1::text,'SUBMISSION_UNKNOWN')",[secondId]);
   state=await reconcileProposal(secondId,{pool,lookup:async()=>({verified:true,clientOid:secondId,orderId:'exchange-test-2',status:'FILLED',filledQuantity:0})});
   assert.equal(state.requiresInvestigation,true);
   state=await reconcileProposal(secondId,{pool,lookup:async()=>({verified:true,clientOid:secondId,orderId:'exchange-test-2',status:'FILLED',filledQuantity:0.001})});
