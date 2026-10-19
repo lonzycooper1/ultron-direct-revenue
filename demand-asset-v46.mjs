@@ -110,6 +110,34 @@ export function createDemandAssetFactory({env=process.env,read=()=>getJson(KEY,f
   if(bytes.byteLength!==x.bytes||digest(bytes)!==x.sha256)throw Error('Artifact integrity failure');
   return {filename:x.filename,bytes};
  }
+
+ async function getApprovedArtifact(id,productId){
+  if(!/^[a-f0-9]{32}$/.test(id||''))throw Error('Invalid id');
+  const state=await read(),item=state.assets[id];
+  if(!item||item.status!=='SALE_READY'||item.productId!==productId)throw Error('Not approved');
+  const bytes=await readFile(path.join(dir(env),item.filename));
+  if(bytes.length!==item.bytes||digest(bytes)!==item.sha256)throw Error('Integrity failure');
+  return {bytes,filename:item.filename};
+ }
+ async function approveForSale(id,productId,{qualityReviewed,rightsReviewed,accuracyReviewed}={}){
+  if(productId!=='missed-lead-recovery-99'||!qualityReviewed||!rightsReviewed||!accuracyReviewed)throw Error('Explicit review required');
+  const artifact=await getArtifact(id);
+  const {appendEnterpriseAudit}=await import('./enterprise-store-v45.mjs');
+  await appendEnterpriseAudit({eventId:'approved-demand:'+id,kind:'ASSET_APPROVAL',
+    payload:{id,productId,hash:digest(artifact.bytes)}});
+  await mutate(s=>{
+   if(s.assets[id]?.status!=='DRAFT_OWNER_REVIEW_REQUIRED')throw Error('Invalid status');
+   s.assets[id].status='SALE_READY';s.assets[id].productId=productId;s.assets[id].reviewedAt=new Date(clock()).toISOString();
+  });
+  return {id,status:'SALE_READY',productId};
+ }
+ async function publicOffers(){
+  const s=await read();
+  return Object.values(s.assets||{}).filter(x=>x.status==='SALE_READY').slice(0,12).map(x=>({
+   id:x.id,title:x.signal?.title,productId:x.productId,priceUsd:99,
+   checkoutPath:'/buy?product='+x.productId+'&assetId='+x.id
+  }));
+ }
  async function status(privateView=false){
   const s=await read(),a=Object.values(s.assets||{});
   return {total:a.length,ready:a.filter(x=>x.status==='DRAFT_OWNER_REVIEW_REQUIRED').length,
@@ -117,6 +145,6 @@ export function createDemandAssetFactory({env=process.env,read=()=>getJson(KEY,f
    unresolved:a.filter(x=>['NEEDS_REVIEW','RECONCILIATION_REQUIRED'].includes(x.status)).length,
    ...(privateView?{assets:a.map(({signal,...rest})=>({...rest,sourceUrl:signal?.url}))}:{})};
  }
- return {schedule,reconcile,getArtifact,status};
+ return {schedule,reconcile,getArtifact,getApprovedArtifact,approveForSale,publicOffers,status};
 }
 export const demandAssetFactory=createDemandAssetFactory();
