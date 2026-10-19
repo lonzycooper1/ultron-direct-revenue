@@ -37,6 +37,17 @@ Not complete. Not deployment ready. No push, merge, production deployment, or ex
 - Vercel `ultron-product-lab` still returns 403 Forbidden on team `lonzycooper5-5987`. User must restore permission to that exact project/team; do not deploy into another scope.
 - Railway revenue services are online, but zero externally verified sales have been demonstrated. Provider OAuth/configuration, first real buyer and fulfillment, and external outcomes remain separate unverified workstreams.
 
+## October 19 crypto owner-route and dashboard repair — verified
+
+- Owner-only `/state` and `POST /cycle` now reject requests without the approved owner key; public `/health` and `/opportunities` remain read-only.
+- Rebuilt damaged crypto dashboard browser JavaScript (previously contained injected HTTP server code) using safe DOM text rendering instead of untrusted inline HTML.
+- Restored `/` redirect, `/dashboard`, `/manifest.webmanifest`, and `/sw.js` routes in the actual active HTTP server.
+- Approval console now prominently says live trading is disabled pending safety certification, with disabled order-placement buttons.
+- Added real isolated HTTP checks for owner authentication, dashboard availability, browser-script parsing, research data status, and public health routes.
+- [ULTRON CI run 39327837259](https://github.com/lonzycooper1/ultron-direct-revenue/actions/runs/39327837259), source commit `850b6b6b8cc9f16d97c23cff04a804a70e45401e`, **PASSED** on GitHub Actions: 360/360 main tests + 15/15 crypto safety and HTTP tests; zero failures. Uses isolated PostgreSQL and mocks; production UI deployment was **not** performed.
+- Railway five production services were separately observed online. The legacy trading service remains on its intentionally pinned source with the live-trading and autonomous-order flags disabled. This passing PR is still draft and **must not be merged/deployed as an order-execution activation**.
+- Remaining external blockers: Vercel team 403, server runtime CRM/Gmail/Calendar authorization, Shopify trial, Metricool account network connection, Runway video paid-plan access, and genuine customer purchase/fulfillment evidence.
+
 ## Required remaining work
 
 - Implement and validate daily account P&L with an explicit period, complete accounting history, fees, transfers, spot cost basis and unrealized valuation. Exchange session P&L is deliberately not substituted for daily P&L. The current readExchangeRisk function explicitly rejects execution for this missing component.
