@@ -67,6 +67,10 @@ export function buildSpotOrderParams(envelope){
 }
 
 export async function executeApprovedSpotOrder(envelope){
+  // Fail closed until durable exchange-derived risk checks, persistent kill switch,
+  // and order-idempotency reconciliation are implemented and independently tested.
+  // An environment toggle or browser approval must never bypass these requirements.
+  throw Error('Live order execution blocked: durable risk, kill-switch and reconciliation controls are not verified');
   const params=buildSpotOrderParams(envelope);
   const data=await privateCall('private/create-order',params);
   return {
