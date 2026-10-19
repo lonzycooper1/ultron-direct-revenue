@@ -195,6 +195,7 @@ if(path.startsWith('/api/enterprise/v45/')||path==='/webhooks/stripe'){
 
 
 
+if(path==='/api/demand/v46/offers'&&req.method==='GET')return json(200,{offers:await demandAssetFactory.publicOffers()});
 if(path==='/api/demand/v46/status'&&req.method==='GET'){
  const allowed=v13Owner();
  return json(200,{ok:true,discovery:await liveDemandListener.snapshot(allowed),assets:await demandAssetFactory.status(allowed)});
