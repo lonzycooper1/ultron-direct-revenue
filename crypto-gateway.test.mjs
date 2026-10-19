@@ -54,6 +54,32 @@ test('PostgreSQL deployment controls: concurrency, restart persistence, ambiguit
   assert.ok(results.every(x=>x.status==='rejected'&&/certification/.test(x.reason?.message)));
   await assert.rejects(reconcileProposal(env.approval.proposalId,{pool,lookup:async()=>({verified:false})}),/Order reservation missing/);
   await assert.rejects(guardedApproval(envelope(),{pool,readRisk:risk}),/certification/);
+  // Legacy/uncertain reservations cannot be declared reconciled on partial
+  // history, ACTIVE, canceled, or a rejected order with existing fills.
+  const id=randomUUID();
+  await pool.query("INSERT INTO crypto_order_ledger(proposal_id,client_oid,state) VALUES($1,$1,'SUBMISSION_UNKNOWN')",[id]);
+  const evidence=(status,filledQuantity)=>({verified:true,clientOid:id,orderId:'exchange-test-1',status,filledQuantity});
+  let state=await reconcileProposal(id,{pool,lookup:async()=>evidence('ACTIVE',0)});
+  assert.equal(state.requiresInvestigation,true);
+  assert.equal((await pool.query('SELECT state FROM crypto_order_ledger WHERE proposal_id=$1',[id])).rows[0].state,'SUBMISSION_UNKNOWN');
+  state=await reconcileProposal(id,{pool,lookup:async()=>evidence('CANCELED',0)});
+  assert.equal(state.requiresInvestigation,true);
+  state=await reconcileProposal(id,{pool,lookup:async()=>evidence('REJECTED',0.01)});
+  assert.equal(state.requiresInvestigation,true);
+  state=await reconcileProposal(id,{pool,lookup:async()=>({...evidence('REJECTED',0),clientOid:'mismatched-id'})});
+  assert.equal(state.requiresInvestigation,true);
+  state=await reconcileProposal(id,{pool,lookup:async()=>evidence('REJECTED',0)});
+  assert.equal(state.state,'REJECTED');
+  state=await reconcileProposal(id,{pool,lookup:async()=>{throw Error('Final states must never be reopened')}});
+  assert.equal(state.alreadyFinal,true);
+  assert.equal((await pool.query('SELECT state FROM crypto_order_ledger WHERE proposal_id=$1',[id])).rows[0].state,'REJECTED');
+  const secondId=randomUUID();
+  await pool.query("INSERT INTO crypto_order_ledger(proposal_id,client_oid,state) VALUES($1,$1,'SUBMISSION_UNKNOWN')",[secondId]);
+  state=await reconcileProposal(secondId,{pool,lookup:async()=>({verified:true,clientOid:secondId,orderId:'exchange-test-2',status:'FILLED',filledQuantity:0})});
+  assert.equal(state.requiresInvestigation,true);
+  state=await reconcileProposal(secondId,{pool,lookup:async()=>({verified:true,clientOid:secondId,orderId:'exchange-test-2',status:'FILLED',filledQuantity:0.001})});
+  assert.equal(state.state,'RECONCILED');
+  await assert.rejects(reconcileProposal('invalid-proposal-id',{pool,lookup:async()=>{throw Error('No external calls')}}),/Invalid proposal ID/);
   await stopExecution(pool);
  }finally{await pool.end()}
 });
