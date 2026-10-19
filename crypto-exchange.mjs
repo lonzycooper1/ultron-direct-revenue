@@ -37,7 +37,11 @@ export async function privateCall(method,params,{transport=fetch,timeoutMs=8000}
   const body=buildSignedRequest(method,params);
   const r=await transport(API_BASE+'/'+method,{method:'POST',headers:{'content-type':'application/json','accept':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(timeoutMs)});
   const data=await r.json().catch(()=>({}));
-  if(!r.ok)throw Error('Crypto.com HTTP '+r.status);
+  if(!r.ok){
+    const error=Error('Crypto.com HTTP '+r.status);
+    if(Number.isSafeInteger(data?.code))error.providerCode=data.code;
+    throw error;
+  }
   if(data?.code!==0){
     const error=Error('Crypto.com rejected or malformed response');
     if(Number.isSafeInteger(data?.code))error.providerCode=data.code;

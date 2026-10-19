@@ -27,5 +27,7 @@ test('read authentication distinguishes funds evidence and cannot certify tradin
   }
   const rejected=await verifyExchangeReadAccess({transport:async()=>({ok:true,json:async()=>({code:40101,message:'PRIVATE'})})});
   assert.equal(rejected.verified,false);assert.equal(rejected.providerCode,40101);assert.doesNotMatch(JSON.stringify(rejected),/PRIVATE/);
+  const denied=await verifyExchangeReadAccess({transport:async()=>({ok:false,status:401,json:async()=>({code:40103,message:'PRIVATE'})})});
+  assert.equal(denied.verified,false);assert.equal(denied.providerCode,40103);assert.doesNotMatch(JSON.stringify(denied),/PRIVATE/);
  }finally{for(const [i,key] of ['CRYPTOCOM_API_KEY','CRYPTOCOM_API_SECRET'].entries())if(old[i]===undefined)delete process.env[key];else process.env[key]=old[i]}
 });
