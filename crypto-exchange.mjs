@@ -38,7 +38,7 @@ export async function privateCall(method,params,{transport=fetch,timeoutMs=8000}
   const r=await transport(API_BASE+'/'+method,{method:'POST',headers:{'content-type':'application/json','accept':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(timeoutMs)});
   const data=await r.json().catch(()=>({}));
   if(!r.ok)throw Error('Crypto.com HTTP '+r.status);
-  if(Number(data.code)!==0)throw Error('Crypto.com '+String(data.message||data.code||'order rejected'));
+  if(data?.code!==0)throw Error('Crypto.com rejected or malformed response');
   return data;
 }
 
@@ -77,7 +77,7 @@ export async function verifyExchangeReadAccess({transport=fetch}={}){
   if(!liveExecutionConfig().apiConfigured)return {verified:false,reason:'CREDENTIALS_MISSING'};
   try{
     const data=await privateCall('private/user-balance',{}, {transport});
-    if(!data||!Array.isArray(data.result?.data))return {verified:false,reason:'UNEXPECTED_ACCOUNT_RESPONSE'};
+    if(!Array.isArray(data.result?.data)||data.result.data.length!==1||data.result.data[0]?.instrument_name!=='USD')return {verified:false,reason:'UNEXPECTED_ACCOUNT_RESPONSE'};
     return {verified:true,provider:'Crypto.com Exchange',checkedAt:new Date().toISOString(),accountCount:data.result.data.length};
   }catch(error){
     return {verified:false,reason:'READ_ONLY_VERIFICATION_FAILED',detail:String(error?.message||error).slice(0,160)};
