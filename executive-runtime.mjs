@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import {getJson,mutateJson} from './state-store.mjs';
 import {runHostedJob} from './hosted-executor.mjs';
+import {budgetPolicy,admission,observedTokens} from './runtime-budget-v44.mjs';
 
 const KEY='ultron-executive-runtime',fresh=()=>({version:1,jobs:{},schedule:{},usage:{}});
 const kinds=['research','marketing','support','finance','analysis','image','build','computer'];
@@ -16,7 +17,7 @@ export function existingOpenAIKey(env=process.env){
 export function readiness(env=process.env){
  const openai=Boolean(existingOpenAIKey(env));
  const configured={openai,anthropic:Boolean(env.ANTHROPIC_API_KEY&&env.ULTRON_CLAUDE_MODEL),build:openai||Boolean(env.ULTRON_ENGINEER_URL&&env.ULTRON_ENGINEER_TOKEN),computer:openai||Boolean(env.ULTRON_COMPUTER_URL&&env.ULTRON_COMPUTER_TOKEN)};
- return {configured,hostedAgentsAccess:'UNVERIFIED_UNTIL_SUCCESSFUL_SESSION',verification:'Configuration is not a successful provider execution',workerEnabled:env.ULTRON_EXECUTIVE_ENABLED==='true',dailyJobLimit:dailyLimit(env),paymentProcessor:'PayPal',missing:Object.entries(configured).filter(([,v])=>!v).map(([k])=>k),externalActions:'Existing authorized application workflows only; generated text cannot grant permission'};
+ return {configured,budget:budgetPolicy(env),hostedAgentsAccess:'UNVERIFIED_UNTIL_SUCCESSFUL_SESSION',verification:'Configuration is not a successful provider execution',workerEnabled:env.ULTRON_EXECUTIVE_ENABLED==='true',dailyJobLimit:dailyLimit(env),paymentProcessor:'PayPal',missing:Object.entries(configured).filter(([,v])=>!v).map(([k])=>k),externalActions:'Existing authorized application workflows only; generated text cannot grant permission'};
 }
 function dailyLimit(env){const n=Number(env.ULTRON_EXECUTIVE_DAILY_LIMIT||4);return Number.isInteger(n)&&n>=1&&n<=20?n:4}
 export function validateJob(input){
@@ -83,12 +84,13 @@ export function createExecutive({env=process.env,read=()=>getJson(KEY,fresh()),m
    // An expired lease is not automatically retried: provider spend or worker effects may already exist.
    for(const j of Object.values(s.jobs))if(j.status==='RUNNING'&&j.leaseUntil<now()){j.status='RECONCILIATION_REQUIRED';j.finishedAt=now()}
    if((s.usage[day]?.jobs||0)>=dailyLimit(env))return;
+   if(!admission(s.usage[day]||{},env,new Date(clock())).allowed)return;
    // One active job across all replicas; transaction/advisory lock is provided by state-store.
    if(Object.values(s.jobs).some(j=>j.status==='RUNNING'))return;
    const priority={support:0,analysis:1,finance:2,build:3,computer:3,research:4,marketing:5,image:6};
    job=Object.values(s.jobs).filter(j=>j.status==='QUEUED').sort((a,b)=>priority[a.kind]-priority[b.kind]||a.createdAt.localeCompare(b.createdAt))[0];if(!job)return;
    job.status='RUNNING';job.claim=claim;job.startedAt=now();job.attempts++;job.leaseUntil=new Date(clock()+12*60000).toISOString();
-   s.usage[day]??={jobs:0};s.usage[day].jobs++;
+   s.usage[day]??={jobs:0};s.usage[day].jobs++;s.usage[day].reservedTokens=(s.usage[day].reservedTokens||0)+budgetPolicy(env).reservationTokens;
   });
   if(!job)return {status:'IDLE_OR_LIMIT_REACHED'};
   try{
@@ -97,7 +99,7 @@ export function createExecutive({env=process.env,read=()=>getJson(KEY,fresh()),m
    let review=null;
    if(!['image','build','computer'].includes(job.kind)&&job.provider==='openai')review=await openai(job,'Review this task and draft for unsupported claims, missing evidence and whether the requested work was actually performed. Return a concise verdict and corrections. TASK: '+job.prompt+'\nDRAFT: '+clip(result.text,18000),true);
    if(Buffer.byteLength(JSON.stringify(result))>12*1024*1024)throw Error('Deliverable exceeds durable artifact size limit');
-   await mutate(s=>{const j=s.jobs[job.id];if(j.claim!==claim||j.status!=='RUNNING')throw Error('Job lease lost');Object.assign(j,{status:'DRAFT_READY',result,review,finishedAt:now()});delete j.stagedResult;delete j.claim;delete j.leaseUntil});
+   await mutate(s=>{const j=s.jobs[job.id];if(j.claim!==claim||j.status!=='RUNNING')throw Error('Job lease lost');Object.assign(j,{status:'DRAFT_READY',result,review,finishedAt:now()});delete j.stagedResult;delete j.claim;delete j.leaseUntil;s.usage[day].observedTokens=(s.usage[day].observedTokens||0)+observedTokens(result,review)});
    return {status:'DRAFT_READY',jobId:job.id};
   }catch(e){
    const message=clip(e.message,250);
