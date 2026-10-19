@@ -67,3 +67,18 @@ export async function sendInvoice(paypal,invoiceId){
 export function paypalBusinessBillingManifest(){
  return {version:'1.0.0',oneTime:'PayPal Orders API',agency:'PayPal Invoicing API',recurring:'PayPal Catalog Products + Billing Plans + Subscriptions API',defaultRetainer:DEFAULT_RETAINER,accounting:'Only provider-confirmed completed payments count as realized revenue.'};
 }
+
+// Existing server.js already uses PayPal Orders v2 and verifies returned captures.
+// This public helper delegates to the established PayPal callback and catalog pricing.
+export async function issueCatalogCheckout(paypal,{product,returnUrl,cancelUrl,requestId}={}){
+ if(!product||!Number.isFinite(Number(product.price))||Number(product.price)<=0)throw Error('Approved product required');
+ for(const x of [returnUrl,cancelUrl]){const u=new URL(x);if(u.protocol!=='https:'||u.username||u.password)throw Error('HTTPS return URL required')}
+ const amount=Number(product.price).toFixed(2);
+ const order=await paypal('/v2/checkout/orders','POST',{intent:'CAPTURE',
+  purchase_units:[{reference_id:product.id,description:product.name,amount:{currency_code:'USD',value:amount}}],
+  payment_source:{paypal:{experience_context:{user_action:'PAY_NOW',return_url:returnUrl,cancel_url:cancelUrl}}}
+ },requestId);
+ const approval=(order.links||[]).find(x=>x.rel==='payer-action'||x.rel==='approve')?.href;
+ if(!order.id||!approval)throw Error('Provider approval information missing');
+ return {orderId:order.id,approvalUrl:approval,status:order.status,amount,productId:product.id,currency:'USD'};
+}
