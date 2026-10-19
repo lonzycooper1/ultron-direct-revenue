@@ -40,20 +40,24 @@ export async function guardedApproval(envelope,{pool=safetyPool(),readRisk=readE
     validateRisk(order,risk);
     await reserveOrder(c,id,id);
     await c.query('UPDATE crypto_order_ledger SET evidence=$2,order_params=$3 WHERE proposal_id=$1',[id,JSON.stringify(risk),JSON.stringify(order)]);
-    await c.query('COMMIT');
-    // Release is intentionally blocked independently of environment flags until
-    // deployment verification certifies exchange accounting and sizing semantics.
+    // Certification is not complete and NO exchange dispatch will occur.
+    // Reject within the transaction so its speculative reservation is rolled
+    // back. Committing a RESERVED row when no order was submitted creates a
+    // phantom unresolved order and permanently blocks future approvals.
+    // When a reviewed dispatch path is built, it must commit its reservation
+    // before any exchange request, with durable uncertainty handling.
     throw Error('Live order execution blocked: deployment safety certification pending');
   }catch(error){await c.query('ROLLBACK').catch(()=>{});throw error}finally{c.release()}
 }
 export function validateRisk(order,risk,now=Date.now()){
   const finite=v=>typeof v==='number'&&Number.isFinite(v);
-  if(!risk||!finite(risk.checkedAt)||now-risk.checkedAt>5000||risk.checkedAt>now||!finite(risk.equity)||risk.equity<=0||!finite(risk.dailyPnlPct)||!finite(risk.availableUsd)||!finite(risk.baseAvailable)||!finite(risk.exposureUsd)||!finite(risk.price)||risk.price<=0)throw Error('Trusted risk data missing, stale or invalid');
+  if(!risk||!finite(risk.checkedAt)||now-risk.checkedAt>5000||risk.checkedAt>now||!finite(risk.equity)||risk.equity<=0||!finite(risk.dailyPnlPct)||!finite(risk.availableUsd)||risk.availableUsd<0||!finite(risk.baseAvailable)||risk.baseAvailable<0||!finite(risk.exposureUsd)||risk.exposureUsd<0||!finite(risk.price)||risk.price<=0)throw Error('Trusted risk data missing, stale or invalid');
   if(risk.dailyPnlPct<=-LIVE_APPROVAL_RULES.maxDailyLossPct)throw Error('Daily loss limit reached');
   const n=Number(order.notional);
   if(n/risk.equity>LIVE_APPROVAL_RULES.maxPositionPct||(order.side==='BUY'&&(risk.exposureUsd+n)/risk.equity>LIVE_APPROVAL_RULES.maxPositionPct))throw Error('Aggregate position limit reached');
   if(order.side==='BUY'&&n*1.01>risk.availableUsd)throw Error('Insufficient unreserved cash including fee buffer');
   if(order.side==='SELL'&&n/risk.price>risk.baseAvailable)throw Error('Insufficient unreserved spot holdings');
+  if(!Number.isFinite(Number(order.price))||Number(order.price)<=0)throw Error('Approved reference price invalid');
   if(Math.abs(Number(order.price)/risk.price-1)>.01)throw Error('Approved reference price moved; new approval required');
 }
 export async function reconcileProposal(id,{pool=safetyPool(),lookup=reconcileExchangeOrder}={}){
