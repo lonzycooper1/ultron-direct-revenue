@@ -29,6 +29,21 @@ test('read-only verifier uses v1 wallet balance, never order endpoint',async()=>
 test('live order submission remains blocked regardless of toggles',async()=>{
   await assert.rejects(executeApprovedSpotOrder({}),/Live order execution blocked/);
 });
+test('read-only verifier rejects missing status, malformed JSON and empty account responses',async()=>{
+  const old=[process.env.CRYPTOCOM_API_KEY,process.env.CRYPTOCOM_API_SECRET];
+  process.env.CRYPTOCOM_API_KEY='mock';process.env.CRYPTOCOM_API_SECRET='mock';
+  try{
+    for(const data of [{result:{data:[{instrument_name:'USD'}]}},{code:null,result:{data:[{instrument_name:'USD'}]}},{code:0,result:{data:[]}},{code:0,result:{data:[null]}},{code:0,result:{data:[{instrument_name:'USD'},{instrument_name:'USD'}]}}]){
+      const result=await verifyExchangeReadAccess({transport:async()=>({ok:true,json:async()=>data})});
+      assert.equal(result.verified,false);
+    }
+    assert.equal((await verifyExchangeReadAccess({transport:async()=>({ok:true,json:async()=>{throw Error('invalid JSON')}})})).verified,false);
+  }finally{
+    for(const [i,key] of ['CRYPTOCOM_API_KEY','CRYPTOCOM_API_SECRET'].entries()){
+      if(old[i]===undefined)delete process.env[key];else process.env[key]=old[i];
+    }
+  }
+});
 test('persistent stop fails closed on missing row',async()=>{
   await assert.rejects(assertNotStopped({query:async()=>({rows:[]})}),/emergency stop active/);
 });
