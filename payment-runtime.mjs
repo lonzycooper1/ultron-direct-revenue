@@ -143,6 +143,6 @@ export async function confirmCapturedOrderForDelivery(paypal,record){
  if(matches.length!==1)throw Error('Provider capture proof missing');
  assertCaptureMatches(record,matches[0]);
  const email=remote.payer?.email_address;
- if(!email||!/^\\S+@\\S+\\.\\S+$/.test(email))throw Error('Verified PayPal buyer email required');
+ if(!email||!/^\S+@\S+\.\S+$/.test(email))throw Error('Verified PayPal buyer email required');
  return {email,capture:matches[0],orderId:record.id,bankSettlementVerified:false};
 }
