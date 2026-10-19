@@ -11,14 +11,14 @@ test('missing credentials fail closed',async()=>{
     if(b===undefined)delete process.env.CRYPTOCOM_API_SECRET;else process.env.CRYPTOCOM_API_SECRET=b;
   }
 });
-test('read-only verifier uses account summary, never order endpoint',async()=>{
+test('read-only verifier uses v1 wallet balance, never order endpoint',async()=>{
   const a=process.env.CRYPTOCOM_API_KEY,b=process.env.CRYPTOCOM_API_SECRET;
   process.env.CRYPTOCOM_API_KEY='test-key';process.env.CRYPTOCOM_API_SECRET='test-secret';
   let count=0;
   try{
     const result=await verifyExchangeReadAccess({transport:async(url)=>{
-      count++;assert.match(url,/private\/get-account-summary$/);
-      return {ok:true,json:async()=>({code:0,result:{accounts:[{currency:'USD'}]}})};
+      count++;assert.match(url,/private\/user-balance$/);
+      return {ok:true,json:async()=>({code:0,result:{data:[{instrument_name:'USD'}]}})};
     }});
     assert.equal(result.verified,true);assert.equal(count,1);
   }finally{

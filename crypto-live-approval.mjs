@@ -51,7 +51,7 @@ export function executionEnvelope(approvedProposal){
   return {
     order:{instrument:approvedProposal.instrument,side:approvedProposal.side,notional:approvedProposal.notional,price:approvedProposal.price,leverage:approvedProposal.leverage,type:'MARKET'},
     proposal:{id:approvedProposal.id,price:approvedProposal.price,risk:approvedProposal.risk},
-    approval:{proposalId:approvedProposal.id,approvedAt:approvedProposal.approvedAt,permission:'ONE_ORDER_ONLY'},
+    approval:{proposalId:approvedProposal.id,approvedAt:approvedProposal.approvedAt,expiresAt:approvedProposal.expiresAt,permission:'ONE_ORDER_ONLY'},
     constraints:LIVE_APPROVAL_RULES
   };
 }

@@ -33,7 +33,7 @@ export function buildSignedRequest(method,params={},nonce=Date.now()){
   return {id:String(id),method,api_key:apiKey,sig,nonce:String(nonce),params};
 }
 
-async function privateCall(method,params,{transport=fetch,timeoutMs=8000}={}){
+export async function privateCall(method,params,{transport=fetch,timeoutMs=8000}={}){
   const body=buildSignedRequest(method,params);
   const r=await transport(API_BASE+'/'+method,{method:'POST',headers:{'content-type':'application/json','accept':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(timeoutMs)});
   const data=await r.json().catch(()=>({}));
@@ -66,34 +66,58 @@ export function buildSpotOrderParams(envelope){
   return params;
 }
 
-export async function executeApprovedSpotOrder(envelope){
-  // Fail closed until durable exchange-derived risk checks, persistent kill switch,
-  // and order-idempotency reconciliation are implemented and independently tested.
-  // An environment toggle or browser approval must never bypass these requirements.
-  throw Error('Live order execution blocked: durable risk, kill-switch and reconciliation controls are not verified');
-  const params=buildSpotOrderParams(envelope);
-  const data=await privateCall('private/create-order',params);
-  return {
-    accepted:true,
-    provider:'Crypto.com Exchange',
-    orderId:data?.result?.order_id?String(data.result.order_id):null,
-    clientOrderId:data?.result?.client_oid?String(data.result.client_oid):params.client_oid,
-    instrument:params.instrument_name,
-    side:params.side,
-    type:'MARKET',
-    submittedAt:new Date().toISOString(),
-    note:'Exchange create-order is asynchronous; acceptance does not guarantee final fill.'
-  };
+export async function executeApprovedSpotOrder(envelope,options){
+  if(!envelope?.approval)throw Error('Live order execution blocked: approval required');
+  const {guardedApproval}=await import('./crypto-order-gateway.mjs');
+  return guardedApproval(envelope,options);
 }
 
 // Read-only Exchange verification. No create-order calls or trading permission probes.
 export async function verifyExchangeReadAccess({transport=fetch}={}){
   if(!liveExecutionConfig().apiConfigured)return {verified:false,reason:'CREDENTIALS_MISSING'};
   try{
-    const data=await privateCall('private/get-account-summary',{}, {transport});
-    if(!data||!Array.isArray(data.result?.accounts))return {verified:false,reason:'UNEXPECTED_ACCOUNT_RESPONSE'};
-    return {verified:true,provider:'Crypto.com Exchange',checkedAt:new Date().toISOString(),accountCount:data.result.accounts.length};
+    const data=await privateCall('private/user-balance',{}, {transport});
+    if(!data||!Array.isArray(data.result?.data))return {verified:false,reason:'UNEXPECTED_ACCOUNT_RESPONSE'};
+    return {verified:true,provider:'Crypto.com Exchange',checkedAt:new Date().toISOString(),accountCount:data.result.data.length};
   }catch(error){
     return {verified:false,reason:'READ_ONLY_VERIFICATION_FAILED',detail:String(error?.message||error).slice(0,160)};
   }
+}
+
+const strictNumber=value=>{
+  if((typeof value!=='string'&&typeof value!=='number')||String(value).trim()===''||!Number.isFinite(Number(value)))throw Error('Invalid exchange numeric field');
+  return Number(value);
+};
+export async function readExchangeRisk(instrument,{transport=fetch}={}){
+  const base=instrument==='BTC-USD'?'BTC':instrument==='ETH-USD'?'ETH':null;
+  if(!base)throw Error('Unsupported instrument');
+  const started=Date.now();
+  const data=await privateCall('private/user-balance',{}, {transport});
+  const accounts=data.result?.data;
+  if(!Array.isArray(accounts)||accounts.length!==1||accounts[0].instrument_name!=='USD')throw Error('Unsupported account balance response');
+  const account=accounts[0],positions=account.position_balances;
+  if(account.is_liquidating!==false||!Array.isArray(positions)||strictNumber(account.total_initial_margin)!==0||strictNumber(account.total_maintenance_margin)!==0)throw Error('Account is not verified unleveraged spot');
+  if(positions.some(p=>strictNumber(p.quantity)<0))throw Error('Borrowed balances prohibited');
+  const usd=positions.filter(p=>p.instrument_name==='USD'),asset=positions.filter(p=>p.instrument_name===base);
+  if(usd.length!==1||asset.length!==1)throw Error('Missing or ambiguous balances');
+  const quantity=strictNumber(asset[0].quantity),value=strictNumber(asset[0].market_value);
+  // Zero balances cannot provide an exchange-derived sizing price; fail closed.
+  if(quantity<=0||value<=0)throw Error('Exchange valuation price unavailable');
+  const equity=strictNumber(account.total_cash_balance);
+  // Session P&L is NOT daily P&L. Do not silently substitute it, zero, or a
+  // browser-provided value. A certified daily accounting adapter is required.
+  throw Error('Trusted daily P&L accounting is not yet certified; live execution blocked');
+}
+export async function reconcileExchangeOrder(clientOid,expected,{transport=fetch}={}){
+  try{
+    const data=await privateCall('private/get-order-detail',{client_oid:clientOid},{transport});
+    const order=data.result;
+    if(!order||order.client_oid!==clientOid||!String(order.order_id||'')||!expected||order.instrument_name!==INSTRUMENT_MAP[expected.instrument]||order.side!==expected.side||!['ACTIVE','FILLED','CANCELED','EXPIRED','REJECTED'].includes(order.status))return {verified:false};
+    const fills=await privateCall('private/get-trades',{instrument_name:order.instrument_name,limit:100},{transport});
+    if(!Array.isArray(fills.result?.data)||fills.result.data.length>=100)return {verified:false};
+    const matching=fills.result.data.filter(t=>String(t.order_id)===String(order.order_id));
+    const quantity=matching.reduce((sum,t)=>sum+strictNumber(t.traded_quantity),0);
+    if(Math.abs(quantity-strictNumber(order.cumulative_quantity))>1e-10)return {verified:false};
+    return {verified:true,orderId:String(order.order_id),clientOid,status:order.status,filledQuantity:quantity,fills:matching,checkedAt:new Date().toISOString()};
+  }catch{return {verified:false}}
 }

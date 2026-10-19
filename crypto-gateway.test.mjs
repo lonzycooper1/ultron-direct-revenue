@@ -1,0 +1,59 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {Pool} from 'pg';
+import {guardedApproval,initializeSafety,stopExecution,validateRisk,reconcileProposal} from './crypto-order-gateway.mjs';
+import {readExchangeRisk,reconcileExchangeOrder} from './crypto-exchange.mjs';
+const risk=()=>({checkedAt:Date.now(),equity:10000,dailyPnlPct:0,availableUsd:10000,baseAvailable:1,exposureUsd:0,price:60000});
+const order={instrument:'BTC-USD',side:'BUY',notional:25,price:60000,leverage:1};
+function envelope(){const id=randomUUID();return {order,proposal:{id},approval:{proposalId:id,permission:'ONE_ORDER_ONLY',approvedAt:new Date().toISOString(),expiresAt:new Date(Date.now()+120000).toISOString()}}}
+test('risk rejects stale, missing, nonfinite, loss, aggregate exposure and funds',()=>{
+  validateRisk(order,risk());
+  for(const patch of [{checkedAt:Date.now()-6000},{dailyPnlPct:NaN},{dailyPnlPct:-.03},{equity:Infinity},{exposureUsd:499},{availableUsd:25},{price:59000}])assert.throws(()=>validateRisk(order,{...risk(),...patch}));
+  assert.throws(()=>validateRisk({...order,side:'SELL'},{...risk(),baseAvailable:0}));
+});
+test('exchange read-only risk cannot substitute session P&L for daily P&L',async()=>{
+  const old=[process.env.CRYPTOCOM_API_KEY,process.env.CRYPTOCOM_API_SECRET];
+  process.env.CRYPTOCOM_API_KEY='mock';process.env.CRYPTOCOM_API_SECRET='mock';
+  try{await assert.rejects(readExchangeRisk('BTC-USD',{transport:async()=>({ok:true,json:async()=>({code:0,result:{data:[{instrument_name:'USD',is_liquidating:false,total_initial_margin:'0',total_maintenance_margin:'0',total_cash_balance:'10000',total_session_realized_pnl:'0',position_balances:[{instrument_name:'USD',quantity:'9000',market_value:'9000'},{instrument_name:'BTC',quantity:'.01',market_value:'600'}]}]}})})}),/daily P&L/)}finally{for(const [i,k] of ['CRYPTOCOM_API_KEY','CRYPTOCOM_API_SECRET'].entries())if(old[i]===undefined)delete process.env[k];else process.env[k]=old[i]}
+});
+test('reconciliation checks identity and fills; never calls create-order',async()=>{
+ const old=[process.env.CRYPTOCOM_API_KEY,process.env.CRYPTOCOM_API_SECRET];process.env.CRYPTOCOM_API_KEY='mock';process.env.CRYPTOCOM_API_SECRET='mock';
+ const calls=[];let qty='.001',oid='client';
+ const transport=async(url)=>{calls.push(url);assert.doesNotMatch(url,/create-order/);return {ok:true,json:async()=>({code:0,result:url.endsWith('get-order-detail')?{client_oid:oid,order_id:'1',instrument_name:'BTC_USD',side:'BUY',status:'FILLED',cumulative_quantity:'.001'}:{data:[{order_id:'1',traded_quantity:qty}]}})}};
+ try{
+  assert.equal((await reconcileExchangeOrder('client',order,{transport})).verified,true);
+  qty='.0005';assert.equal((await reconcileExchangeOrder('client',order,{transport})).verified,false);
+  oid='other';assert.equal((await reconcileExchangeOrder('client',order,{transport})).verified,false);
+  assert.equal((await reconcileExchangeOrder('client',order,{transport:async()=>{throw Error('timeout')}})).verified,false);
+ }finally{for(const [i,k] of ['CRYPTOCOM_API_KEY','CRYPTOCOM_API_SECRET'].entries())if(old[i]===undefined)delete process.env[k];else process.env[k]=old[i]}
+});
+test('PostgreSQL deployment controls: concurrency, restart persistence, ambiguity and fail-closed certification',async()=>{
+ assert.ok(process.env.DATABASE_URL,'DATABASE_URL required for deployment safety test');
+ const database=new URL(process.env.DATABASE_URL);
+ assert.match(database.hostname,/^(localhost|127\.0\.0\.1)$/,'Integration tests require an isolated loopback database');
+ assert.match(database.pathname,/test/i,'Integration tests require a test database');
+ const pool=new Pool({connectionString:process.env.DATABASE_URL});
+ try{
+  await initializeSafety(pool);
+  await pool.query('TRUNCATE crypto_order_ledger');
+  await stopExecution(pool);
+  await assert.rejects(guardedApproval(envelope(),{pool,readRisk:risk}),/emergency stop/);
+  const second=new Pool({connectionString:process.env.DATABASE_URL});
+  try{await assert.rejects(guardedApproval(envelope(),{pool:second,readRisk:risk}),/emergency stop/)}finally{await second.end()}
+  // This isolated test database is the only place the stop is cleared.
+  await pool.query('UPDATE crypto_execution_control SET stopped=false WHERE id=1');
+  const env=envelope();
+  const results=await Promise.allSettled(Array.from({length:8},()=>guardedApproval(env,{pool,readRisk:risk})));
+  assert.equal(results.filter(x=>x.status==='fulfilled').length,0);
+  const rows=(await pool.query('SELECT * FROM crypto_order_ledger')).rows;
+  assert.equal(rows.length,1);assert.equal(rows[0].state,'RESERVED');
+  assert.ok(results.some(x=>/certification/.test(x.reason?.message)));
+  assert.ok(results.some(x=>/reconciliation/.test(x.reason?.message)));
+  const uncertain=await reconcileProposal(env.approval.proposalId,{pool,lookup:async()=>({verified:false})});
+  assert.equal(uncertain.requiresInvestigation,true);
+  assert.equal((await pool.query('SELECT state FROM crypto_order_ledger')).rows[0].state,'RESERVED');
+  await assert.rejects(guardedApproval(envelope(),{pool,readRisk:risk}),/reconciliation/);
+  await stopExecution(pool);
+ }finally{await pool.end()}
+});
