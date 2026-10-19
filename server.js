@@ -1,6 +1,9 @@
 import {executive,startExecutive} from './executive-runtime.mjs';
 import {enterpriseGateway} from './enterprise-gateway-v45.mjs';
 import {deliverVerifiedDigitalOrder,eligibleDigitalDelivery,smtpReadiness} from './enterprise-mail-v45.mjs';
+import {liveDemandListener} from './live-demand-v46.mjs';
+import {demandAssetFactory} from './demand-asset-v46.mjs';
+import {confirmCapturedOrderForDelivery} from './payment-runtime.mjs';
 import {startEnterpriseCycle} from './enterprise-cycle-v45.mjs';
 import {mainframe44} from './ultron-mainframe-v44.mjs';
 import {payhipReceiver} from './payhip-runtime-v44.mjs';
@@ -121,12 +124,8 @@ async function attemptVerifiedEmailDelivery(id){
  if(!smtpReadiness())return {status:'SMTP_RUNTIME_NOT_CONFIGURED'};
  const recorded=(await ledger()).orders?.[id];
  if(!eligibleDigitalDelivery(recorded))return {status:'NOT_AUTOMATICALLY_DELIVERABLE'};
- const providerOrder=await paypal('/v2/checkout/orders/'+encodeURIComponent(id));
- const captures=providerOrder.purchase_units?.flatMap(x=>x.payments?.captures||[])||[];
- const valid=captures.some(c=>c.id===recorded.captureId&&c.status==='COMPLETED');
- if(!valid)return {status:'PROVIDER_PAYMENT_RECONCILIATION_REQUIRED'};
- const email=providerOrder.payer?.email_address||null;
- return deliverVerifiedDigitalOrder({order:recorded,buyerEmail:email,baseUrl:PUBLIC});
+ const confirmed=await confirmCapturedOrderForDelivery(paypal,recorded);
+ return deliverVerifiedDigitalOrder({order:recorded,buyerEmail:confirmed.email,baseUrl:PUBLIC});
 }
 async function byToken(t){const l=await ledger();return Object.values(l.orders||{}).find(o=>o?.fulfillment?.token===t)?.fulfillment||null}
 async function agentBurst(){const l=await ledger();for(let i=0;i<WORKLOAD;i++)await runAgentCycle({ledger:l,baseUrl:PUBLIC});await runBusinessOSCycle({ledger:l,baseUrl:PUBLIC})}
@@ -195,6 +194,21 @@ if(path.startsWith('/api/enterprise/v45/')||path==='/webhooks/stripe'){
 }
 
 
+
+if(path==='/api/demand/v46/status'&&req.method==='GET'){
+ const allowed=v13Owner();
+ return json(200,{ok:true,discovery:await liveDemandListener.snapshot(allowed),assets:await demandAssetFactory.status(allowed)});
+}
+if(path==='/api/demand/v46/artifact'&&req.method==='GET'){
+ if(!v13Owner())return json(403,{error:'Owner authorization required'});
+ try{
+  const artifact=await demandAssetFactory.getArtifact(u.searchParams.get('id'));
+  res.writeHead(200,{'content-type':'text/markdown; charset=utf-8','content-disposition':'attachment; filename="'+artifact.filename+'"',
+   'cache-control':'private,no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer',
+   'content-length':artifact.bytes.length});
+  return res.end(artifact.bytes);
+ }catch{return json(404,{error:'Draft does not exist or failed integrity checks'})}
+}
 if((path==='/mainframe'||path==='/autonomy-mainframe')&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-frame-options':'DENY','referrer-policy':'no-referrer'});return res.end(await readFile(new URL('./public/mainframe-v44.html',import.meta.url),'utf8'))}
 if(path==='/api/mainframe/v44'&&req.method==='GET'){return json(200,await mainframe44.snapshot(false))}
 if(path==='/api/mainframe/v44/owner'&&req.method==='GET'){if(!v13Owner())return json(403,{error:'Owner authorization required'});return json(200,await mainframe44.snapshot(true))}
@@ -1192,7 +1206,7 @@ if(path==='/api/v34/checkout'&&req.method==='POST'){
 }
 
 if(path==='/buy'){if(u.searchParams.get('product')===CINEMA_SKU)return json(409,{error:'Use your issued video quote and accepted service terms for checkout'});if(u.searchParams.get('product')===AUDIT_SKU){res.writeHead(303,{location:'/audit-intake'});return res.end()}if(u.searchParams.get('product')===V34_SKU){res.writeHead(303,{location:'/autonomous-audit'});return res.end()}const g=await operationalGate('checkout');if(!g.allowed)return json(503,{error:'ULTRON new checkout paused by owner emergency control'});if(!READY)return json(503,{error:'PayPal not configured'});res.writeHead(303,{location:await createOrder(u.searchParams.get('product')||'')});return res.end()}
-if((path==='/webhooks/paypal'||path==='/api/paypal/webhook')&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;let event;try{event=JSON.parse(raw||'{}')}catch{return json(400,{error:'invalid JSON'})}const verify=await paypal('/v1/notifications/verify-webhook-signature','POST',{auth_algo:req.headers['paypal-auth-algo'],cert_url:req.headers['paypal-cert-url'],transmission_id:req.headers['paypal-transmission-id'],transmission_sig:req.headers['paypal-transmission-sig'],transmission_time:req.headers['paypal-transmission-time'],webhook_id:WH,webhook_event:event});if(verify?.verification_status!=='SUCCESS')return json(400,{error:'invalid webhook signature'});if(event.event_type==='PAYMENT.CAPTURE.REFUNDED'){const refund=event.resource||{},captureId=refund?.supplementary_data?.related_ids?.capture_id||refund.capture_id||'';if(captureId&&refund.id&&refund.status==='COMPLETED'){if(refund.amount?.currency_code==='USD')await saveLedger(l=>{const order=Object.values(l.orders||{}).find(o=>o.captureId===captureId);if(order){order.refunds??=[];if(!order.refunds.some(r=>r.id===refund.id))order.refunds.push({id:refund.id,amountUsd:Number(refund.amount.value),source:'PAYPAL_SIGNED_EVENT',at:new Date().toISOString()});}});try{await recordTrustedRefund({refundId:refund.id,captureId,amountUsd:Number(refund.amount?.value||0),status:refund.status})}catch(e){console.error('v20 refund reconciliation',String(e?.message||e))}}}
+if((path==='/webhooks/paypal'||path==='/api/paypal/webhook'||path==='/api/checkout-webhook')&&req.method==='POST'){let raw='';for await(const ch of req)raw+=ch;let event;try{event=JSON.parse(raw||'{}')}catch{return json(400,{error:'invalid JSON'})}const verify=await paypal('/v1/notifications/verify-webhook-signature','POST',{auth_algo:req.headers['paypal-auth-algo'],cert_url:req.headers['paypal-cert-url'],transmission_id:req.headers['paypal-transmission-id'],transmission_sig:req.headers['paypal-transmission-sig'],transmission_time:req.headers['paypal-transmission-time'],webhook_id:WH,webhook_event:event});if(verify?.verification_status!=='SUCCESS')return json(400,{error:'invalid webhook signature'});if(event.event_type==='PAYMENT.CAPTURE.REFUNDED'){const refund=event.resource||{},captureId=refund?.supplementary_data?.related_ids?.capture_id||refund.capture_id||'';if(captureId&&refund.id&&refund.status==='COMPLETED'){if(refund.amount?.currency_code==='USD')await saveLedger(l=>{const order=Object.values(l.orders||{}).find(o=>o.captureId===captureId);if(order){order.refunds??=[];if(!order.refunds.some(r=>r.id===refund.id))order.refunds.push({id:refund.id,amountUsd:Number(refund.amount.value),source:'PAYPAL_SIGNED_EVENT',at:new Date().toISOString()});}});try{await recordTrustedRefund({refundId:refund.id,captureId,amountUsd:Number(refund.amount?.value||0),status:refund.status})}catch(e){console.error('v20 refund reconciliation',String(e?.message||e))}}}
 if(event.event_type==='PAYMENT.CAPTURE.COMPLETED'){const cap=event.resource||{},id=cap?.supplementary_data?.related_ids?.order_id||'';if(id){await fulfill(id,cap);await saveLedger(l=>recordSignedCapture(l.orders[id],{eventId:event.id,captureId:cap.id,receivedAt:new Date().toISOString()}));await attemptVerifiedEmailDelivery(id).catch(()=>console.error('PayPal delivery requires reconciliation'));await agentBurst()}}try{await paypalCommercialEvent(event)}catch(e){console.error('commercial PayPal mapping',e)}return json(200,{ok:true})}
 if(path==='/paypal/return'){const id=u.searchParams.get('token')||'';const existing=(await ledger()).orders?.[id];if(!existing)return json(404,{error:'Unknown order'});if(existing.status==='COMPLETED'&&existing.fulfillment?.token){if(existing.product===CINEMA_SKU)await ensurePaidVideoJob(existing);res.writeHead(303,{location:'/fulfillment?token='+existing.fulfillment.token});return res.end()}const providerOrder=await paypal('/v2/checkout/orders/'+encodeURIComponent(id));let c=providerOrder.purchase_units?.flatMap(x=>x.payments?.captures||[]).find(x=>x.status==='COMPLETED');if(!c)c=await capture(id);if(!c||c.status!=='COMPLETED')return json(409,{error:'Capture not completed'});const f=await fulfill(id,c);await attemptVerifiedEmailDelivery(id).catch(()=>console.error('PayPal return delivery requires reconciliation'));await agentBurst();res.writeHead(303,{location:'/fulfillment?token='+f.token});return res.end()}
 if(path==='/fulfillment'){const videoOrder=Object.values((await ledger()).orders||{}).find(o=>o.product===CINEMA_SKU&&o.fulfillment?.token===u.searchParams.get('token'));if(videoOrder){res.writeHead(303,{location:'/video-delivery?token='+encodeURIComponent(videoOrder.fulfillment.token)});return res.end()}const row=Object.values((await ledger()).orders||{}).find(o=>o.fulfillment?.token===u.searchParams.get('token')),f=row?.fulfillment;if(!f)return json(404,{error:'Not found'});res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','referrer-policy':'no-referrer','x-frame-options':'DENY'});return res.end(row.product===AUDIT_SKU&&f.status?renderAuditDelivery(row):renderFulfillmentHtml(f))}
