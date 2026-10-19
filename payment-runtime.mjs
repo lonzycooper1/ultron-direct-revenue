@@ -108,7 +108,7 @@ export function verifyStripeEvent(rawBody,signatureHeader,secret,{clock=Date.now
  if(typeof signatureHeader!=='string')throw Error('Stripe signature header missing');
  const values=signatureHeader.split(',').map(s=>s.trim().split('='));
  const timestamp=values.find(([k])=>k==='t')?.[1];
- if(!/^\\d{10}$/.test(timestamp||'')||Math.abs(clock()/1000-Number(timestamp))>toleranceSeconds)throw Error('Expired Stripe signature');
+ if(!/^\d{10}$/.test(timestamp||'')||Math.abs(clock()/1000-Number(timestamp))>toleranceSeconds)throw Error('Expired Stripe signature');
  const sigs=values.filter(([k,v])=>k==='v1'&&/^[a-f0-9]{64}$/i.test(v||'')).map(([,v])=>Buffer.from(v,'hex'));
  if(!sigs.length)throw Error('Stripe signature absent');
  const expected=createHmac('sha256',secret).update(timestamp+'.').update(rawBody).digest();
