@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import {readCompleteTradeHistory,tradeTimeNs,fillQuantitiesMatch} from './crypto-trade-history.mjs';
 
 const API_BASE='https://api.crypto.com/exchange/v1';
 const INSTRUMENT_MAP=Object.freeze({'BTC-USD':'BTC_USD','ETH-USD':'ETH_USD'});
@@ -119,16 +120,23 @@ export async function readExchangeRisk(instrument,{transport=fetch}={}){
   // browser-provided value. A certified daily accounting adapter is required.
   throw Error('Trusted daily P&L accounting is not yet certified; live execution blocked');
 }
-export async function reconcileExchangeOrder(clientOid,expected,{transport=fetch}={}){
+export async function reconcileExchangeOrder(clientOid,expected,{transport=fetch,historyOptions={}}={}){
   try{
     const data=await privateCall('private/get-order-detail',{client_oid:clientOid},{transport});
     const order=data.result;
     if(!order||order.client_oid!==clientOid||!String(order.order_id||'')||!expected||order.instrument_name!==INSTRUMENT_MAP[expected.instrument]||order.side!==expected.side||!['ACTIVE','FILLED','CANCELED','EXPIRED','REJECTED'].includes(order.status))return {verified:false};
-    const fills=await privateCall('private/get-trades',{instrument_name:order.instrument_name,limit:100},{transport});
-    if(!Array.isArray(fills.result?.data)||fills.result.data.length>=100)return {verified:false};
-    const matching=fills.result.data.filter(t=>String(t.order_id)===String(order.order_id));
+    if(!['FILLED','REJECTED'].includes(order.status))return {verified:false};
+    const history=await readCompleteTradeHistory({...historyOptions,
+      call:(method,params)=>privateCall(method,params,{transport}),instrument:order.instrument_name,
+      startNs:String(tradeTimeNs(order)),endNs:String(BigInt(Date.now()+1)*1000000n)});
+    const matching=history.trades.filter(t=>String(t.order_id)===String(order.order_id));
+    if(matching.some(t=>t.client_oid!==clientOid||t.instrument_name!==order.instrument_name||t.side!==order.side||strictNumber(t.traded_quantity)<=0))return {verified:false};
     const quantity=matching.reduce((sum,t)=>sum+strictNumber(t.traded_quantity),0);
-    if(Math.abs(quantity-strictNumber(order.cumulative_quantity))>1e-10)return {verified:false};
-    return {verified:true,orderId:String(order.order_id),clientOid,status:order.status,filledQuantity:quantity,fills:matching,checkedAt:new Date().toISOString()};
+    if(!fillQuantitiesMatch(matching,order.cumulative_quantity))return {verified:false};
+    // Re-read after recovery: changing order identity/status/quantity cannot be
+    // finalized using an earlier snapshot of history.
+    const final=(await privateCall('private/get-order-detail',{client_oid:clientOid},{transport})).result;
+    if(!final||['client_oid','order_id','instrument_name','side','status','cumulative_quantity'].some(k=>String(final[k])!==String(order[k])))return {verified:false};
+    return {verified:true,orderId:String(order.order_id),clientOid,status:order.status,filledQuantity:quantity,fills:matching,history:{complete:true,pages:history.pages,startNs:history.startNs,endNs:history.endNs},checkedAt:new Date().toISOString()};
   }catch{return {verified:false}}
 }
