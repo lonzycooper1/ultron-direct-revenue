@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
+import {spawn} from 'node:child_process';
 import {Pool} from 'pg';
 import {initializeSafety,guardedApproval,persistLiveProposal,loadLiveProposal,stopExecution} from './crypto-order-gateway.mjs';
 import {dispatchReservedOrder} from './crypto-reserved-dispatch.mjs';
@@ -52,6 +53,24 @@ test('committed dispatch boundary survives concurrency, timeout, restart and mal
   assert.equal(uncertain.state,'SUBMISSION_UNKNOWN');assert.equal(timeoutCalls,1);
   const restarted=new Pool(options);
   try{await assert.rejects(dispatchReservedOrder(restarted,timeoutId,{client_oid:timeoutId},{call:async()=>{throw Error('MUST NOT RESUBMIT')}}),/already claimed/)}finally{await restarted.end()}
+  // Kill a separate process after its durable claim but before an exchange
+  // response. A new process/client must retain uncertainty and refuse replay.
+  const crashId=await reserve();
+  const source=`import {Pool} from 'pg';import {dispatchReservedOrder} from './crypto-reserved-dispatch.mjs';
+   const pool=new Pool({connectionString:process.env.DATABASE_URL,options:'-c search_path='+process.env.ULTRON_DISPATCH_TEST_SCHEMA});
+   await dispatchReservedOrder(pool,process.env.ULTRON_DISPATCH_TEST_ID,{client_oid:process.env.ULTRON_DISPATCH_TEST_ID},{call:async()=>{process.stdout.write('dispatch-started\\n');return new Promise(()=>{})}});`;
+  const child=spawn(process.execPath,['--input-type=module','-e',source],{env:{...process.env,ULTRON_DISPATCH_TEST_SCHEMA:schema,ULTRON_DISPATCH_TEST_ID:crashId},stdio:['ignore','pipe','pipe']});
+  try{
+   await new Promise((resolve,reject)=>{
+    let buffer='';const timeout=setTimeout(()=>reject(Error('Crash fixture never reached dispatch')),5000);
+    child.stdout.on('data',chunk=>{buffer+=chunk.toString();if(buffer.includes('dispatch-started')){clearTimeout(timeout);resolve()}});
+    child.once('error',error=>{clearTimeout(timeout);reject(error)});
+    child.once('exit',code=>{clearTimeout(timeout);reject(Error('Crash fixture exited early: '+code))});
+   });
+   child.kill('SIGKILL');await new Promise(resolve=>child.once('exit',resolve));
+   const recovered=new Pool(options);
+   try{await assert.rejects(dispatchReservedOrder(recovered,crashId,{client_oid:crashId},{call:async()=>{throw Error('MUST NOT RETRY AFTER CRASH')}}),/already claimed/)}finally{await recovered.end()}
+  }finally{if(child.exitCode===null&&child.signalCode===null)child.kill('SIGKILL')}
   for(const response of [{code:0,result:{}},{code:0,result:{order_id:'123',client_oid:'different'}},{code:40003}]){
    const malformedId=await reserve();
    assert.equal((await dispatchReservedOrder(pool,malformedId,{client_oid:malformedId},{call:async()=>response})).state,'SUBMISSION_UNKNOWN');
