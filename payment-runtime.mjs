@@ -130,3 +130,19 @@ export async function getVerifiedStripeCheckout(sessionId,{apiKey=process.env.ST
   paymentIntentId:String(session.payment_intent||''),buyerEmail:session.customer_details?.email||null,
   productId:String(session.metadata?.ultronProductId||''),bankSettlementVerified:false};
 }
+
+/**
+ * Independent provider re-read before initiating one-time digital delivery.
+ * Confirms exact capture identity, value and currency for an order recorded in PostgreSQL.
+ */
+export async function confirmCapturedOrderForDelivery(paypal,record){
+ if(!record||record.status!=='COMPLETED'||!record.id||!record.captureId)throw Error('Signed captured ledger order required');
+ const remote=await paypal('/v2/checkout/orders/'+encodeURIComponent(record.id));
+ const matches=(remote.purchase_units||[]).flatMap(x=>x.payments?.captures||[])
+   .filter(x=>x.id===record.captureId&&x.status==='COMPLETED');
+ if(matches.length!==1)throw Error('Provider capture proof missing');
+ assertCaptureMatches(record,matches[0]);
+ const email=remote.payer?.email_address;
+ if(!email||!/^\\S+@\\S+\\.\\S+$/.test(email))throw Error('Verified PayPal buyer email required');
+ return {email,capture:matches[0],orderId:record.id,bankSettlementVerified:false};
+}
