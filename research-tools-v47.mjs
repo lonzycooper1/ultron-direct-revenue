@@ -14,9 +14,9 @@ export function screenCompanies(x={}){
  const records=x.companies.map(c=>{
   if(typeof c.symbol!=='string'||!/^[-A-Z0-9.]{1,15}$/.test(c.symbol))throw Error('Invalid symbol');
   if(typeof c.source!=='string'||!c.source.trim()||c.source.length>1000||!Number.isFinite(Date.parse(c.asOf)))throw Error('Source and asOf required');
-  const complete=['roePct','debtEquity','pe'].every(k=>typeof c[k]==='number'&&Number.isFinite(c[k]));
+  const complete=['roePct','debtEquity','pe','freeCashFlow'].every(k=>typeof c[k]==='number'&&Number.isFinite(c[k]));
   if(!complete)return {symbol:c.symbol,status:'INSUFFICIENT_DATA',source:c.source,asOf:c.asOf};
-  const checks={roe:c.roePct>=minRoe,debtEquity:c.debtEquity>=0&&c.debtEquity<=maxDebtEquity,pe:c.pe>0&&c.pe<=maxPe};
+  const checks={freeCashFlow:c.freeCashFlow>0,roe:c.roePct>=minRoe,debtEquity:c.debtEquity>=0&&c.debtEquity<=maxDebtEquity,pe:c.pe>0&&c.pe<=maxPe};
   return {symbol:c.symbol,status:Object.values(checks).every(Boolean)?'MATCH':'NO_MATCH',checks,source:c.source,asOf:c.asOf};
  });
  return {status:'INPUT_SCREEN_NOT_INVESTMENT_RECOMMENDATION',rules:{minRoe,maxDebtEquity,maxPe},records,dataIndependentlyVerified:false,backtestPerformed:false,externalActionsTaken:0};

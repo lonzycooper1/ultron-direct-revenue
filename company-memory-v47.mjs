@@ -1,4 +1,4 @@
-import {createHash,randomUUID} from 'node:crypto';
+import {createHash} from 'node:crypto';
 import {getJson,mutateJson} from './state-store.mjs';
 
 const empty=()=>({revision:0,documents:{},relations:[],audit:[]});
@@ -12,11 +12,12 @@ const hash=x=>createHash('sha256').update(x).digest('hex');
 export function createCompanyMemory({read=(key)=>getJson(key,empty()),mutate=(key,fn)=>mutateJson(key,empty(),fn),clock=Date.now}={}){
  const key=scope=>'company-memory-v47:'+identity(scope);
  async function save(scope,input={}){
-  const k=key(scope),id=input.id?identity(input.id):randomUUID();
+  const k=key(scope);
   const title=required(input.title,'title',180),text=required(input.text,'text',16000);
   const source=required(input.source,'source',1000),observed=Date.parse(required(input.observedAt,'observedAt',40)),expires=Date.parse(required(input.expiresAt,'expiresAt',40));
   if(!Number.isFinite(observed)||observed>clock()||!Number.isFinite(expires)||expires<=clock()||expires<=observed||expires-observed>366*86400000)throw Error('Valid observedAt and bounded future expiresAt required');
   if(!['OWNER_RECORD','SOURCE_CLAIM','VERIFIED_RECORD'].includes(input.evidenceType))throw Error('Explicit evidence type required');
+  const id=input.id?identity(input.id):hash(JSON.stringify({source,title})).slice(0,40);
   const digest=hash(JSON.stringify({title,text,source,observed,expires,evidenceType:input.evidenceType}));let out;
   await mutate(k,s=>{
    const old=s.documents[id];

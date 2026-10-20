@@ -10,10 +10,10 @@ test('refinance accounts for debt, costs, zero interest, amortization and negati
  for(const v of [null,'100',NaN,Infinity,-1])assert.throws(()=>refinanceScenario({...property,value:v}));assert.throws(()=>refinanceScenario({...property,months:2.5}));
 });
 test('screen keeps unknown ratios unknown, rejects invalid evidence and does not claim a backtest',()=>{
- const input={minRoePct:15,maxDebtEquity:1,maxPe:25,companies:[{symbol:'DEMO',roePct:18,debtEquity:0.5,pe:20,source:'fixture',asOf:'2026-10-20'}]};
+ const input={minRoePct:15,maxDebtEquity:1,maxPe:25,companies:[{symbol:'DEMO',roePct:18,debtEquity:0.5,pe:20,freeCashFlow:1000,source:'fixture',asOf:'2026-10-20'}]};
  let r=screenCompanies(input);assert.equal(r.records[0].status,'MATCH');assert.equal(r.backtestPerformed,false);
  r=screenCompanies({...input,companies:[{...input.companies[0],roePct:null}]});assert.equal(r.records[0].status,'INSUFFICIENT_DATA');
- for(const patch of [{pe:0},{pe:-5},{debtEquity:-1},{roePct:2}])assert.equal(screenCompanies({...input,companies:[{...input.companies[0],...patch}]}).records[0].status,'NO_MATCH');
+ for(const patch of [{freeCashFlow:0},{pe:0},{pe:-5},{debtEquity:-1},{roePct:2}])assert.equal(screenCompanies({...input,companies:[{...input.companies[0],...patch}]}).records[0].status,'NO_MATCH');
  assert.throws(()=>screenCompanies({...input,companies:[{...input.companies[0],source:''}]}));
 });
 test('HTTP scenarios perform calculations and reject malformed input or unknown tools',async()=>{

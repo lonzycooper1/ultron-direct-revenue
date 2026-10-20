@@ -2,7 +2,7 @@
 
 This is a partial implementation, not completion of all 14 references. The source
 captions and selected visuals were observed in a signed-in Instagram browser on
-2026-10-20. Full reel audio review remains incomplete: the supported media download
+2026-10-20. All eight static/carousel sources (#2, #3, #5, #7, #8, #12, #13, #14) have now been inspected in full. Full reel audio review remains incomplete: the supported media download
 operation returned `Download ... was canceled` on references 1 and 10. No transcript
 or creator-gated repository was invented. Recommended reels below the requested
 post are excluded from its evidence.
@@ -15,16 +15,16 @@ post are excluded from its evidence.
 | 2 | [Dd55LlECSWd](https://www.instagram.com/p/Dd55LlECSWd/?img_index=8) — gobi_automates | All eight slides inspected: task routing, fresh retrieval, cached context, graph relationships, connected apps/data, repeatable workflows and departmental worktrees. | Implement scoped sourced memory, explicit relationships and opt-in executive context. Lexical retrieval is operational; semantic embeddings, cached model understanding and Composio/Treg are not implemented or claimed. Existing connectors retained. |
 | 3 | [Del5xpMtE-t](https://www.instagram.com/p/Del5xpMtE-t/) — quantfinance.ai | Full single infographic and caption: 20 strategy families including momentum, reversion, pairs, execution and derivatives. | Reuse candle evaluator for a baseline only. Twenty production strategies are not implemented; each needs an exact specification, suitable historical data, realistic costs and out-of-sample validation. Derivatives remain research-only. |
 | 4 | [Dehh-GGgg0G](https://www.instagram.com/reel/Dehh-GGgg0G/) — nickafischer | Caption identifies day-trading options bots; full audio/method not reviewed. | Consolidate with #9; no broker connection, options implementation or financial execution. Recording/transcript needed. |
-| 5 | [Dd48nVoD7FR](https://www.instagram.com/p/Dd48nVoD7FR/) — seb.ai | Caption and first slide: public-data research terminal, company research, news, filings and stress tests; eight-slide carousel not fully inspected. | Reuse executive research, finance analysis and market service; add input-based company screening. Licensed data, authoritative current fundamentals and remaining slides still needed for a complete terminal. |
+| 5 | [Dd48nVoD7FR](https://www.instagram.com/p/Dd48nVoD7FR/) — seb.ai | All eight slides: public/user-supplied data, cross-asset overview, dated news briefs, filing comparisons and thesis stress tests; example screens are labeled illustrative. | Reuse executive research, finance analysis and market service; add input-based company screening. Authoritative current fundamentals, filing/news adapters and production model execution still needed for a complete terminal. |
 | 6 | [DecWLCNxlz2](https://www.instagram.com/reel/DecWLCNxlz2/) — sweatpant_millionaire / primecapitalre | Caption: claimed commercial-property appreciation, refinancing and tax outcome; full audio not reviewed. | Add transparent loan, cash-after-costs, amortization and DSCR scenarios; reuse existing property diligence. No independent valuation, tax determination or financing approval. |
-| 7 | [DemltRcE1sR](https://www.instagram.com/p/DemltRcE1sR/) — arwazaz_ | Caption and slide 1/8: measurable business-quality screening, Python and validation. | Implement explicit ROE/debt/equity/P-E input screen with missing data preserved. Remaining slides, authoritative historical fundamentals and strategy specification needed; no claim to reproduce Buffett or backtested returns. |
+| 7 | [DemltRcE1sR](https://www.instagram.com/p/DemltRcE1sR/) — arwazaz_ | All eight slides: quality/valuation principles, ROE/debt/free-cash-flow rules, Python screening, historical validation, portfolio monitoring and explicit limitations. | Implement explicit ROE/debt/equity/P-E/positive-free-cash-flow input screen with missing data preserved. Authoritative historical fundamentals and portfolio/backtest specification needed; no claim to reproduce Buffett or backtested returns. |
 | 8 | [DeHIAcjtHRr](https://www.instagram.com/p/DeHIAcjtHRr/) — finfab.app | Single wealth infographic and caption inspected. | Research-only: wealth estimates are unverified third-party claims, not an operational capability, customer evidence or revenue forecast. No feature count assigned. |
 | 9 | [DeCk2UugeNF](https://www.instagram.com/reel/DeCk2UugeNF/) — nickafischer | Caption: one-day-to-expiry Python bots; video/audio method not fully inspected. | Consolidate with #4. Research-only; full source and a tested strategy specification remain missing. |
 | 10 | [DeOT1GRBXJ-](https://www.instagram.com/reel/DeOT1GRBXJ-/) — jun_yuh | Caption and opening revenue-claim frame only; actual business/content method not verified. | Blocked pending recording/transcript. No invented product strategy or adopted revenue claim. Supported media retrieval was canceled. |
 | 11 | [Dd_wlJNqYVv](https://www.instagram.com/reel/Dd_wlJNqYVv/) — kumail.si | Caption and leaderboard frame inspected: reuse, engineering, review, security, clear communication, diagrams, graph context and design skills. | Reuse code and behavior tests; scoped memory and controlled error handling added. Named repositories, licenses and star claims unverified; no third-party skill installation. Full audio review outstanding. |
-| 12 | [DeR_GUEifqy](https://www.instagram.com/p/DeR_GUEifqy/) — gobi_automates | Caption and first slide: shared structured company context across business departments. Remaining slides not inspected. | Consolidate with #2; do not reproduce advertised agent/automation counts as evidence of working systems. |
-| 13 | [DeqdTxjgZ62](https://www.instagram.com/p/DeqdTxjgZ62/) — n8nstack | Caption and first slide: bounded tools, relevant context, deterministic processing, structured validation and output verification. | Apply validation, authorization-before-storage, exact scope binding, evidence snapshots, failure blocking and concurrency tests. Remaining carousel review outstanding. |
-| 14 | [Degl67_mOq5](https://www.instagram.com/p/Degl67_mOq5/) — 10xprompt | Caption and first slide: scene/camera/light prompts, VFX, transitions, product ads and storytelling. Remaining prompt slides not inspected. | Reuse `makeStoryboard`, cinematic rights/budget gates, render and review workflow. No generated clip, approved sample, provider access or newly inspected full prompt set claimed. |
+| 12 | [DeR_GUEifqy](https://www.instagram.com/p/DeR_GUEifqy/) — gobi_automates | All seven slides: sourced notes, retrieval, entity links, evaluation, owned storage, departmental jobs and owner-approved external actions. Advertised counts/accuracy are unverified. | Consolidate with #2; do not reproduce advertised agent/automation counts as evidence of working systems. |
+| 13 | [DeqdTxjgZ62](https://www.instagram.com/p/DeqdTxjgZ62/) — n8nstack | All eight slides: runtime context, precise tool contracts, least privilege, deterministic steps, schema validation and outcome evaluation. | Apply validation, authorization-before-storage, exact scope binding, evidence snapshots, failure blocking and concurrency tests. No claim of complete model-output certification. |
+| 14 | [Degl67_mOq5](https://www.instagram.com/p/Degl67_mOq5/) — 10xprompt | All seven slides: five techniques for camera/lens direction, morph transitions, product scenes, dimensional typography and material VFX; final slide markets a separate prompt product. | Extend `makeStoryboard` with five original technique profiles; add a working, downloadable animated SVG title. Existing rights/budget/render/review gates remain. No generated cinematic clip, approved sample or verified runtime provider access claimed. |
 
 ## Implemented code in this change
 
@@ -62,7 +62,7 @@ transaction or external communication was changed by this implementation.
 
 ## Acceptance still required
 
-Full source audio/carousel review; full isolated PostgreSQL CI; deployment SUCCESS
+Full audio review of reels #1, #4, #6, #9, #10 and #11; full isolated PostgreSQL CI; deployment SUCCESS
 and exact revision verification; production owner-memory workflow and retained
 records after restart; provider execution/approved cinematic sample; truthful
 commercial offer, genuine intake/payment/delivery evidence where applicable.
@@ -72,3 +72,15 @@ Run `npm test` with an isolated loopback PostgreSQL test database and FFmpeg.
 The full suite deliberately fails without that database instead of skipping the
 persistence/concurrency controls. Existing hosted workflow and cryptocurrency
 safety tests remain required.
+
+## Validation checkpoint
+
+Initial implementation source `2eaadf264a48f740e55719096854bdd6cd9d4d79` passed CI run
+39482104698: 370 application tests + 38 crypto safety tests, zero failures/skips,
+real isolated PostgreSQL concurrency/restart checks, FFmpeg and official Node
+image startup. Follow-up screening, UI and cinematic changes require their own
+passing CI before merge. No production release of this feature is claimed.
+
+The browser policy rejects local file-protocol previews; that path was not bypassed.
+HTTP behavior is tested, but visual/end-to-end production verification still needs
+a supported HTTP deployment.

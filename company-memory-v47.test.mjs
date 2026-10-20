@@ -16,7 +16,8 @@ test('memory preserves provenance, ignores expired records and isolates customer
  f.advance(86400001);assert.equal((await f.memory.search('customer-a',{query:'bakery'})).matches.length,0);assert.equal((await f.memory.snapshot('customer-a')).documents[0].expired,true);
 });
 test('edits require the current version, exact replay is idempotent and retrieval is fresh',async()=>{
- const f=fixture(),a=await f.memory.save('a',doc());assert.equal((await f.memory.save('a',doc())).version,1);
+ const f=fixture(),a=await f.memory.save('a',doc());
+ const withoutId=doc();delete withoutId.id;const auto=await f.memory.save('auto',withoutId);assert.equal((await f.memory.save('auto',withoutId)).id,auto.id);assert.equal((await f.memory.snapshot('auto')).documents.length,1);assert.equal((await f.memory.save('a',doc())).version,1);
  await assert.rejects(f.memory.save('a',doc({text:'Changed'})),/changed/);
  await f.memory.save('a',doc({text:'New cancellation policy',expectedVersion:a.version}));
  assert.equal((await f.memory.search('a',{query:'cancellation'})).matches[0].version,2);
