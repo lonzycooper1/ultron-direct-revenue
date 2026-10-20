@@ -13,7 +13,7 @@ const INTERVAL=Math.max(1,Number(process.env.CRYPTO_BOT_INTERVAL_MINUTES||1));
 const APPROVAL_SECRET=String(process.env.CRYPTO_APPROVAL_SECRET||'');
 const state={mode:'live-market-research',cycles:0,lastCycleAt:null,lastResults:[],rankedOpportunities:[],proposalCandidates:[],portfolioRisk:null,journal:[],startedAt:new Date().toISOString(),liveExecutionDisabled:false};
 const proposals=new Map();
-const sourceRevision=String(process.env.RAILWAY_GIT_COMMIT_SHA||process.env.ULTRON_RELEASE_COMMIT||'');
+const sourceRevision=String(process.env.ULTRON_RELEASE_COMMIT||process.env.RAILWAY_GIT_COMMIT_SHA||'');
 const releaseCommit=/^[a-f0-9]{40}$/.test(sourceRevision)?sourceRevision:null;
 checkReadOnlyStartup().catch(()=>console.error('ULTRON provider read verification unavailable; live orders remain blocked'));
 

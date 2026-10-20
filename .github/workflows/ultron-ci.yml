@@ -46,6 +46,7 @@ jobs:
             --env "ULTRON_BOOTSTRAP_MANIFEST=$manifest" \
             --volume "$PWD/ops/railway-image-bootstrap.mjs:/bootstrap.mjs:ro" \
             node:22-alpine node /bootstrap.mjs
+          docker image inspect --format 'ULTRON_OFFICIAL_NODE_IMAGE={{index .RepoDigests 0}}' node:22-alpine
           trap 'docker logs --tail 80 ultron-image-smoke; docker rm --force ultron-image-smoke' EXIT
           for attempt in $(seq 1 80); do
             if node --input-type=module -e 'import assert from "node:assert/strict"; const r=await fetch("http://127.0.0.1:39171/health",{signal:AbortSignal.timeout(1000)});const h=await r.json();assert.equal(h.releaseCommit,process.env.SMOKE_COMMIT);assert.equal(h.providerId,"crypto-com-app");assert.equal(h.liveOrders,false);assert.equal(h.autonomousLiveOrders,false);assert.equal(h.apiConfigured,false)' >/dev/null 2>&1; then
