@@ -3,11 +3,11 @@
 import crypto from 'node:crypto';
 
 const num=(name,fallback,min,max)=>Math.min(max,Math.max(min,Number(process.env[name]||fallback)||fallback));
-const allowed=String(process.env.CRYPTOCOM_ALLOWED_INSTRUMENTS||'BTC-USD,ETH-USD').split(',').map(x=>x.trim()).filter(Boolean);
+const allowed=String(process.env.CRYPTOCOM_ALLOWED_INSTRUMENTS||'BTC-USD,ETH-USD').split(',').map(x=>x.trim()).filter(x=>['BTC-USD','ETH-USD'].includes(x));
 export const LIVE_APPROVAL_RULES=Object.freeze({
   autonomousLiveOrders:false,
   humanApprovalRequired:true,
-  maxLeverage:num('CRYPTO_MAX_LEVERAGE',2,1,2),
+  maxLeverage:1,
   maxOrderUsd:num('CRYPTO_MAX_ORDER_USD',100,1,1000),
   maxPositionPct:num('CRYPTO_MAX_POSITION_PCT',0.05,0.001,0.10),
   maxDailyLossPct:num('CRYPTO_MAX_DAILY_LOSS_PCT',0.02,0.001,0.10),

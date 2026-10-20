@@ -3,7 +3,8 @@ import {createServer} from 'node:http';
 import crypto from 'node:crypto';
 import {CRYPTO_BOT_RULES,CRYPTO_AGENTS,researchDecision,cryptoCapabilityManifest} from './crypto-bots.mjs';
 import {LIVE_APPROVAL_RULES,proposeLiveOrder,approveProposal,executionEnvelope} from './crypto-live-approval.mjs';
-import {liveExecutionConfig,executeApprovedSpotOrder,verifyProviderReadAccess} from './crypto-provider.mjs';
+import {selectedProvider,liveExecutionConfig,executeApprovedSpotOrder,verifyProviderReadAccess} from './crypto-provider.mjs';
+import {createAppQuote,loadAppQuote,reviewAppQuote,appReadiness} from './crypto-app-approval.mjs';
 import {checkReadOnlyStartup} from './crypto-readiness.mjs';
 import {evaluateStrategies,rankOpportunities,buildProposalCandidates,portfolioRiskSummary} from './crypto-opportunity-engine.mjs';
 
@@ -179,6 +180,35 @@ function serviceWorker(){
 }
 
 createServer(async(req,res)=>{const u=new URL(req.url,'http://local');try{
+ if(u.pathname==='/api/app/readiness'){
+  if(!authorized(req,u))return json(res,401,{error:'approval key required'});
+  if(req.method!=='POST')return json(res,405,{error:'POST required'});
+  if(selectedProvider()!=='crypto-com-app')return json(res,409,{error:'App provider is not selected'});
+  const readiness=await appReadiness();return json(res,503,{ok:false,readiness});
+ }
+ const appQuoteMatch=/^\/api\/app\/quotes\/([^/]+)(\/review)?$/.exec(u.pathname);
+ const appCreate=u.pathname==='/api/app/quotes'||u.pathname==='/api/proposals'&&selectedProvider()==='crypto-com-app';
+ const appApprove=/^\/api\/proposals\/([^/]+)\/approve$/.exec(u.pathname);
+ if(appCreate||appQuoteMatch||appApprove&&selectedProvider()==='crypto-com-app'){
+  if(!authorized(req,u))return json(res,401,{error:'approval key required'});
+  if(selectedProvider()!=='crypto-com-app')return json(res,409,{error:'App provider is not selected'});
+  try{
+   if(appCreate){
+    if(req.method!=='POST')return json(res,405,{error:'POST required'});
+    const proposal=await createAppQuote(await body(req));
+    return json(res,201,{ok:true,proposal,orderSubmitted:false,liveOrders:false});
+   }
+   if(appQuoteMatch&&!appQuoteMatch[2]){
+    if(req.method!=='GET')return json(res,405,{error:'GET required'});
+    const proposal=await loadAppQuote(decodeURIComponent(appQuoteMatch[1]));
+    return json(res,proposal?200:404,proposal?{proposal}:{error:'App quote not found'});
+   }
+   if(req.method!=='POST')return json(res,405,{error:'POST required'});
+   const id=decodeURIComponent(appQuoteMatch?appQuoteMatch[1]:appApprove[1]);
+   const result=await reviewAppQuote(id,await body(req));
+   return json(res,423,{ok:false,...result});
+  }catch{return json(res,409,{ok:false,error:'App quote request could not pass validation or durable controls',orderSubmitted:false,liveOrders:false})}
+ }
  if(['/api/exchange/verify','/api/provider/verify','/api/app/verify'].includes(u.pathname)){
   if(!authorized(req,u))return json(res,401,{error:'approval key required'});
   if(req.method!=='POST')return json(res,405,{error:'POST required'});
