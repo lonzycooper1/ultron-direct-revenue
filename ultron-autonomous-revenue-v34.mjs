@@ -235,11 +235,11 @@ export function auditPageHtml(){
  '<label>Business name<input name="company" required maxlength="100" autocomplete="organization"></label>'+
  '<label>Public HTTPS website<input name="website" required type="url" maxlength="240" placeholder="https://your-business.com"></label>'+
  '<label>Industry<select name="industry"><option value="home-services">Home services</option><option value="plumbing">Plumbing</option><option value="hvac">HVAC</option><option value="roofing">Roofing</option><option value="auto-repair">Auto repair</option><option value="salon">Salon</option><option value="professional-services">Professional services</option><option value="other">Other</option></select></label>'+
- '<label>Monthly inbound inquiries (estimate)<input name="monthlyLeads" type="number" min="0" max="100000" required></label>'+
- '<label>Missed inquiry percentage (estimate)<input name="missedPercent" type="number" min="0" max="100" required></label>'+
- '<label>Typical first response (minutes)<input name="responseMinutes" type="number" min="0" max="10080" required></label>'+
- '<label>How customers book<select name="bookingMethod"><option value="mixed">Multiple channels</option><option value="phone">Telephone</option><option value="form">Website form</option><option value="online-booking">Online booking</option><option value="social">Social messages</option></select></label>'+
- '<label>Current follow-up<select name="followup"><option value="inconsistent">Inconsistent</option><option value="manual">Manual</option><option value="none">None</option><option value="automated">Automated</option></select></label>'+
+ '<p>Measurements are optional. Leave unknown values blank; they will not be treated as zero.</p><label>Monthly inbound inquiries (estimate)<input name="monthlyLeads" type="number" min="0" max="100000"></label>'+
+ '<label>Missed inquiry percentage (estimate)<input name="missedPercent" type="number" min="0" max="100"></label>'+
+ '<label>Typical first response (minutes)<input name="responseMinutes" type="number" min="0" max="10080"></label>'+
+ '<label>How customers book<select name="bookingMethod"><option value="unknown">Not supplied</option><option value="mixed">Multiple channels</option><option value="phone">Telephone</option><option value="form">Website form</option><option value="online-booking">Online booking</option><option value="social">Social messages</option></select></label>'+
+ '<label>Current follow-up<select name="followup"><option value="unknown">Not supplied</option><option value="inconsistent">Inconsistent</option><option value="manual">Manual</option><option value="none">None</option><option value="automated">Automated</option></select></label>'+
  '<label>Main pain point (optional; no secrets or private customer information)<textarea name="mainProblem" maxlength="300" rows="3"></textarea></label>'+
  '<label><input name="authorizationConfirmed" type="checkbox" required> I authorize use of these supplied business inputs for this order only.</label>'+
  '<button type="submit">Continue to PayPal checkout</button></form><p id="result" role="status" aria-live="polite"></p>'+
