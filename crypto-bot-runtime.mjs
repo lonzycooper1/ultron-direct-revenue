@@ -13,6 +13,8 @@ const INTERVAL=Math.max(1,Number(process.env.CRYPTO_BOT_INTERVAL_MINUTES||1));
 const APPROVAL_SECRET=String(process.env.CRYPTO_APPROVAL_SECRET||'');
 const state={mode:'live-market-research',cycles:0,lastCycleAt:null,lastResults:[],rankedOpportunities:[],proposalCandidates:[],portfolioRisk:null,journal:[],startedAt:new Date().toISOString(),liveExecutionDisabled:false};
 const proposals=new Map();
+const sourceRevision=String(process.env.RAILWAY_GIT_COMMIT_SHA||process.env.ULTRON_RELEASE_COMMIT||'');
+const releaseCommit=/^[a-f0-9]{40}$/.test(sourceRevision)?sourceRevision:null;
 checkReadOnlyStartup().catch(()=>console.error('ULTRON provider read verification unavailable; live orders remain blocked'));
 
 async function candles(product='BTC-USD',granularity=300){
@@ -224,7 +226,7 @@ createServer(async(req,res)=>{const u=new URL(req.url,'http://local');try{
  if(req.method==='GET'&&u.pathname==='/manifest.webmanifest'){res.writeHead(200,{'content-type':'application/manifest+json','cache-control':'public,max-age=300'});return res.end(JSON.stringify(manifest()))}
  if(req.method==='GET'&&u.pathname==='/sw.js'){res.writeHead(200,{'content-type':'application/javascript; charset=utf-8','cache-control':'no-cache','service-worker-allowed':'/'});return res.end(serviceWorker())}
  const cfg=liveExecutionConfig();prune();
- if(u.pathname==='/health')return json(res,200,{ok:true,service:'ULTRON Crypto Intelligence',provider:cfg.provider,providerId:cfg.providerId,apiConfigured:cfg.apiConfigured,mode:state.mode,liveMarketData:true,liveOrders:false,approvalGated:true,approvalControlConfigured:Boolean(APPROVAL_SECRET),autonomousLiveOrders:false,agents:CRYPTO_AGENTS.length,cycles:state.cycles,lastCycleAt:state.lastCycleAt,intervalMinutes:INTERVAL,rankedOpportunities:state.rankedOpportunities.length,proposalCandidates:state.proposalCandidates.length});
+ if(u.pathname==='/health')return json(res,200,{ok:true,service:'ULTRON Crypto Intelligence',releaseCommit,provider:cfg.provider,providerId:cfg.providerId,apiConfigured:cfg.apiConfigured,mode:state.mode,liveMarketData:true,liveOrders:false,approvalGated:true,approvalControlConfigured:Boolean(APPROVAL_SECRET),autonomousLiveOrders:false,agents:CRYPTO_AGENTS.length,cycles:state.cycles,lastCycleAt:state.lastCycleAt,intervalMinutes:INTERVAL,rankedOpportunities:state.rankedOpportunities.length,proposalCandidates:state.proposalCandidates.length});
  if(u.pathname==='/agents')return json(res,200,{agents:CRYPTO_AGENTS,flow:'market data -> research signals -> safety-gated proposals; exchange order execution disabled pending certification',capabilities:cryptoCapabilityManifest(),approvalRules:LIVE_APPROVAL_RULES});
  if(u.pathname==='/state'){if(!authorized(req,u))return json(res,401,{error:'approval key required'});return json(res,200,{...state,proposals:Array.from(proposals.values()).map(p=>({...p,approvalSecret:undefined})),liveConfig:cfg})}
  if(u.pathname==='/api/config')return json(res,200,{ok:true,liveConfig:cfg,approvalRules:LIVE_APPROVAL_RULES,liveExecutionDisabled:state.liveExecutionDisabled});

@@ -34,3 +34,27 @@ jobs:
         run: command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
       - run: npm ci --no-audit --no-fund
       - run: npm test
+      - name: Verify official-image startup without Railway builds
+        env:
+          SMOKE_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+        shell: bash
+        run: |
+          manifest="$(node ops/runtime-checksums.mjs)"
+          docker run --detach --name ultron-image-smoke --publish 127.0.0.1:39171:3000 \
+            --env PORT=3000 --env CRYPTO_PROVIDER=crypto-com-app \
+            --env "ULTRON_BOOTSTRAP_COMMIT=$SMOKE_COMMIT" \
+            --env "ULTRON_BOOTSTRAP_MANIFEST=$manifest" \
+            --volume "$PWD/ops/railway-image-bootstrap.mjs:/bootstrap.mjs:ro" \
+            node:22-alpine node /bootstrap.mjs
+          trap 'docker logs --tail 80 ultron-image-smoke; docker rm --force ultron-image-smoke' EXIT
+          for attempt in $(seq 1 80); do
+            if node --input-type=module -e 'import assert from "node:assert/strict"; const r=await fetch("http://127.0.0.1:39171/health",{signal:AbortSignal.timeout(1000)});const h=await r.json();assert.equal(h.releaseCommit,process.env.SMOKE_COMMIT);assert.equal(h.providerId,"crypto-com-app");assert.equal(h.liveOrders,false);assert.equal(h.autonomousLiveOrders,false);assert.equal(h.apiConfigured,false)' >/dev/null 2>&1; then
+              echo "Pinned source booted successfully using the official Node image"
+              exit 0
+            fi
+            if [ "$(docker inspect --format '{{.State.Running}}' ultron-image-smoke)" != true ]; then
+              exit 1
+            fi
+            sleep 2
+          done
+          exit 1
