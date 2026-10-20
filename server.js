@@ -1,3 +1,4 @@
+import {workflows,submitWorkflow,qualifyLead} from './reference-workflows.mjs';
 import {companyMemory} from './company-memory-v47.mjs';
 import {refinanceScenario,screenCompanies} from './research-tools-v47.mjs';
 import {executive,startExecutive} from './executive-runtime.mjs';
@@ -280,6 +281,23 @@ if(path==='/api/mainframe/v44/artifact'&&req.method==='GET'){
  try{const draft=await mainframe44.getProductDraft(u.searchParams.get('id'));
   res.writeHead(200,{'content-type':'application/octet-stream','content-disposition':'attachment; filename="'+draft.filename+'"','content-length':draft.data.length,'cache-control':'private,no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'});return res.end(draft.data)}
  catch{return json(404,{error:'Draft not found or failed integrity verification'})}
+}
+if(path==='/api/reference-workflows'&&req.method==='GET')return json(200,{workflows,executionVerified:false});
+if(path==='/api/reference-workflows/qualify'&&req.method==='POST'){
+ if(!v13Owner())return json(403,{error:'Owner authorization required'});
+ if(!(req.headers['content-type']||'').startsWith('application/json'))return json(415,{error:'JSON required'});
+ let raw='';for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>4000)return json(413,{error:'Request too large'})}
+ try{return json(200,{result:qualifyLead(JSON.parse(raw))})}catch{return json(400,{error:'Provide valid source, asOf, consent and four boolean-or-null qualification answers'})}
+}
+if(path==='/api/reference-workflows'&&req.method==='POST'){
+ if(!v13Owner())return json(403,{error:'Owner authorization required'});
+ if(!(req.headers['content-type']||'').startsWith('application/json'))return json(415,{error:'JSON required'});
+ let raw='';for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>20000)return json(413,{error:'Request too large'})}
+ let input;try{input=JSON.parse(raw)}catch{return json(400,{error:'Invalid JSON'})}
+ try{return json(202,await submitWorkflow(executive,input))}catch(e){
+ const message=String(e.message);if(/^(Workflow object|Unknown workflow|Brief must|Stable requestId|Invalid memory scope|Idempotency key|Queue full)/.test(message))return json(400,{error:message});
+ return json(503,{error:'Workflow queue unavailable'});
+ }
 }
 if(path==='/executive'&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-frame-options':'DENY'});return res.end(await readFile(new URL('./public/executive.html',import.meta.url),'utf8'))}
 if(path==='/api/executive/status'&&req.method==='GET')return json(200,await executive.status(v13Owner()));
