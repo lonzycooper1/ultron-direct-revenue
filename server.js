@@ -1,3 +1,6 @@
+import {ecosystemSnapshot} from './ecosystem.mjs';
+import {creativeFactory,combineDeliverables} from './creative-products.mjs';
+import {printFactory} from './print-products.mjs';
 import {createServiceProduction} from './service-production.mjs';
 import {serviceProductionRoute} from './service-production-http.mjs';
 import {services} from './service-catalog.mjs';
@@ -202,7 +205,8 @@ async function journeyPayPalRead(path){
  const r=await fetch(BASE+path,{headers:{authorization:'Bearer '+await token()},signal:AbortSignal.timeout(15000),redirect:'error'});
  if(!r.ok)throw Error('PayPal verification unavailable');return r.json();
 }
-const customerJourney=createCustomerJourney({catalog:marketProduct,verify:order=>confirmCapturedOrderForDelivery(journeyPayPalRead,order)});
+const deliverableProducts=combineDeliverables(printFactory,creativeFactory);
+const customerJourney=createCustomerJourney({products:deliverableProducts,catalog:marketProduct,verify:order=>confirmCapturedOrderForDelivery(journeyPayPalRead,order)});
 export function createApp(){return createServer(async(req,res)=>{const u=new URL(req.url,'http://local'),path=u.pathname,json=(s,d)=>{res.writeHead(s,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(d))};try{
 const v13Owner=()=>Boolean(ACQ_TOKEN)&&((req.headers.authorization||'')==='Bearer '+ACQ_TOKEN||req.headers['x-ultron-admin']===ACQ_TOKEN);
 if(path==='/workbench'&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-frame-options':'DENY','referrer-policy':'no-referrer'});return res.end(await readFile(new URL('./public/workbench-v47.html',import.meta.url),'utf8'))}
@@ -268,6 +272,7 @@ if(path==='/api/demand/v46/artifact'&&req.method==='GET'){
 }
 if((path==='/mainframe'||path==='/autonomy-mainframe')&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-frame-options':'DENY','referrer-policy':'no-referrer'});return res.end(await readFile(new URL('./public/mainframe-v44.html',import.meta.url),'utf8'))}
 if(path==='/api/mainframe/v44'&&req.method==='GET'){return json(200,await mainframe44.snapshot(false))}
+if(path==='/api/ecosystem'&&req.method==='GET'){try{const [mainframe,exec,creative,services,operations]=await Promise.all([mainframe44.snapshot(false),executive.status(false),creativeFactory.list(),serviceProduction.list(),operationsState()]);return json(200,ecosystemSnapshot({mainframe,executive:exec,creative,services,operations}))}catch{return json(503,{error:'Ecosystem state unavailable; no healthy or zero-work state inferred'})}}
 if(path==='/api/mainframe/v44/owner'&&req.method==='GET'){if(!v13Owner())return json(403,{error:'Owner authorization required'});return json(200,await mainframe44.snapshot(true))}
 if(path==='/api/mainframe/v44/payhip'&&req.method==='GET'){
  if(!v13Owner())return json(403,{error:'Owner authorization required'});
@@ -305,6 +310,9 @@ if(['/customer-delivery','/customer-journey'].includes(path)&&req.method==='GET'
 if(await customerJourneyRoute(req,res,u,{authorized:v13Owner,json,journey:customerJourney}))return;
 if(path==='/audit-delivery'&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','referrer-policy':'no-referrer','x-frame-options':'DENY'});return res.end(await readFile(new URL('./public/audit-delivery.html',import.meta.url),'utf8'))}
 if(await serviceProductionRoute(req,res,u,{authorized:v13Owner,json,production:serviceProduction}))return;
+if(await printProductRoute(req,res,u,{authorized:v13Owner,json,factory:creativeFactory,basePath:'/api/creative-products'}))return;
+if(path==='/api/deliverable-products'&&req.method==='GET'){if(!v13Owner())return json(403,{error:'Owner authorization required'});return json(200,{products:await deliverableProducts.list()})}
+if(path==='/creative-studio'&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','referrer-policy':'no-referrer','x-frame-options':'DENY'});return res.end(await readFile(new URL('./public/creative-studio.html',import.meta.url),'utf8'))}
 if(path==='/api/services'&&req.method==='GET')return json(200,{services});
 if(['/services','/audit-studio','/service-studio'].includes(path)&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','referrer-policy':'no-referrer','x-frame-options':'DENY'});return res.end(await readFile(new URL('./public/'+(path==='/services'?'services':path==='/audit-studio'?'audit-studio':'service-studio')+'.html',import.meta.url),'utf8'))}
 if(await auditDeliveryRoute(req,res,u,{authorized:v13Owner,json,delivery:auditDelivery}))return;
@@ -343,6 +351,12 @@ if(path==='/api/executive/events'&&req.method==='POST'){
  if(!process.env.ULTRON_BUSINESS_WEBHOOK_SECRET)return json(503,{error:'Authenticated event source is not configured'});
  let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>12000)return json(413,{error:'Request too large'})}
  try{const event=verifyBusinessWebhook(raw,req.headers,process.env.ULTRON_BUSINESS_WEBHOOK_SECRET);return json(202,await businessRuntime.receive(event))}catch{return json(401,{error:'Invalid authenticated business event'})}
+}
+if(path==='/api/executive/control'&&req.method==='POST'){
+ if(!v13Owner())return json(403,{error:'Owner authorization required'});
+ if(!(req.headers['content-type']||'').startsWith('application/json'))return json(415,{error:'JSON required'});
+ let raw='';for await(const b of req){raw+=b;if(Buffer.byteLength(raw)>2000)return json(413,{error:'Request too large'})}
+ try{const x=JSON.parse(raw);return json(200,x.action==='cancel'?await executive.cancel(x.id):await executive.control(x.action))}catch{return json(409,{error:'Control rejected: only pause, resume, or cancellation of queued work is supported. Active or uncertain work requires reconciliation.'})}
 }
 if(path==='/api/executive/jobs'&&req.method==='POST'){
  if(!v13Owner())return json(403,{error:'Owner authorization required'});
