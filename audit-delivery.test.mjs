@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {createServer} from 'node:http';import {mkdtemp,writeFile,readFile,rm} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';import {execFileSync} from 'node:child_process';import {randomUUID} from 'node:crypto';
-import {createAuditDelivery,websiteObservations,auditCustomerLocation} from './audit-delivery.mjs';import {auditDeliveryRoute} from './audit-delivery-http.mjs';import {serviceDocument} from './service-document.mjs';import {inspectHtmlV34,V34_SKU} from './ultron-autonomous-revenue-v34.mjs';import {getJson,mutateJson} from './state-store.mjs';
+import {createAuditDelivery,websiteObservations,auditCustomerLocation,validatePreparedAuditIntake} from './audit-delivery.mjs';import {auditDeliveryRoute} from './audit-delivery-http.mjs';import {serviceDocument} from './service-document.mjs';import {inspectHtmlV34,V34_SKU} from './ultron-autonomous-revenue-v34.mjs';import {getJson,mutateJson} from './state-store.mjs';
 const input={authorizationConfirmed:true,company:'Synthetic Plumbing',website:'https://example.org/',industry:'plumbing',monthlyLeads:40,missedPercent:10,responseMinutes:90,bookingMethod:'phone',followup:'manual'};
 const html='<title>Fixture business</title><h1>Contact us</h1><form></form><a href="tel:555">Phone</a>Request a quote';
 function memory(seed){let s=seed;return {read:async()=>structuredClone(s),mutate:async fn=>{const n=structuredClone(s);await fn(n);s=n}}}
@@ -8,7 +8,7 @@ async function fixture(store=memory({drafts:{}})){
  await orderStore.mutate(s=>s.orders[o.id]=o);await d.bind(o.id);return {d,p,token,options,store,orderStore,setFailure:x=>fail=x,calls:()=>calls};
 }
 test('five observations do not manufacture five defects and inaccessible evidence blocks preparation',async()=>{
- await assert.rejects(createAuditDelivery().prepare({...input,authorizationConfirmed:false}),/Authorization/);await assert.rejects(createAuditDelivery().prepare({...input,monthlyLeads:null}),/measurements/);
+ await assert.rejects(createAuditDelivery().prepare({...input,authorizationConfirmed:false}),/Authorization/);await assert.rejects(createAuditDelivery().prepare({...input,monthlyLeads:'invalid'}),/measurement/);
  const all=websiteObservations(inspectHtmlV34(html),input.website,new Date().toISOString());assert.equal(all.length,5);assert.equal(all.filter(x=>x.category==='REVIEW_OPPORTUNITY').length,0);assert.ok(all.every(x=>x.limitation.includes('does not establish')));
  await assert.rejects(createAuditDelivery({inspect:async()=>({status:'UNAVAILABLE'})}).prepare(input),/evidence unavailable/);
 });
@@ -42,3 +42,13 @@ test('isolated PostgreSQL retains review and rejects conflicting capture binding
 test('document factory rejects unsupported glyphs rather than silently corrupting customer text',async()=>{await assert.rejects(serviceDocument({title:'Example',sections:[{title:'Source',body:'漢字'},{title:'Scope',body:'Fixture'}]}),/glyph/)});
 
 test('new paid audit navigation keeps purchase codes out of request queries while retaining legacy access',()=>{const code='a'.repeat(48),u=new URL(auditCustomerLocation({product:V34_SKU,auditPackageId:'package'},code),'https://owner.example.org');assert.equal(u.pathname,'/audit-delivery');assert.equal(u.search,'');assert.equal(u.hash,'#code='+code);assert.match(auditCustomerLocation({product:V34_SKU},code),/^\/fulfillment\?token=/);assert.throws(()=>auditCustomerLocation({},'invalid'))});
+
+test('unknown audit measurements remain unknown through validation and the rendered report',async()=>{
+ const supplied={...input,monthlyLeads:null,missedPercent:'',responseMinutes:undefined,bookingMethod:'unknown',followup:null};
+ const normalized=validatePreparedAuditIntake(supplied);for(const key of ['monthlyLeads','missedPercent','responseMinutes','bookingMethod','followup'])assert.equal(normalized[key],null);
+ const d=createAuditDelivery({...memory({drafts:{}}),inspect:async()=>inspectHtmlV34(html)}),p=await d.prepare(normalized),saved=await d.get(p.id),baseline=p.sections.find(s=>s.title==='Customer-supplied baseline').body;
+ assert.equal(saved.intake.monthlyLeads,null);assert.match(baseline,/UNKNOWN/);assert.match(baseline,/Not calculated/);assert.doesNotMatch(baseline,/approximately 0|0-minute|0%/);
+ assert.equal(validatePreparedAuditIntake({...input,monthlyLeads:0}).monthlyLeads,0);
+ for(const value of [-1,1.5,100001,true,{},'NaN'])assert.throws(()=>validatePreparedAuditIntake({...input,monthlyLeads:value}),/measurement/);
+ assert.throws(()=>validatePreparedAuditIntake({...input,bookingMethod:'fabricated'}),/process/);
+});

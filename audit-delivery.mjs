@@ -10,11 +10,30 @@ export function websiteObservations(site,url,at){
  const checks=[['Page title',Boolean(site.title),'Title detected: '+(site.title||'(none detected)'),'Review a descriptive page title'],['Main heading',site.h1Count===1,'Static H1 count: '+site.h1Count,'Review heading hierarchy'],['Phone link',site.telLink,'Static tel: link '+(site.telLink?'detected':'not detected'),'Verify a usable contact method on mobile'],['Inquiry form',site.formCount>0,'Static form count: '+site.formCount,'Verify a usable inquiry path'],['Booking wording',site.bookingText,'Booking/request wording '+(site.bookingText?'detected':'not detected'),'Test a clear next-step call to action']];
  return checks.map(([check,detected,evidence,next],i)=>({id:'homepage-'+(i+1),check,category:detected?'OBSERVATION':'REVIEW_OPPORTUNITY',evidence,next,source:url,observedAt:at,limitation:'Static HTML only. Absence does not establish a missing live feature or lost sales.'}));
 }
+export function validatePreparedAuditIntake(input={}){
+ if(input.authorizationConfirmed!==true)throw Error('Authorization for supplied inputs required');
+ const x=validateV34Intake(input);
+ for(const [key,max]of [['monthlyLeads',100000],['missedPercent',100],['responseMinutes',10080]]){
+  const raw=input[key];if(raw===null||raw===undefined||typeof raw==='string'&&!raw.trim()){x[key]=null;continue}
+  if(!['number','string'].includes(typeof raw)||!Number.isInteger(Number(raw))||Number(raw)<0||Number(raw)>max)throw Error('Invalid supplied measurement: '+key);
+  x[key]=Number(raw);
+ }
+ for(const [key,allowed]of [['bookingMethod',['phone','form','online-booking','social','mixed']],['followup',['none','manual','inconsistent','automated']]]){
+  const raw=input[key];if(raw===null||raw===undefined||raw===''||raw==='unknown')x[key]=null;
+  else if(!allowed.includes(raw))throw Error('Invalid supplied process: '+key);
+ }
+ return {...x,authorizationConfirmed:true};
+}
+function suppliedBaseline(x){
+ const show=(v,suffix='')=>v===null?'UNKNOWN (not supplied)':String(v)+suffix;
+ const estimated=x.monthlyLeads===null||x.missedPercent===null?'Not calculated because required measurements were not supplied.':'Implied missed inquiries approximately '+Math.round(x.monthlyLeads*x.missedPercent/100)+' per month, conditional on supplied estimates; not proven lost sales.';
+ return 'Customer self-reported baseline; not independently verified. Industry '+x.industry+'; monthly inquiries: '+show(x.monthlyLeads)+'; missed percentage: '+show(x.missedPercent,'%')+'; typical response: '+show(x.responseMinutes,' minutes')+'; booking: '+show(x.bookingMethod)+'; follow-up: '+show(x.followup)+'. '+estimated+' Unknown values are not zero. Obtain a dated baseline before assessing performance.';
+}
 export function createAuditDelivery({read=()=>getJson(KEY,fresh()),mutate=fn=>mutateJson(KEY,fresh(),fn),orders=ledger,mutateOrders=saveLedger,verify,inspect=inspectV34Homepage,clock=Date.now}={}){
  const at=()=>new Date(clock()).toISOString();
  async function prepare(input){
-  if(input?.authorizationConfirmed!==true)throw Error('Authorization for supplied inputs required');for(const k of ['monthlyLeads','missedPercent','responseMinutes'])if(input[k]===null||input[k]===undefined||String(input[k]).trim()===''||!Number.isFinite(Number(input[k])))throw Error('Supplied measurements required');
-  const x=validateV34Intake(input),site=await inspect(x.website),observedAt=at(),observations=websiteObservations(site,x.website,observedAt),report=buildV34Report(x,site);
+  const x=validatePreparedAuditIntake(input),site=await inspect(x.website),observedAt=at(),observations=websiteObservations(site,x.website,observedAt),report=buildV34Report(x,site);
+  report.sections=report.sections.map(s=>s.title==='Customer-supplied baseline'?{...s,body:suppliedBaseline(x)}:s);
   if(!report.quality.passed)throw Error('Audit quality gate failed');
   const title='Lead Conversion Audit - '+x.company;
   const sections=[...report.sections,{title:'Dated observation register',body:observations.map(o=>o.id+' | '+o.category+' | '+o.check+'\n'+o.evidence+'\nSource: '+o.source+'\nChecked: '+o.observedAt+'\nNext: '+o.next+'\n'+o.limitation).join('\n\n')},{title:'Scope and revision policy',body:'This fixed-price report covers supplied business-process inputs and one accessible public HTML page. It includes editable response drafts, priorities and an implementation checklist. It does not inspect a private CRM, test calls, measure conversions or promise increased revenue. Request correction of factual or rendering errors through support using the order reference. Implementation and additional pages require separately agreed scope. Refunds require individual review under the applicable service terms.'}];
