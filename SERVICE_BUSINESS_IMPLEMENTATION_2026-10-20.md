@@ -55,3 +55,9 @@ Observed runtime before this release: OpenAI configured, worker enabled, four da
 No genuine customer, captured payment, acceptance, bank settlement, actual labor cost or contribution profit is evidenced by these tests. No offer activation is claimed here.
 
 Follow-up: new audit intake accepts missing business measurements as explicit null values. The customer-supplied baseline labels them UNKNOWN and refuses to calculate implied missed inquiries without both required estimates. Invalid, negative, fractional or out-of-range supplied values are refused. This supersedes the initial requirement to provide all three numeric measurements; it does not alter financial or trading controls.
+
+## Owner production acceptance follow-up
+
+Owner access was verified by production GET `/api/audit-delivery/owner` returning 200; an authorized preparation of ULTRON's own public site returned 503. Production DNS returned a public address successfully. The pinned lookup callback returned the single-address form even when Node requested `{all:true}`; the legacy callback was reproduced raising `ERR_INVALID_IP_ADDRESS`. The repair supports both callback forms while validating every resolved IPv4 and preserving pinning, HTTPS, no redirects, no credentials and size/time limits. Regression tests cover mixed/private DNS, Node address arrays, static HTML, redirect refusal and sanitized network failures.
+
+Owner-only errors now expose fixed diagnostic categories, never raw exception text or credentials. A successful repair test is not production acceptance: retry the legitimate internal website report, retrieve/render/inspect the actual deployed PDF and record the result. No customer purchase or revenue is implied. Latest main 22f69eb (PR58) was reconciled and preserved before this repair.
