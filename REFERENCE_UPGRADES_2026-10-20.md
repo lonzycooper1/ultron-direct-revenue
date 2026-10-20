@@ -84,3 +84,7 @@ passing CI before merge. No production release of this feature is claimed.
 The browser policy rejects local file-protocol previews; that path was not bypassed.
 HTTP behavior is tested, but visual/end-to-end production verification still needs
 a supported HTTP deployment.
+
+## Production database test isolation repair
+
+The revenue service had `env -u NODE_OPTIONS npm test` configured as a pre-deploy command. Some application tests mutate database records; they must run only in isolated CI, never with production credentials. The full test entry now refuses remote/non-test targets and NODE_ENV=production before importing application tests. Railway configuration clears the production pre-deploy test command; health checks stay enabled. CI retains all suites with its ephemeral loopback PostgreSQL database.
