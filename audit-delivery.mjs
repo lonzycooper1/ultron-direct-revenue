@@ -12,6 +12,7 @@ export function websiteObservations(site,url,at){
 export function createAuditDelivery({read=()=>getJson(KEY,fresh()),mutate=fn=>mutateJson(KEY,fresh(),fn),orders=ledger,mutateOrders=saveLedger,verify,inspect=inspectV34Homepage,clock=Date.now}={}){
  const at=()=>new Date(clock()).toISOString();
  async function prepare(input){
+  if(input?.authorizationConfirmed!==true)throw Error('Authorization for supplied inputs required');for(const k of ['monthlyLeads','missedPercent','responseMinutes'])if(input[k]===null||input[k]===undefined||String(input[k]).trim()===''||!Number.isFinite(Number(input[k])))throw Error('Supplied measurements required');
   const x=validateV34Intake(input),site=await inspect(x.website),observedAt=at(),observations=websiteObservations(site,x.website,observedAt),report=buildV34Report(x,site);
   if(!report.quality.passed)throw Error('Audit quality gate failed');
   const title='Lead Conversion Audit - '+x.company;
@@ -25,7 +26,7 @@ export function createAuditDelivery({read=()=>getJson(KEY,fresh()),mutate=fn=>mu
  async function bind(orderId){
   const o=(await orders()).orders?.[orderId];if(!o||o.product!==V34_SKU||o.status!=='COMPLETED'||!o.captureId||o.refunds?.length)throw Error('Completed audit order required');
   const d=await get(o.auditPackageId);
-  await mutate(s=>{const p=s.drafts[d.id];if(p.orderId&&p.orderId!==orderId)throw Error('Audit package already bound');p.orderId=orderId;p.captureId=o.captureId;p.status='PAID_PACKAGE_BOUND'});
+  await mutate(s=>{const p=s.drafts[d.id];if(p.orderId&&(p.orderId!==orderId||p.captureId!==o.captureId))throw Error('Audit package already bound');p.orderId=orderId;p.captureId=o.captureId;p.status='PAID_PACKAGE_BOUND'});
   return {id:d.id,sha256:d.manifest.pdfSha256};
  }
  function matches(token,stored){return typeof stored==='string'&&/^[a-f0-9]{48}$/.test(stored)&&timingSafeEqual(Buffer.from(token,'hex'),Buffer.from(stored,'hex'))}
@@ -38,7 +39,7 @@ export function createAuditDelivery({read=()=>getJson(KEY,fresh()),mutate=fn=>mu
   const d=await get(o.auditPackageId);if(d.orderId!==o.id||d.captureId!==o.captureId)throw Error('Audit binding mismatch');
   return {o,d};
  }
- async function review(id,input){const d=await get(id);if(input.sha256!==d.manifest.pdfSha256||input.allPagesReviewed!==true||input.factsChecked!==true||typeof input.reviewer!=='string'||!input.reviewer.trim()||input.reviewer.length>120)throw Error('Exact document review required');await mutate(s=>{s.drafts[id].review={sha256:d.manifest.pdfSha256,reviewer:input.reviewer.trim(),at:at()}});return {id,reviewed:true}}
+ async function review(id,input){const d=await get(id);if(input.sha256!==d.manifest.pdfSha256||input.allPagesReviewed!==true||input.factsChecked!==true||typeof input.reviewer!=='string'||!input.reviewer.trim()||input.reviewer.length>120)throw Error('Exact document review required');await mutate(s=>{s.drafts[id].review={sha256:d.manifest.pdfSha256,reviewer:input.reviewer.trim(),at:at()};if(input.releaseApproved===true)s.releaseReview={id,sha256:d.manifest.pdfSha256,at:at()}});return {id,reviewed:true}}
  async function status(token){const {o,d}=await checked(token);return {title:d.manifest.title,sha256:d.manifest.pdfSha256,pages:d.manifest.pages,scope:'Supplied inputs and one static public page',acceptedAt:o.auditDelivery?.acceptedAt||null,ownerReviewed:d.review?.sha256===d.manifest.pdfSha256,bankSettlementVerified:false}}
  async function artifact(token,format='pdf'){
   if(!['pdf','zip','md'].includes(format))throw Error('Unknown format');const {o,d}=await checked(token);
@@ -49,10 +50,11 @@ export function createAuditDelivery({read=()=>getJson(KEY,fresh()),mutate=fn=>mu
   return {bytes,filename:'ultron-audit-'+d.id+'.'+format,contentType:format==='pdf'?'application/pdf':format==='zip'?'application/zip':'text/markdown; charset=utf-8'};
  }
  async function accept(token,input){
-  const {o,d}=await checked(token);if(input.accepted!==true||input.sha256!==d.manifest.pdfSha256)throw Error('Exact artifact acceptance required');
+  const {o,d}=await checked(token);if(d.review?.sha256!==d.manifest.pdfSha256||input.accepted!==true||input.sha256!==d.manifest.pdfSha256)throw Error('Exact artifact acceptance required');
   await mutateOrders(s=>{const current=s.orders[o.id];if(current.captureId!==o.captureId||current.refunds?.length||current.auditPackageId!==d.id||current.auditDelivery?.sha256!==d.manifest.pdfSha256||!current.auditDelivery.downloadPreparedAt)throw Error('Download preparation and unchanged order required');current.auditDelivery.acceptedAt??=at()});return status(token);
  }
+ async function salesReady(){const s=await read(),r=s.releaseReview,d=r&&s.drafts[r.id];return Boolean(d&&d.review?.sha256===r.sha256&&d.manifest.pdfSha256===r.sha256)}
  async function list(){return Object.values((await read()).drafts).map(({id,manifest,status,orderId,createdAt,review})=>({id,manifest,status,orderId,createdAt,review}))}
  async function ownerArtifact(id,format='pdf'){const d=await get(id);if(!['pdf','zip','md'].includes(format))throw Error('Unknown format');const bytes=format==='md'?Buffer.from(d.markdown):Buffer.from(d[format],'base64');if(digest(bytes)!==(format==='pdf'?d.manifest.pdfSha256:format==='zip'?d.zipSha256:d.manifest.editableSha256))throw Error('Artifact integrity failure');return {bytes,filename:'audit-preview-'+id+'.'+format,contentType:format==='pdf'?'application/pdf':format==='zip'?'application/zip':'text/markdown; charset=utf-8'}}
- return {prepare,get,bind,status,artifact,accept,list,ownerArtifact,review};
+ return {prepare,get,bind,status,artifact,accept,list,ownerArtifact,review,salesReady};
 }

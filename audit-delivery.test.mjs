@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {createServer} from 'node:http';import {mkdtemp,writeFile,readFile,rm} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';import {execFileSync} from 'node:child_process';import {randomUUID} from 'node:crypto';
 import {createAuditDelivery,websiteObservations} from './audit-delivery.mjs';import {auditDeliveryRoute} from './audit-delivery-http.mjs';import {serviceDocument} from './service-document.mjs';import {inspectHtmlV34,V34_SKU} from './ultron-autonomous-revenue-v34.mjs';import {getJson,mutateJson} from './state-store.mjs';
-const input={company:'Synthetic Plumbing',website:'https://example.org/',industry:'plumbing',monthlyLeads:40,missedPercent:10,responseMinutes:90,bookingMethod:'phone',followup:'manual'};
+const input={authorizationConfirmed:true,company:'Synthetic Plumbing',website:'https://example.org/',industry:'plumbing',monthlyLeads:40,missedPercent:10,responseMinutes:90,bookingMethod:'phone',followup:'manual'};
 const html='<title>Fixture business</title><h1>Contact us</h1><form></form><a href="tel:555">Phone</a>Request a quote';
 function memory(seed){let s=seed;return {read:async()=>structuredClone(s),mutate:async fn=>{const n=structuredClone(s);await fn(n);s=n}}}
 async function fixture(store=memory({drafts:{}})){
@@ -18,8 +18,8 @@ test('real PDF, editable source and ZIP preserve text, provenance and page count
  }finally{await rm(dir,{recursive:true,force:true})}
 });
 test('owner review, fresh PayPal verification and exact downloaded version are required for acceptance',async()=>{
- const f=await fixture();assert.equal((await f.d.status(f.token)).ownerReviewed,false);await assert.rejects(f.d.artifact(f.token),/review pending/);await assert.rejects(f.d.review(f.p.id,{sha256:'other',allPagesReviewed:true,factsChecked:true,reviewer:'Fixture'}),/review required/);
- await f.d.review(f.p.id,{sha256:f.p.manifest.pdfSha256,allPagesReviewed:true,factsChecked:true,reviewer:'Fixture verification'});
+ const f=await fixture();assert.equal(await f.d.salesReady(),false);assert.equal((await f.d.status(f.token)).ownerReviewed,false);await assert.rejects(f.d.artifact(f.token),/review pending/);await assert.rejects(f.d.review(f.p.id,{sha256:'other',allPagesReviewed:true,factsChecked:true,reviewer:'Fixture'}),/review required/);
+ await f.d.review(f.p.id,{sha256:f.p.manifest.pdfSha256,allPagesReviewed:true,factsChecked:true,reviewer:'Fixture verification',releaseApproved:true});assert.equal(await f.d.salesReady(),true);
  await assert.rejects(f.d.accept(f.token,{accepted:true,sha256:f.p.manifest.pdfSha256}),/Download/);assert.equal((await f.d.artifact(f.token)).bytes.subarray(0,4).toString(),'%PDF');
  await assert.rejects(f.d.accept(f.token,{accepted:true,sha256:'wrong'}),/Exact/);const a=await f.d.accept(f.token,{accepted:true,sha256:f.p.manifest.pdfSha256});assert.ok(a.acceptedAt);assert.equal(a.bankSettlementVerified,false);assert.equal((await createAuditDelivery(f.options).accept(f.token,{accepted:true,sha256:f.p.manifest.pdfSha256})).acceptedAt,a.acceptedAt);assert.ok(f.calls()>=6);
 });
