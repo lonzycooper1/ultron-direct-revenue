@@ -15,7 +15,7 @@ import {printProductRoute} from './print-products-http.mjs';
 import {workflows,submitWorkflow,qualifyLead} from './reference-workflows.mjs';
 import {companyMemory} from './company-memory-v47.mjs';
 import {refinanceScenario,screenCompanies} from './research-tools-v47.mjs';
-import {executive,startExecutive} from './executive-runtime.mjs';
+import {executive,startExecutive,savedExecutiveArtifact} from './executive-runtime.mjs';
 import {enterpriseGateway} from './enterprise-gateway-v45.mjs';
 import {deliverVerifiedDigitalOrder,eligibleDigitalDelivery,smtpReadiness} from './enterprise-mail-v45.mjs';
 import {liveDemandListener} from './live-demand-v46.mjs';
@@ -346,10 +346,9 @@ if(path==='/api/executive/deployments'&&req.method==='GET'){if(!v13Owner())retur
 if(path==='/api/executive/artifact'&&req.method==='GET'){
  if(!v13Owner())return json(403,{error:'Owner authorization required'});
  const job=(await executive.status(true)).jobs.find(j=>j.id===u.searchParams.get('job'));
- const artifact=job?.result?.artifacts?.find(a=>a.id===u.searchParams.get('id')&&a.base64);
- if(!artifact)return json(404,{error:'Saved artifact not found'});
- const filename=String(artifact.path||'artifact').split('/').pop().replace(/[^a-zA-Z0-9_.-]/g,'_');
- res.writeHead(200,{'content-type':'application/octet-stream','content-disposition':'attachment; filename="'+filename+'"','cache-control':'no-store','x-content-type-options':'nosniff'});return res.end(Buffer.from(artifact.base64,'base64'));
+ const artifact=savedExecutiveArtifact(job,u.searchParams.get('id'));
+ if(!artifact)return json(404,{error:'Saved artifact not found or not complete'});
+ res.writeHead(200,{'content-type':artifact.contentType,'content-disposition':'attachment; filename="'+artifact.filename+'"','cache-control':'no-store','x-content-type-options':'nosniff'});return res.end(artifact.bytes);
 }
 if(path==='/api/executive/events'&&req.method==='POST'){
  if(!process.env.ULTRON_BUSINESS_WEBHOOK_SECRET)return json(503,{error:'Authenticated event source is not configured'});

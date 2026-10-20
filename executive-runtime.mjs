@@ -168,3 +168,18 @@ export async function startEnterpriseExecutive(){
  const {startEnterpriseCycle}=await import('./enterprise-cycle-v45.mjs');
  return startEnterpriseCycle();
 }
+
+// Only export provider images from a completed saved job; this never starts a request.
+export function savedExecutiveArtifact(job,id){
+ if(job?.status!=='DRAFT_READY')return null;
+ const a=job.result?.artifacts?.find(x=>x.id===id);if(!a)return null;
+ if(a.type==='image_generation_call'){
+  if(a.status!=='completed'||typeof a.result!=='string'||a.result.length>12000000||! /^[A-Za-z0-9+/]+={0,2}$/.test(a.result))return null;
+  const bytes=Buffer.from(a.result,'base64');
+  if(bytes.length<24||!bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])))return null;
+  const width=bytes.readUInt32BE(16),height=bytes.readUInt32BE(20);if(!width||!height||width>8192||height>8192)return null;
+  return {bytes,filename:'generated-image.png',contentType:'image/png'};
+ }
+ if(!a.base64)return null;
+ return {bytes:Buffer.from(a.base64,'base64'),filename:String(a.path||'artifact').split('/').pop().replace(/[^a-zA-Z0-9_.-]/g,'_'),contentType:'application/octet-stream'};
+}

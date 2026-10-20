@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {createExecutive,readiness,validateJob} from './executive-runtime.mjs';
+import {createExecutive,readiness,validateJob,savedExecutiveArtifact} from './executive-runtime.mjs';
 import {createApp} from './server.js';
 function fixture(extra={}){
  let state={jobs:{},schedule:{},usage:{}};let calls=0;
@@ -21,3 +21,11 @@ test('overlapping ticks only claim one active job',async()=>{let release;const h
 test('public workspace loads and unauthorized submissions fail before provider or database effects',async()=>{const app=createApp();await new Promise(r=>app.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+app.address().port;try{const page=await fetch(base+'/executive');assert.equal(page.status,200);assert.match(await page.text(),/Executive workspace/);const denied=await fetch(base+'/api/executive/jobs',{method:'POST',headers:{'content-type':'application/json'},body:'{"kind":"research","prompt":"Run"}'});assert.equal(denied.status,403)}finally{app.closeAllConnections();await new Promise(r=>app.close(r))}});
 
 test('compatibility correction reconciles only definite pre-session validation attempts once',async()=>{const f=fixture();await f.app.schedule([]);for(const j of Object.values(f.state().jobs).filter(j=>['build','computer'].includes(j.kind))){j.status='BLOCKED';j.error="Hosted provider HTTP 400: Unknown parameter: 'spend_control'.";j.startedAt=new Date().toISOString()}const day=new Date().toISOString().slice(0,10);f.state().usage[day]={jobs:4};await f.app.schedule([]);assert.equal(f.state().usage[day].jobs,2);assert.equal(Object.values(f.state().jobs).filter(j=>j.idempotencyKey.endsWith(':v2')).length,2);await f.app.schedule([]);assert.equal(f.state().usage[day].jobs,2)});
+
+test('completed saved image exports actual provider PNG without trusting unfinished or malformed results',()=>{
+ const png=Buffer.alloc(24);Buffer.from([137,80,78,71,13,10,26,10]).copy(png);png.writeUInt32BE(1024,16);png.writeUInt32BE(1024,20);
+ const job={status:'DRAFT_READY',result:{artifacts:[{id:'image-1',type:'image_generation_call',status:'completed',result:png.toString('base64')}]}};
+ const a=savedExecutiveArtifact(job,'image-1');assert.equal(a.contentType,'image/png');assert.equal(a.filename,'generated-image.png');assert.deepEqual(a.bytes,png);
+ assert.equal(savedExecutiveArtifact({...job,status:'RUNNING'},'image-1'),null);assert.equal(savedExecutiveArtifact(job,'missing'),null);
+ job.result.artifacts[0].result='bm90IGFuIGltYWdl';assert.equal(savedExecutiveArtifact(job,'image-1'),null);
+});
