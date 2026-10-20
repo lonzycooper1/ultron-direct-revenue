@@ -13,7 +13,10 @@ const fingerprint=()=>{
   if(!process.env.CDC_API_KEY)throw Error('App Agent Key required');
   return crypto.createHash('sha256').update(PROVIDER+'\0'+process.env.CDC_API_KEY).digest('hex');
 };
-const sha=value=>crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
+// PostgreSQL jsonb reorders object keys. Hash a canonical representation so
+// reloading an unchanged quote never invalidates its exact approval binding.
+const canonical=value=>Array.isArray(value)?value.map(canonical):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(k=>[k,canonical(value[k])])):value;
+export const appQuoteDigest=value=>crypto.createHash('sha256').update(JSON.stringify(canonical(value))).digest('hex');
 const uuid=id=>{if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id||''))throw Error('Invalid App proposal ID')};
 
 export function appQuoteIntent(input){
@@ -40,7 +43,7 @@ export function bindAppQuotation(intent,result,{now=Date.now(),account=fingerpri
   if(expiresAt<=now)throw Error('App quote expired; request a new quotation');
   const binding={provider:PROVIDER,account,instrument:intent.instrument,side:intent.side,leverage:1,type:intent.type,quotationId:q.id,
     from:{currency:q.from_amount.currency,amount:q.from_amount.amount},to:{currency:q.to_amount.currency,amount:q.to_amount.amount},expiresAt};
-  return {id:crypto.randomUUID(),status:'AWAITING_HUMAN_APPROVAL',binding,digest:sha(binding),createdAt:now,
+  return {id:crypto.randomUUID(),status:'AWAITING_HUMAN_APPROVAL',binding,digest:appQuoteDigest(binding),createdAt:now,
     execution:'NOT_SUBMITTED',fees:'UNVERIFIED',slippage:'EXACT_QUOTED_AMOUNTS_ONLY',liveOrders:false};
 }
 
@@ -94,7 +97,7 @@ export async function reviewAppQuote(id,confirmation,{pool=safetyPool()}={}){
     const row=(await c.query('SELECT * FROM crypto_app_proposals WHERE id=$1 FOR UPDATE',[id])).rows[0];
     if(!row||row.status!=='AWAITING_HUMAN_APPROVAL')throw Error('App quote missing or already reviewed');
     const p=row.payload,b=p.binding;
-    if(row.account_fingerprint!==fingerprint()||b.account!==row.account_fingerprint||b.provider!==PROVIDER||row.quotation_id!==b.quotationId||row.digest!==sha(b)||row.digest!==confirmation.digest||p.digest!==row.digest)throw Error('App quote binding changed');
+    if(row.account_fingerprint!==fingerprint()||b.account!==row.account_fingerprint||b.provider!==PROVIDER||row.quotation_id!==b.quotationId||row.digest!==appQuoteDigest(b)||row.digest!==confirmation.digest||p.digest!==row.digest)throw Error('App quote binding changed');
     if(new Date(row.expires_at).getTime()!==b.expiresAt||b.expiresAt<=Date.now())throw Error('App quote expired; new quote and approval required');
     const stop=(await c.query('SELECT stopped FROM crypto_execution_control WHERE id=1')).rows;
     const legacy=(await c.query("SELECT proposal_id FROM crypto_order_ledger WHERE state NOT IN ('REJECTED','RECONCILED') LIMIT 1")).rows;

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import {Pool} from 'pg';
-import {appQuoteIntent,bindAppQuotation,persistAppQuote,loadAppQuote,reviewAppQuote,appReadiness} from './crypto-app-approval.mjs';
+import {appQuoteIntent,appQuoteDigest,bindAppQuotation,persistAppQuote,loadAppQuote,reviewAppQuote,appReadiness} from './crypto-app-approval.mjs';
 import {appQuotation,appRequestHeaders} from './crypto-app.mjs';
 
 process.env.CDC_API_KEY='isolated-app-key';process.env.CDC_API_SECRET='isolated-app-secret';
@@ -12,6 +12,9 @@ const proposal=()=>bindAppQuotation(intent(),result());
 
 test('App quote request binds exact decimals, allowed assets, direction and expiry',()=>{
   const p=proposal();assert.equal(p.binding.from.amount,'10');assert.equal(p.binding.to.currency,'BTC');
+  const reordered=Object.fromEntries(Object.entries(p.binding).reverse());
+  reordered.from={amount:p.binding.from.amount,currency:p.binding.from.currency};
+  assert.equal(appQuoteDigest(reordered),p.digest,'database object key order must not change approval identity');
   assert.ok(p.binding.expiresAt<Date.now()+15000);assert.equal(p.liveOrders,false);
   for(const input of [
     {instrument:'CRO-USD',side:'BUY',amount:'10'},
@@ -80,7 +83,7 @@ test('PostgreSQL App quotes persist, bind confirmation, consume once and preserv
     assert.equal(review.status,'REVIEWED_BLOCKED');
     await assert.rejects(reviewAppQuote(p.id,ack,{pool}),/already reviewed/);
     const expired=proposal();expired.binding.expiresAt=Date.now()-1000;
-    expired.digest=crypto.createHash('sha256').update(JSON.stringify(expired.binding)).digest('hex');
+    expired.digest=appQuoteDigest(expired.binding);
     await persistAppQuote(expired,{pool});
     await assert.rejects(reviewAppQuote(expired.id,{approved:true,confirmation:expired.id,digest:expired.digest},{pool}),/expired/);
     const rotated=proposal();await persistAppQuote(rotated,{pool});
