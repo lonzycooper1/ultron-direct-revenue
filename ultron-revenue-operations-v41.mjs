@@ -2,6 +2,8 @@ import {randomBytes,timingSafeEqual,createCipheriv,createDecipheriv,createHash} 
 import {getJson,mutateJson} from './state-store.mjs';
 import {validateV34Intake,buildV34Report} from './ultron-autonomous-revenue-v34.mjs';
 
+import {recordRevenueCase,escalateRevenueCases} from './revenue-case-queue.mjs';
+
 export const AUDIT_SKU='ai-revenue-audit-500';
 export const TERMS=Object.freeze({version:'audit-2026-10-14-v41',priceUsd:500,currency:'USD',deliveryBusinessDays:5,
  scope:'Customer-specific inquiry and booking workflow audit: supplied baseline, sourced observations, prioritized fixes, 90-day roadmap and quality review.',
@@ -97,7 +99,9 @@ export function financialSummary(orders=[]){
 export async function recordOps(kind,data={}){
  return mutateJson(OPS_KEY,freshOps(),s=>{
   s.updatedAt=iso();
-  if(kind==='DEMAND'){
+  if(kind==='REVENUE_CASE'){
+   recordRevenueCase(s,data);
+  }else if(kind==='DEMAND'){
    if(!data.leadId||data.source!=='FIRST_PARTY_DIAGNOSTIC')throw Error('Actual diagnostic reference required');
    s.signals[data.leadId]={id:data.leadId,source:data.source,contactPermission:data.contactPermission===true,at:iso(),status:'INBOUND_UNQUALIFIED_NOT_A_BUYER'};
   }else if(kind==='MANUAL_TASK'){
@@ -115,7 +119,7 @@ export async function recordOps(kind,data={}){
 }
 export async function operationsPulse(orders=[]){
  return mutateJson(OPS_KEY,freshOps(),s=>{
-  const now=iso();s.updatedAt=now;
+  const now=iso();s.updatedAt=now;escalateRevenueCases(s,now);
   for(const o of orders){const f=o.fulfillment;if(o.product===AUDIT_SKU&&o.captureId&&f?.status!=='CUSTOMER_ACCEPTED'){
    const key='audit:'+o.id,overdue=f?.dueAt&&Date.parse(f.dueAt)<Date.now();
    s.alerts[key]??={id:key,kind:'PAID_AUDIT_NEEDS_REVIEW',reference:o.id,createdAt:now,status:'QUEUED_NOT_DELIVERED'};
