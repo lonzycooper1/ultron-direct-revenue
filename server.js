@@ -33,6 +33,7 @@ import {inboundWorkQueue,draftInboundById,reviewInbound} from './ultron-inbound-
 import {growthState as growthV19State,dashboard as growthDashboard,importProspects,auditProspect,prepareSales,approveOutbox,receiveReply,sendApproved,onVerifiedCapture,markFulfilled,customerProof,expense,queueExperiment,proposeContent,backgroundTick,unsubscribe,demoHtml} from './ultron-growth-runtime-v19.mjs';
 import {operatingState,introspect,rememberReflection,runSafeJobs,registerPublicOpportunities,registerBusinessEvent,recordTrustedCapture,recordTrustedRefund,emergencyStop,operationalGate,recordQualityEvidence,addRealCost,authorizeBudget,recordCustomerSatisfaction,approveCampaignEnvelope,suppressContact,recordExperiment as registerV20Experiment,recordPartner,readinessRegistry} from './ultron-reflective-revenue-v20.mjs';
 import {integrationSummary,dnsAudit,freeBusy,book as integrationBook,syncApprovedContact} from './ultron-integration-v21.mjs';
+import {verifyHubSpot} from './hubspot-verification.mjs';
 import {overview as flywheelOverview,safeCycle as flywheelCycle,discoveryFallback,generateEvidenceDemo,crmDiff,ownerCampaign,trustedDispatch,acceptance,scoreEvidence,sendPolicy} from './ultron-sales-v22.mjs';
 import {report as financeReport,record as financeRecord,proposeExperiment,reviewCatalog} from './ultron-finance-v22.mjs';
 import {createServer} from 'node:http';
@@ -857,7 +858,8 @@ if(path.startsWith('/api/integrations/v21/')&&req.method==='POST'){
  let b={};try{b=JSON.parse(raw||'{}')}catch{return json(400,{error:'invalid JSON'});}
  try{
   let result;
-  if(path==='/api/integrations/v21/domain')result=await dnsAudit(b.domain);
+  if(path==='/api/integrations/v21/hubspot/verify')result=await verifyHubSpot();
+  else if(path==='/api/integrations/v21/domain')result=await dnsAudit(b.domain);
   else if(path==='/api/integrations/v21/freebusy')result=await freeBusy(b);
   else if(path==='/api/integrations/v21/booking')result=await integrationBook(b);
   else if(path==='/api/integrations/v21/crm')result=await syncApprovedContact(b);
