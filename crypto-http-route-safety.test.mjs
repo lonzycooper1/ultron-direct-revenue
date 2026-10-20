@@ -26,14 +26,14 @@ test('crypto HTTP owner-only state and manual cycles reject unauthenticated user
   const token='isolated-ci-owner-token';
   const child=spawn(process.execPath,['crypto-bot-runtime.mjs'],{
     cwd:dirname(fileURLToPath(import.meta.url)),
-    env:{...process.env,PORT:String(port),CRYPTO_APPROVAL_SECRET:token,CRYPTOCOM_API_KEY:'',CRYPTOCOM_API_SECRET:'',CRYPTOCOM_LIVE_TRADING:'false',CRYPTO_AUTONOMOUS_LIVE_ORDERS:'false'},
+    env:{...process.env,PORT:String(port),CRYPTO_APPROVAL_SECRET:token,CRYPTO_PROVIDER:'crypto-com-app',CDC_API_KEY:'',CDC_API_SECRET:'',CRYPTOCOM_API_KEY:'exchange-key-must-be-ignored',CRYPTOCOM_API_SECRET:'exchange-secret-must-be-ignored',CRYPTOCOM_LIVE_TRADING:'false',CRYPTO_AUTONOMOUS_LIVE_ORDERS:'false'},
     stdio:['ignore','pipe','pipe']
   });
   let stderr='';
   child.stderr.on('data',chunk=>{stderr=(stderr+chunk.toString()).slice(-3000)});
   try{
     await waitForHealth(base,child);
-    for(const [path,method] of [['/state','GET'],['/cycle','POST'],['/api/proposals','POST'],['/api/exchange/verify','POST']]){
+    for(const [path,method] of [['/state','GET'],['/cycle','POST'],['/api/proposals','POST'],['/api/exchange/verify','POST'],['/api/app/verify','POST'],['/api/provider/verify','POST']]){
       const response=await fetch(base+path,{method,headers:{'content-type':'application/json'},body:method==='POST'?'{}':undefined,signal:AbortSignal.timeout(2000)});
       assert.equal(response.status,401,path+' must reject unauthenticated requests; '+stderr);
     }
@@ -64,6 +64,15 @@ test('crypto HTTP owner-only state and manual cycles reject unauthenticated user
     const evidence=await verification.json();
     assert.equal(evidence.verification.reason,'CREDENTIALS_MISSING');
     assert.equal(evidence.liveOrders,false);
+    assert.equal(evidence.verification.provider,'Crypto.com App');
+    for(const path of ['/api/app/verify','/api/provider/verify']){
+      const r=await fetch(base+path,{method:'POST',headers});
+      assert.equal(r.status,503);
+      assert.equal((await r.json()).verification.provider,'Crypto.com App');
+    }
+    const health=await (await fetch(base+'/health')).json();
+    assert.equal(health.providerId,'crypto-com-app');
+    assert.equal(health.apiConfigured,false);
     assert.equal(evidence.scope,'READ_ONLY_ACCOUNT_ACCESS');
     for(const path of ['/health','/opportunities']){
       const response=await fetch(base+path,{signal:AbortSignal.timeout(2000)});

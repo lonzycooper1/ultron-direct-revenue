@@ -2,7 +2,7 @@
 import {Pool} from 'pg';
 import {installSafetySchema,setEmergencyStop,assertNotStopped,reserveOrder} from './crypto-durable-safety.mjs';
 import {LIVE_APPROVAL_RULES} from './crypto-live-approval.mjs';
-import {readExchangeRisk,reconcileExchangeOrder} from './crypto-exchange.mjs';
+import {readProviderRisk as readExchangeRisk,reconcileProviderOrder as reconcileExchangeOrder} from './crypto-provider.mjs';
 let singleton;
 export function safetyPool(){
   if(!process.env.DATABASE_URL)throw Error('PostgreSQL safety database required');
