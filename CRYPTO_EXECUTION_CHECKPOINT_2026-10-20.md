@@ -32,6 +32,10 @@ Withdrawal, transfer and leverage-changing methods are prohibited by the signed
 transport allowlist. Response identity is checked before accepting an order
 acknowledgment. New runtime modules are included in pinned bootstrap checksums.
 
+Startup now checks App and Exchange credentials independently using only account
+reads, with product-labeled sanitized logs. It never switches the selected provider
+or infers that a valid credential controls the other product.
+
 ## Explicit non-activation
 
 readExchangeRisk still rejects unverified daily P&L. Its history, external-flow

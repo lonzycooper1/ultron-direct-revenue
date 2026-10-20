@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {checkReadOnlyStartup} from './crypto-readiness.mjs';
+import {checkReadOnlyStartup,checkConfiguredReadOnlyProviders} from './crypto-readiness.mjs';
 import {verifyExchangeReadAccess,privateCall} from './crypto-exchange.mjs';
 
 test('startup logs only bounded authentication evidence, never balances or arbitrary provider text',async()=>{
@@ -57,4 +57,22 @@ test('signed transport forbids financial transfers and binds create-order respon
   assert.equal((await privateCall('private/create-order',{},{transport})).result.order_id,'123');
   await assert.rejects(privateCall('private/create-order',{},{transport:async()=>({ok:true,json:async()=>({code:0,result:{order_id:'123'}})})}),/identity mismatch/);
  }finally{for(const [i,key] of ['CRYPTOCOM_API_KEY','CRYPTOCOM_API_SECRET'].entries())if(old[i]===undefined)delete process.env[key];else process.env[key]=old[i]}
+});
+
+test('startup diagnoses App and Exchange independently without selecting or exposing accounts',async()=>{
+ const old=process.env.CRYPTO_PROVIDER;process.env.CRYPTO_PROVIDER='crypto-com-exchange';
+ const logs=[],calls=[];
+ try{
+  const result=await checkConfiguredReadOnlyProviders({
+   exchange:async()=>{calls.push('exchange');return {verified:false,reason:'READ_ONLY_VERIFICATION_FAILED',providerCode:40101,secret:'PRIVATE'}},
+   app:async()=>{calls.push('app');return {verified:true,balance:'PRIVATE'}},
+   log:(...args)=>logs.push(args.join(' '))});
+  assert.deepEqual(calls,['exchange','app']);
+  assert.equal(result['crypto-com-exchange'].verified,false);
+  assert.equal(result['crypto-com-app'].verified,true);
+  assert.equal(process.env.CRYPTO_PROVIDER,'crypto-com-exchange');
+  assert.equal(logs.length,2);assert.match(logs[0],/crypto-com-exchange/);assert.match(logs[1],/crypto-com-app/);
+  assert.doesNotMatch(logs.join(' '),/PRIVATE/);
+  assert.ok(Object.values(result).every(r=>r.liveOrders===false&&r.tradePermission==='UNVERIFIED'));
+ }finally{if(old===undefined)delete process.env.CRYPTO_PROVIDER;else process.env.CRYPTO_PROVIDER=old}
 });

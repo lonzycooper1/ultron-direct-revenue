@@ -5,7 +5,7 @@ import {CRYPTO_BOT_RULES,CRYPTO_AGENTS,researchDecision,cryptoCapabilityManifest
 import {LIVE_APPROVAL_RULES,proposeLiveOrder,approveProposal,executionEnvelope} from './crypto-live-approval.mjs';
 import {selectedProvider,liveExecutionConfig,executeApprovedSpotOrder,verifyProviderReadAccess} from './crypto-provider.mjs';
 import {createAppQuote,loadAppQuote,reviewAppQuote,appReadiness} from './crypto-app-approval.mjs';
-import {checkReadOnlyStartup} from './crypto-readiness.mjs';
+import {checkConfiguredReadOnlyProviders} from './crypto-readiness.mjs';
 import {evaluateStrategies,rankOpportunities,buildProposalCandidates,portfolioRiskSummary} from './crypto-opportunity-engine.mjs';
 
 const PORT=Number(process.env.PORT||3000);
@@ -15,7 +15,7 @@ const state={mode:'live-market-research',cycles:0,lastCycleAt:null,lastResults:[
 const proposals=new Map();
 const sourceRevision=String(process.env.ULTRON_RELEASE_COMMIT||process.env.RAILWAY_GIT_COMMIT_SHA||'');
 const releaseCommit=/^[a-f0-9]{40}$/.test(sourceRevision)?sourceRevision:null;
-checkReadOnlyStartup().catch(()=>console.error('ULTRON provider read verification unavailable; live orders remain blocked'));
+checkConfiguredReadOnlyProviders().catch(()=>console.error('ULTRON provider read verification unavailable; live orders remain blocked'));
 
 async function candles(product='BTC-USD',granularity=300){
  const u=new URL('https://api.exchange.coinbase.com/products/'+encodeURIComponent(product)+'/candles');
