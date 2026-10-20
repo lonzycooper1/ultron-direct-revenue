@@ -14,7 +14,8 @@ export const freshOps=()=>({version:'41.0.0',tasks:{},signals:{},alerts:{},evide
 export const operationsState=()=>getJson(OPS_KEY,freshOps());
 const clean=(x,n=500)=>String(x??'').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,n);
 const iso=()=>new Date().toISOString();
-const money=x=>{const n=Number(x);if(!Number.isFinite(n)||n<0)throw Error('Nonnegative amount required');return Math.round(n*100)/100};
+export const recordedAmount=x=>(typeof x==='number'||typeof x==='string'&&x.trim()!=='')&&Number.isFinite(Number(x))&&Number(x)>=0;
+const money=x=>{if(!recordedAmount(x))throw Error('Recorded nonnegative amount required');return Math.round(Number(x)*100)/100};
 const eq=(a,b)=>typeof a==='string'&&typeof b==='string'&&a.length>=32&&a.length===b.length&&timingSafeEqual(Buffer.from(a),Buffer.from(b));
 const escape=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -82,15 +83,16 @@ export function independentSale(order){return Boolean(order?.status==='COMPLETED
 
 export function financialSummary(orders=[]){
  const seen=new Set(),paid=orders.filter(o=>o?.status==='COMPLETED'&&o.captureId&&o.capturedAt&&!seen.has(o.captureId)&&(seen.add(o.captureId),true));
- const gross=paid.reduce((n,o)=>n+money(o.capturedAmount),0);
- const refunds=paid.reduce((n,o)=>n+(o.refunds||[]).filter(r=>r.source==='PAYPAL_SIGNED_EVENT').reduce((s,r)=>s+money(r.amountUsd),0),0);
- const feesKnown=paid.length>0&&paid.every(o=>o.paypalFeeSource==='PROVIDER'&&o.paypalFeeUsd!=null&&Number.isFinite(Number(o.paypalFeeUsd)));
+ const gross=paid.every(o=>recordedAmount(o.capturedAmount))?paid.reduce((n,o)=>n+money(o.capturedAmount),0):null;
+ const refundRows=paid.flatMap(o=>(o.refunds||[]).filter(r=>r.source==='PAYPAL_SIGNED_EVENT'));
+ const refunds=refundRows.every(r=>recordedAmount(r.amountUsd))?refundRows.reduce((s,r)=>s+money(r.amountUsd),0):null;
+ const feesKnown=paid.length>0&&paid.every(o=>o.paypalFeeSource==='PROVIDER'&&recordedAmount(o.paypalFeeUsd));
  const fees=feesKnown?paid.reduce((n,o)=>n+money(o.paypalFeeUsd),0):null;
- const costsKnown=paid.length>0&&paid.every(o=>o.costReview?.complete===true&&o.costReview.reference&&Number.isFinite(Number(o.costReview.amountUsd)));
+ const costsKnown=paid.length>0&&paid.every(o=>o.costReview?.complete===true&&o.costReview.reference&&recordedAmount(o.costReview.amountUsd));
  const costs=costsKnown?paid.reduce((n,o)=>n+money(o.costReview.amountUsd),0):null;
- const settled=paid.filter(o=>o.settlement?.payoutReference&&o.settlement?.bankReference&&o.settlement.source==='OWNER_RECONCILED_DOCUMENTS');
- return {captures:paid.length,grossCapturedUsd:money(gross),providerRefundsUsd:money(refunds),paypalFeesUsd:fees,
-  recordedCostsUsd:costs,recordedContributionProfitUsd:fees!==null&&costs!==null?Math.round((gross-refunds-fees-costs)*100)/100:null,
+ const settled=paid.filter(o=>o.settlement?.payoutReference&&o.settlement?.bankReference&&o.settlement.source==='OWNER_RECONCILED_DOCUMENTS'&&recordedAmount(o.settlement.bankAmountUsd));
+ return {captures:paid.length,grossCapturedUsd:gross===null?null:money(gross),providerRefundsUsd:refunds===null?null:money(refunds),paypalFeesUsd:fees,
+  recordedCostsUsd:costs,recordedContributionProfitUsd:[gross,refunds,fees,costs].every(x=>x!==null)?Math.round((gross-refunds-fees-costs)*100)/100:null,
   bankSettlementStatus:settled.length===paid.length&&paid.length?'OWNER_DOCUMENTS_RECONCILED_NOT_INDEPENDENTLY_VERIFIED':'UNVERIFIED',
   recordedBankSettlementUsd:settled.length?money(settled.reduce((s,o)=>s+money(o.settlement.bankAmountUsd),0)):null};
 }
