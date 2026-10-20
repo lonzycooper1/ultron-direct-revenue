@@ -31,7 +31,7 @@ jobs:
         with:
           node-version: 22
       - name: Ensure media and printable checks are available
-        run: (command -v ffmpeg && command -v pdfinfo && command -v unzip) || (sudo apt-get update && sudo apt-get install -y ffmpeg poppler-utils unzip)
+        run: (command -v ffmpeg && command -v pdfinfo && command -v unzip && command -v soffice) || (sudo apt-get update && sudo apt-get install -y ffmpeg poppler-utils unzip libreoffice fonts-dejavu-core)
       - run: npm ci --no-audit --no-fund
       - run: npm test
       - name: Verify official-image startup without Railway builds

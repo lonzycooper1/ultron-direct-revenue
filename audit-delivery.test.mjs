@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {createServer} from 'node:http';import {mkdtemp,writeFile,readFile,rm} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';import {execFileSync} from 'node:child_process';import {randomUUID} from 'node:crypto';
-import {createAuditDelivery,websiteObservations} from './audit-delivery.mjs';import {auditDeliveryRoute} from './audit-delivery-http.mjs';import {serviceDocument} from './service-document.mjs';import {inspectHtmlV34,V34_SKU} from './ultron-autonomous-revenue-v34.mjs';import {getJson,mutateJson} from './state-store.mjs';
+import {createAuditDelivery,websiteObservations,auditCustomerLocation} from './audit-delivery.mjs';import {auditDeliveryRoute} from './audit-delivery-http.mjs';import {serviceDocument} from './service-document.mjs';import {inspectHtmlV34,V34_SKU} from './ultron-autonomous-revenue-v34.mjs';import {getJson,mutateJson} from './state-store.mjs';
 const input={authorizationConfirmed:true,company:'Synthetic Plumbing',website:'https://example.org/',industry:'plumbing',monthlyLeads:40,missedPercent:10,responseMinutes:90,bookingMethod:'phone',followup:'manual'};
 const html='<title>Fixture business</title><h1>Contact us</h1><form></form><a href="tel:555">Phone</a>Request a quote';
 function memory(seed){let s=seed;return {read:async()=>structuredClone(s),mutate:async fn=>{const n=structuredClone(s);await fn(n);s=n}}}
@@ -40,3 +40,5 @@ test('isolated PostgreSQL retains review and rejects conflicting capture binding
  assert.equal((await createAuditDelivery(f.options).status(f.token)).ownerReviewed,true);await f.orderStore.mutate(s=>s.orders.OTHER={...s.orders['ORDER-FIXTURE'],id:'OTHER'});await assert.rejects(f.d.bind('OTHER'),/already bound/);
 });
 test('document factory rejects unsupported glyphs rather than silently corrupting customer text',async()=>{await assert.rejects(serviceDocument({title:'Example',sections:[{title:'Source',body:'漢字'},{title:'Scope',body:'Fixture'}]}),/glyph/)});
+
+test('new paid audit navigation keeps purchase codes out of request queries while retaining legacy access',()=>{const code='a'.repeat(48),u=new URL(auditCustomerLocation({product:V34_SKU,auditPackageId:'package'},code),'https://owner.example.org');assert.equal(u.pathname,'/audit-delivery');assert.equal(u.search,'');assert.equal(u.hash,'#code='+code);assert.match(auditCustomerLocation({product:V34_SKU},code),/^\/fulfillment\?token=/);assert.throws(()=>auditCustomerLocation({},'invalid'))});
