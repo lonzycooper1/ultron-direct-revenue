@@ -3,6 +3,10 @@ import {createApp} from './server.js';
 test('customer routes render scope and redirect legacy $500 checkout to intake without creating an order',async()=>{
  const app=createApp();await new Promise(r=>app.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+app.address().port;
  try{
+  for(const id of ['missed-lead-mini-audit-99','instant-lead-audit-99']){
+   const mini=await fetch(base+'/buy?product='+id,{redirect:'manual'});
+   assert.equal(mini.status,303);assert.equal(mini.headers.get('location'),'/autonomous-audit');
+  }
   const legacy=await fetch(base+'/buy?product=ai-revenue-audit-500',{redirect:'manual'});assert.equal(legacy.status,303);assert.equal(legacy.headers.get('location'),'/audit-intake');
   const page=await fetch(base+'/audit-intake');assert.equal(page.status,200);assert.match(await page.text(),/five business days/);
   const terms=await fetch(base+'/audit-terms');assert.equal(terms.status,200);assert.match(await terms.text(),/Refunds require individual review/);
