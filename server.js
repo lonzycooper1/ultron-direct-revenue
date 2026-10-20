@@ -1,3 +1,5 @@
+import {companyMemory} from './company-memory-v47.mjs';
+import {refinanceScenario,screenCompanies} from './research-tools-v47.mjs';
 import {executive,startExecutive} from './executive-runtime.mjs';
 import {enterpriseGateway} from './enterprise-gateway-v45.mjs';
 import {deliverVerifiedDigitalOrder,eligibleDigitalDelivery,smtpReadiness} from './enterprise-mail-v45.mjs';
@@ -183,6 +185,26 @@ function acquisitionPage(nicheId='services'){
 }
 export function createApp(){return createServer(async(req,res)=>{const u=new URL(req.url,'http://local'),path=u.pathname,json=(s,d)=>{res.writeHead(s,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(d))};try{
 const v13Owner=()=>Boolean(ACQ_TOKEN)&&((req.headers.authorization||'')==='Bearer '+ACQ_TOKEN||req.headers['x-ultron-admin']===ACQ_TOKEN);
+if(path==='/workbench'&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-frame-options':'DENY','referrer-policy':'no-referrer'});return res.end(await readFile(new URL('./public/workbench-v47.html',import.meta.url),'utf8'))}
+if(path.startsWith('/api/company-memory/v47/')){
+ if(!v13Owner())return json(403,{error:'Owner authorization required'});
+ const action=path.slice('/api/company-memory/v47/'.length),scope=u.searchParams.get('scope');
+ try{
+  if(action==='snapshot'&&req.method==='GET')return json(200,{ok:true,result:await companyMemory.snapshot(scope)});
+  if(req.method!=='POST'||!['save','search','relate','context'].includes(action))return json(404,{error:'Unknown memory operation'});
+  if(!(req.headers['content-type']||'').startsWith('application/json'))return json(415,{error:'JSON required'});
+  let raw='';for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>24000)return json(413,{error:'Request too large'})}
+  const b=JSON.parse(raw||'{}');return json(200,{ok:true,result:await (action==='context'?companyMemory.context(scope,b.query):companyMemory[action](scope,b))});
+ }catch(e){return json(400,{error:String(e.message).slice(0,160)})}
+}
+if(path.startsWith('/api/research/v47/')&&req.method==='POST'){
+ if(!(req.headers['content-type']||'').startsWith('application/json'))return json(415,{error:'JSON required'});
+ const action=path.slice('/api/research/v47/'.length),run={refinance:refinanceScenario,screen:screenCompanies}[action];
+ if(typeof run!=='function'||!['refinance','screen'].includes(action))return json(404,{error:'Unknown research tool'});
+ let raw='';for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>64000)return json(413,{error:'Request too large'})}
+ try{return json(200,{ok:true,result:run(JSON.parse(raw||'{}'))})}catch(e){return json(400,{error:String(e.message).slice(0,160)})}
+}
+
 if(path.startsWith('/api/enterprise/v45/')||path==='/webhooks/stripe'){
  await new Promise((resolve,reject)=>{
   const done=()=>{res.off('finish',done);resolve()};
