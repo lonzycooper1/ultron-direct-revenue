@@ -1,3 +1,5 @@
+import {createCustomerJourney} from './customer-journey.mjs';
+import {customerJourneyRoute} from './customer-journey-http.mjs';
 import {printProductRoute} from './print-products-http.mjs';
 import {workflows,submitWorkflow,qualifyLead} from './reference-workflows.mjs';
 import {companyMemory} from './company-memory-v47.mjs';
@@ -185,6 +187,12 @@ function acquisitionPage(nicheId='services'){
  document.getElementById('scan').addEventListener('submit',async(e)=>{e.preventDefault();const fd=new FormData(e.target),b=Object.fromEntries(fd.entries());b.niche=${JSON.stringify(nicheId)};b.source=location.pathname;const r=await fetch('/api/acquisition/scan',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)});const d=await r.json();const el=document.getElementById('result');if(!r.ok){el.textContent=d.error||'Unable to score';return}el.innerHTML='<h3>Response-gap score: '+d.score+'/100 ('+d.severity+')</h3><p>'+d.recommendation+'</p><p><a href="/buy?product='+encodeURIComponent(d.niche.offer)+'">Continue to matched solution</a></p>'});
  </script>`,`<meta name="description" content="${esc(n.headline)}. Free response-gap diagnostic for ${esc(n.label)} businesses."><link rel="canonical" href="${PUBLIC}/solutions/${nicheId}-ai-lead-response">`);
 }
+async function journeyPayPalRead(path){
+ if(!/^\/v2\/checkout\/orders\/[A-Za-z0-9%_-]+$/.test(path))throw Error('Invalid PayPal read path');
+ const r=await fetch(BASE+path,{headers:{authorization:'Bearer '+await token()},signal:AbortSignal.timeout(15000),redirect:'error'});
+ if(!r.ok)throw Error('PayPal verification unavailable');return r.json();
+}
+const customerJourney=createCustomerJourney({catalog:marketProduct,verify:order=>confirmCapturedOrderForDelivery(journeyPayPalRead,order)});
 export function createApp(){return createServer(async(req,res)=>{const u=new URL(req.url,'http://local'),path=u.pathname,json=(s,d)=>{res.writeHead(s,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(d))};try{
 const v13Owner=()=>Boolean(ACQ_TOKEN)&&((req.headers.authorization||'')==='Bearer '+ACQ_TOKEN||req.headers['x-ultron-admin']===ACQ_TOKEN);
 if(path==='/workbench'&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-frame-options':'DENY','referrer-policy':'no-referrer'});return res.end(await readFile(new URL('./public/workbench-v47.html',import.meta.url),'utf8'))}
@@ -283,6 +291,8 @@ if(path==='/api/mainframe/v44/artifact'&&req.method==='GET'){
   res.writeHead(200,{'content-type':'application/octet-stream','content-disposition':'attachment; filename="'+draft.filename+'"','content-length':draft.data.length,'cache-control':'private,no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'});return res.end(draft.data)}
  catch{return json(404,{error:'Draft not found or failed integrity verification'})}
 }
+if(['/customer-delivery','/customer-journey'].includes(path)&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-frame-options':'DENY','referrer-policy':'no-referrer'});return res.end(await readFile(new URL(path==='/customer-delivery'?'./public/customer-delivery.html':'./public/customer-journey.html',import.meta.url),'utf8'))}
+if(await customerJourneyRoute(req,res,u,{authorized:v13Owner,json,journey:customerJourney}))return;
 if(path==='/print-studio'&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-frame-options':'DENY'});return res.end(await readFile(new URL('./public/print-studio.html',import.meta.url),'utf8'))}
 if(await printProductRoute(req,res,u,{authorized:v13Owner,json}))return;
 if(path==='/api/reference-workflows'&&req.method==='GET')return json(200,{workflows,executionVerified:false});
