@@ -194,8 +194,8 @@ if(path.startsWith('/api/company-memory/v47/')){
   if(req.method!=='POST'||!['save','search','relate','context'].includes(action))return json(404,{error:'Unknown memory operation'});
   if(!(req.headers['content-type']||'').startsWith('application/json'))return json(415,{error:'JSON required'});
   let raw='';for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>24000)return json(413,{error:'Request too large'})}
-  const b=JSON.parse(raw||'{}');return json(200,{ok:true,result:await (action==='context'?companyMemory.context(scope,b.query):companyMemory[action](scope,b))});
- }catch(e){return json(400,{error:String(e.message).slice(0,160)})}
+  const b=JSON.parse(raw||'{}');if(!b||typeof b!=='object'||Array.isArray(b))return json(400,{error:'JSON object required'});return json(200,{ok:true,result:await (action==='context'?companyMemory.context(scope,b.query):companyMemory[action](scope,b))});
+ }catch(e){const message=String(e.message);if(e instanceof SyntaxError)return json(400,{error:'Invalid JSON'});if(/^(Invalid |Valid observedAt|Explicit evidence|Document changed|Document not found|Scope document limit|Scope relation limit|Both documents must|Distinct documents|Search terms|Limit must)/.test(message))return json(400,{error:message.slice(0,160)});return json(503,{error:'Company memory storage unavailable'})}
 }
 if(path.startsWith('/api/research/v47/')&&req.method==='POST'){
  if(!(req.headers['content-type']||'').startsWith('application/json'))return json(415,{error:'JSON required'});
