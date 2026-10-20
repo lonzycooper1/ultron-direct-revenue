@@ -15,6 +15,7 @@ test('five observations do not manufacture five defects and inaccessible evidenc
 test('real PDF, editable source and ZIP preserve text, provenance and page count',async()=>{
  const f=await fixture(),dir=await mkdtemp(join(tmpdir(),'ultron-audit-'));
  try{const a=await f.d.ownerArtifact(f.p.id),z=await f.d.ownerArtifact(f.p.id,'zip');await writeFile(join(dir,'report.pdf'),a.bytes);await writeFile(join(dir,'report.zip'),z.bytes);
+ assert.match(execFileSync('pdffonts',[join(dir,'report.pdf')],{encoding:'utf8'}),/DejaVuSans/);
  const info=execFileSync('pdfinfo',[join(dir,'report.pdf')],{encoding:'utf8'});assert.match(info,new RegExp('Pages:\\s+'+f.p.manifest.pages+'\\b'));execFileSync('pdftotext',[join(dir,'report.pdf'),join(dir,'report.txt')]);const t=await readFile(join(dir,'report.txt'),'utf8');assert.match(t,/Synthetic Plumbing/);assert.match(t,/CUSTOMER_SELF_REPORT/);assert.match(t,/Dated observation register/);assert.match(t,/SHA-256/);assert.match(execFileSync('unzip',['-t',join(dir,'report.zip')],{encoding:'utf8'}),/No errors/);
  }finally{await rm(dir,{recursive:true,force:true})}
 });
