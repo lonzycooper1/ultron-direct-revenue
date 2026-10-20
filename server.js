@@ -1,3 +1,4 @@
+import {printProductRoute} from './print-products-http.mjs';
 import {workflows,submitWorkflow,qualifyLead} from './reference-workflows.mjs';
 import {companyMemory} from './company-memory-v47.mjs';
 import {refinanceScenario,screenCompanies} from './research-tools-v47.mjs';
@@ -282,6 +283,8 @@ if(path==='/api/mainframe/v44/artifact'&&req.method==='GET'){
   res.writeHead(200,{'content-type':'application/octet-stream','content-disposition':'attachment; filename="'+draft.filename+'"','content-length':draft.data.length,'cache-control':'private,no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'});return res.end(draft.data)}
  catch{return json(404,{error:'Draft not found or failed integrity verification'})}
 }
+if(path==='/print-studio'&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-frame-options':'DENY'});return res.end(await readFile(new URL('./public/print-studio.html',import.meta.url),'utf8'))}
+if(await printProductRoute(req,res,u,{authorized:v13Owner,json}))return;
 if(path==='/api/reference-workflows'&&req.method==='GET')return json(200,{workflows,executionVerified:false});
 if(path==='/api/reference-workflows/qualify'&&req.method==='POST'){
  if(!v13Owner())return json(403,{error:'Owner authorization required'});
