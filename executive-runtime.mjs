@@ -36,7 +36,7 @@ export function createExecutive({env=process.env,read=()=>getJson(KEY,fresh()),m
   const v=validateJob(input);let job;
   await mutate(s=>{
    // Keep durable results bounded. Never evict queued, running, or unresolved work.
-   const old=Object.values(s.jobs).filter(j=>['DRAFT_READY','BLOCKED'].includes(j.status)).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
+   const old=Object.values(s.jobs).filter(j=>['DRAFT_READY','BLOCKED','CANCELLED'].includes(j.status)).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
    for(const j of old.slice(0,Math.max(0,Object.keys(s.jobs).length-250)))delete s.jobs[j.id];
    job=Object.values(s.jobs).find(j=>j.idempotencyKey===v.idempotencyKey);
    if(job){if(job.prompt!==v.prompt||job.kind!==v.kind||job.provider!==v.provider||job.memoryScope!==v.memoryScope)throw Error('Idempotency key reused for different work');return}
@@ -148,7 +148,8 @@ export function createExecutive({env=process.env,read=()=>getJson(KEY,fresh()),m
   return {status:'SCHEDULED'};
  }
  async function status(privateView=false){const s=await read(),verified=kind=>Object.values(s.jobs).some(j=>j.kind===kind&&j.status==='DRAFT_READY'&&j.result?.provider==='openai-agents'&&j.result?.evidence?.sessionId),hostedVerification={coding:verified('build'),browser:verified('computer')};return {version:1,...readiness(env),hostedVerification,hostedAgentsAccess:hostedVerification.coding&&hostedVerification.browser?'CODING_AND_BROWSER_VERIFIED':'UNVERIFIED_UNTIL_SUCCESSFUL_SESSION',counts:Object.fromEntries(['QUEUED','RUNNING','DRAFT_READY','BLOCKED','RECONCILIATION_REQUIRED'].map(k=>[k,Object.values(s.jobs).filter(j=>j.status===k).length])),usage:s.usage,executionEvidence:Object.values(s.jobs).filter(j=>j.finishedAt).slice(-5).map(j=>({kind:j.kind,status:j.status,finishedAt:j.finishedAt,providerResponseReceived:Boolean(j.result?.responseId),reviewResponseReceived:Boolean(j.review?.responseId),tools:j.result?.tools||[],citationCount:j.result?.citations?.length||0,...(j.hosted?{hosted:{sessionCreated:Boolean(j.hosted.sessionId),commands:j.hosted.commands?.length||0,computerActions:j.hosted.computerActions||0,screenshots:j.hosted.screenshots||0,cleanup:j.hosted.cleanup||null}}:{}),...(j.error?{error:j.error}:{})})),...(privateView?{jobs:Object.values(s.jobs).map(({claim,...j})=>j)}:{})}}
- return {enqueue,tick,schedule,status};
+ async function cancel(id){await mutate(s=>{const j=s.jobs[id];if(!j)throw Error('Executive job not found');if(j.status==='RUNNING'||j.status==='RECONCILIATION_REQUIRED')throw Error('Active or uncertain execution requires reconciliation, not cancellation');if(j.status==='QUEUED'){j.status='CANCELLED';j.finishedAt=now()}});return {id,cancelled:true}}
+ return {enqueue,tick,schedule,status,cancel};
 }
 export const executive=createExecutive();
 let loop;

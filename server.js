@@ -1,3 +1,5 @@
+import {createServiceProduction} from './service-production.mjs';
+import {serviceProductionRoute} from './service-production-http.mjs';
 import {services} from './service-catalog.mjs';
 import {createAuditDelivery} from './audit-delivery.mjs';
 import {auditDeliveryRoute} from './audit-delivery-http.mjs';
@@ -100,7 +102,8 @@ import {firstSaleDashboard,recordVisit,runFreeDiagnostic,recordCheckoutClick,pre
 import {dashboard as firstSaleV16Dashboard,approveBatch as firstSaleApproveBatch,demoFor as firstSaleDemoFor,proposalFor as firstSaleProposalFor,meetingRequest as firstSaleMeetingRequest,followupSignal as firstSaleFollowupSignal,caseStudy as firstSaleCaseStudy,referral as firstSaleReferral,paymentFailure as firstSalePaymentFailure,reconciliationAlert as firstSaleReconciliationAlert,ceoQueue as firstSaleCeoQueue,commercialReadiness as firstSaleCommercialReadiness,OFFERS as FIRST_SALE_OFFERS} from './ultron-first-sale-v16.mjs';
 const BASE='https://api-m.paypal.com',ACQ_TOKEN=process.env.ULTRON_ACQUISITION_ADMIN_TOKEN||'',CID=process.env.PAYPAL_CLIENT_ID||'',SECRET=process.env.PAYPAL_CLIENT_SECRET||'',WH=process.env.PAYPAL_WEBHOOK_ID||'',PUBLIC=(process.env.PUBLIC_BASE_URL||'').replace(/\/$/,''),READY=Boolean(CID&&SECRET&&WH&&PUBLIC);
 const WORKLOAD=Math.max(1,Math.min(10,Number(process.env.ULTRON_WORKLOAD_MULTIPLIER||3))),INTERVAL=Math.max(5,Number(process.env.AGENT_INTERVAL_MINUTES||5));
-const auditDelivery=createAuditDelivery({verify:o=>confirmCapturedOrderForDelivery(paypal,o)});
+const serviceProduction=createServiceProduction();
+const auditDelivery=createAuditDelivery({verify:o=>confirmCapturedOrderForDelivery(journeyPayPalRead,o)});
 let cache={token:null,exp:0},payment={ok:false,checkedAt:null},businessBilling={productId:null,planId:null,invoiceApi:false,subscriptionApi:false,lastVerifiedAt:null,lastError:null},timer=null;
 async function token(){if(cache.token&&Date.now()<cache.exp-60000)return cache.token;const r=await fetch(BASE+'/v1/oauth2/token',{method:'POST',headers:{authorization:'Basic '+Buffer.from(CID+':'+SECRET).toString('base64'),'content-type':'application/x-www-form-urlencoded'},body:'grant_type=client_credentials'}),d=await r.json();if(!r.ok)throw Error('PayPal OAuth failed');cache={token:d.access_token,exp:Date.now()+Number(d.expires_in||300)*1000};return cache.token}
 async function paypal(path,method='GET',body=null,rid=null){const h={authorization:'Bearer '+await token(),'content-type':'application/json'};if(rid)h['paypal-request-id']=rid;const r=await fetch(BASE+path,{method,headers:h,body:body?JSON.stringify(body):undefined}),d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.message||`PayPal ${r.status}`);return d}
@@ -301,8 +304,9 @@ if(path==='/api/mainframe/v44/artifact'&&req.method==='GET'){
 if(['/customer-delivery','/customer-journey'].includes(path)&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-frame-options':'DENY','referrer-policy':'no-referrer'});return res.end(await readFile(new URL(path==='/customer-delivery'?'./public/customer-delivery.html':'./public/customer-journey.html',import.meta.url),'utf8'))}
 if(await customerJourneyRoute(req,res,u,{authorized:v13Owner,json,journey:customerJourney}))return;
 if(path==='/audit-delivery'&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','referrer-policy':'no-referrer','x-frame-options':'DENY'});return res.end(await readFile(new URL('./public/audit-delivery.html',import.meta.url),'utf8'))}
+if(await serviceProductionRoute(req,res,u,{authorized:v13Owner,json,production:serviceProduction}))return;
 if(path==='/api/services'&&req.method==='GET')return json(200,{services});
-if(['/services','/audit-studio'].includes(path)&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','referrer-policy':'no-referrer','x-frame-options':'DENY'});return res.end(await readFile(new URL('./public/'+(path==='/services'?'services':'audit-studio')+'.html',import.meta.url),'utf8'))}
+if(['/services','/audit-studio','/service-studio'].includes(path)&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','referrer-policy':'no-referrer','x-frame-options':'DENY'});return res.end(await readFile(new URL('./public/'+(path==='/services'?'services':path==='/audit-studio'?'audit-studio':'service-studio')+'.html',import.meta.url),'utf8'))}
 if(await auditDeliveryRoute(req,res,u,{authorized:v13Owner,json,delivery:auditDelivery}))return;
 if(path==='/print-studio'&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-frame-options':'DENY'});return res.end(await readFile(new URL('./public/print-studio.html',import.meta.url),'utf8'))}
 if(await printProductRoute(req,res,u,{authorized:v13Owner,json}))return;

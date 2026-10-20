@@ -8,6 +8,7 @@ async function fixture(store=memory({drafts:{}})){
  await orderStore.mutate(s=>s.orders[o.id]=o);await d.bind(o.id);return {d,p,token,options,store,orderStore,setFailure:x=>fail=x,calls:()=>calls};
 }
 test('five observations do not manufacture five defects and inaccessible evidence blocks preparation',async()=>{
+ await assert.rejects(createAuditDelivery().prepare({...input,authorizationConfirmed:false}),/Authorization/);await assert.rejects(createAuditDelivery().prepare({...input,monthlyLeads:null}),/measurements/);
  const all=websiteObservations(inspectHtmlV34(html),input.website,new Date().toISOString());assert.equal(all.length,5);assert.equal(all.filter(x=>x.category==='REVIEW_OPPORTUNITY').length,0);assert.ok(all.every(x=>x.limitation.includes('does not establish')));
  await assert.rejects(createAuditDelivery({inspect:async()=>({status:'UNAVAILABLE'})}).prepare(input),/evidence unavailable/);
 });
