@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {checkReadOnlyStartup,checkConfiguredReadOnlyProviders} from './crypto-readiness.mjs';
-import {verifyExchangeReadAccess,privateCall} from './crypto-exchange.mjs';
+import {verifyExchangeReadAccess,privateCall,buildSignedRequest} from './crypto-exchange.mjs';
 
 test('startup logs only bounded authentication evidence, never balances or arbitrary provider text',async()=>{
  for(const result of [{verified:true,balance:1000,secret:'PRIVATE',tradePermission:'ENABLED'},
@@ -51,7 +51,7 @@ test('signed transport forbids financial transfers and binds create-order respon
  const old=[process.env.CRYPTOCOM_API_KEY,process.env.CRYPTOCOM_API_SECRET];process.env.CRYPTOCOM_API_KEY='fixture';process.env.CRYPTOCOM_API_SECRET='fixture';
  try{
   let count=0;
-  const transport=async(url,options)=>{count++;const request=JSON.parse(options.body);return {ok:true,status:200,json:async()=>({id:request.id,method:request.method,code:0,result:{order_id:'123'}})}};
+  const transport=async(url,options)=>{count++;assert.equal(options.redirect,'error');const request=JSON.parse(options.body);return {ok:true,status:200,json:async()=>({id:request.id,method:request.method,code:0,result:{order_id:'123'}})}};
   for(const method of ['private/create-withdrawal','private/create-subaccount-transfer','private/change-account-leverage'])await assert.rejects(privateCall(method,{},{transport}),/prohibited/);
   assert.equal(count,0);
   assert.equal((await privateCall('private/create-order',{},{transport})).result.order_id,'123');
@@ -75,4 +75,15 @@ test('startup diagnoses App and Exchange independently without selecting or expo
   assert.doesNotMatch(logs.join(' '),/PRIVATE/);
   assert.ok(Object.values(result).every(r=>r.liveOrders===false&&r.tradePermission==='UNVERIFIED'));
  }finally{if(old===undefined)delete process.env.CRYPTO_PROVIDER;else process.env.CRYPTO_PROVIDER=old}
+});
+
+test('empty balance-request signature matches an independent Python HMAC fixture',()=>{
+ const old=[process.env.CRYPTOCOM_API_KEY,process.env.CRYPTOCOM_API_SECRET];
+ process.env.CRYPTOCOM_API_KEY='fixture-key';process.env.CRYPTOCOM_API_SECRET='fixture-secret';
+ try{
+  const request=buildSignedRequest('private/user-balance',{},1700000000000);
+  assert.equal(request.sig,'09890fb3f95c66168a329b18da40073c76a025124a85aab3625b8b6bbcd73c20');
+  assert.equal(request.id,'1700000000000');assert.equal(request.nonce,'1700000000000');
+  assert.deepEqual(request.params,{});
+ }finally{for(const [i,key] of ['CRYPTOCOM_API_KEY','CRYPTOCOM_API_SECRET'].entries())if(old[i]===undefined)delete process.env[key];else process.env[key]=old[i]}
 });
