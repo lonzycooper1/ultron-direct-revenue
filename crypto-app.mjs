@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import os from 'node:os';
 
 const BASE='https://wapi.crypto.com';
 const READ_PATHS=new Set(['/v1/fiat-account','/v1/crypto-account','/v1/api-keys/current']);
@@ -23,7 +24,7 @@ export function appRequestHeaders(method,path,body,timestamp=Date.now()){
   if(key.trim()!==key||secret.trim()!==secret)throw Object.assign(Error('Invalid App credential format'),{diagnostic:'CREDENTIAL_FORMAT_INVALID'});
   if(!Number.isSafeInteger(timestamp)||timestamp<0)throw Error('Invalid timestamp');
   const stamp=String(timestamp);
-  return {'User-Agent':'ULTRON-CryptoApp/1.0','Accept':'application/json',
+  return {'User-Agent':`Node/${process.version} ${os.platform()}/${os.release()}-cdc-clawbot/1.0`,'Accept':'application/json',
     'Cdc-Api-Key':key,'Cdc-Api-Timestamp':stamp,
     ...(body?{'Content-Type':'application/json'}:{}),
     'Cdc-Api-Signature':crypto.createHmac('sha256',secret).update(stamp+method+path+(body?JSON.stringify(body):'')).digest('base64')};

@@ -77,7 +77,7 @@ test('PostgreSQL App quotes persist, bind confirmation, consume once and preserv
     assert.equal((await loadAppQuote(p.id,{pool})).status,'AWAITING_HUMAN_APPROVAL');
     const ack={approved:true,confirmation:p.id,digest:p.digest};
     const replies=await Promise.allSettled(Array.from({length:8},()=>reviewAppQuote(p.id,ack,{pool})));
-    assert.equal(replies.filter(r=>r.status==='fulfilled').length,1);
+    assert.equal(replies.filter(r=>r.status==='fulfilled').length,1,JSON.stringify(replies.map(r=>r.status==='fulfilled'?r.value.status:r.reason?.message)));
     const review=replies.find(r=>r.status==='fulfilled').value;
     assert.equal(review.orderSubmitted,false);assert.equal(review.executionPermission,false);
     assert.equal(review.status,'REVIEWED_BLOCKED');
