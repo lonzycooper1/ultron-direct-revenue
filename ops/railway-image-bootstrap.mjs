@@ -10,7 +10,7 @@ import {spawn,spawnSync} from 'node:child_process';
 const commit=process.env.ULTRON_BOOTSTRAP_COMMIT;
 const manifest=JSON.parse(process.env.ULTRON_BOOTSTRAP_MANIFEST||'null');
 if(!/^[a-f0-9]{40}$/.test(commit||'')||!manifest||typeof manifest!=='object'||Array.isArray(manifest))throw Error('Pinned source commit and checksum manifest required');
-const required=['package.json','package-lock.json','crypto-bot-runtime.mjs','crypto-app.mjs','crypto-app-approval.mjs','crypto-provider.mjs','crypto-readiness.mjs','crypto-order-gateway.mjs','crypto-durable-safety.mjs','crypto-live-approval.mjs','crypto-bots.mjs','crypto-opportunity-engine.mjs','crypto-exchange.mjs','crypto-trade-history.mjs'];
+const required=['package.json','package-lock.json','crypto-bot-runtime.mjs','crypto-app.mjs','crypto-app-approval.mjs','crypto-provider.mjs','crypto-readiness.mjs','crypto-order-gateway.mjs','crypto-reserved-dispatch.mjs','crypto-durable-safety.mjs','crypto-live-approval.mjs','crypto-bots.mjs','crypto-opportunity-engine.mjs','crypto-exchange.mjs','crypto-trade-history.mjs'];
 if(Object.keys(manifest).length!==required.length||required.some(p=>!/^[a-f0-9]{64}$/.test(manifest[p]||'')))throw Error('Complete runtime checksum manifest required');
 const root=mkdtempSync(join(tmpdir(),'ultron-release-'));
 let child;

@@ -1,4 +1,6 @@
 import {verifyProviderReadAccess} from './crypto-provider.mjs';
+import {verifyExchangeReadAccess} from './crypto-exchange.mjs';
+import {verifyAppReadAccess} from './crypto-app.mjs';
 
 // One read-only authentication check per process start. Never change execution
 // flags, expose balances/keys, or infer trade permission from read permission.
@@ -14,4 +16,14 @@ export async function checkReadOnlyStartup({verify=verifyProviderReadAccess,log=
   checkedAt:new Date().toISOString(),tradePermission:'UNVERIFIED',liveOrders:false};
  log('ULTRON provider read verification',JSON.stringify(summary));
  return summary;
+}
+
+// Diagnose both configured products independently. Never switch the selected
+// provider, reuse credentials across products, submit quotes or place orders.
+export async function checkConfiguredReadOnlyProviders({exchange=verifyExchangeReadAccess,app=verifyAppReadAccess,log=console.log}={}){
+ const evidence={};
+ for(const [provider,verify] of [['crypto-com-exchange',exchange],['crypto-com-app',app]]){
+  evidence[provider]=await checkReadOnlyStartup({verify,log:(prefix,summary)=>log(prefix,provider,summary)});
+ }
+ return evidence;
 }
