@@ -43,7 +43,6 @@ async function refresh(){
  card('MCP GATEWAY',p.mcp?.configured?'CONFIGURED / NOT VERIFIED':'NOT CONFIGURED'),
  card('AD SPEND & TRADES','PAUSED FOR OWNER APPROVAL')
  ].join('')}catch(e){el.textContent='Mainframe verification unavailable: '+e.message}}
-}
 let ownerToken='';
 document.getElementById('inspect').addEventListener('click',async()=>{
  ownerToken=document.getElementById('token').value;document.getElementById('token').value='';
