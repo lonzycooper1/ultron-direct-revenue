@@ -1,6 +1,7 @@
+import {EventEmitter} from 'node:events';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {V34_SKU,V34_PRICE_USD,DIRECTOR,validateV34Intake,inspectHtmlV34,buyerIntent,competitorGaps,
+import {V34_SKU,V34_PRICE_USD,DIRECTOR,validateV34Intake,inspectHtmlV34,inspectV34Homepage,pinnedV34Lookup,buyerIntent,competitorGaps,
  buildV34Report,artifactFactory,qualityGate,delegatedAuthority,retryPlan,reconcileVerifiedRevenue,
  experimentDecision,retentionOpportunity,nextObjective,simulationCustomers,publicV34Manifest} from './ultron-autonomous-revenue-v34.mjs';
 const input={company:'Example Plumbing LLC',website:'https://public-plumbing.example.org/',industry:'plumbing',
@@ -83,4 +84,18 @@ test('ten anonymous synthetic customers exercise quality checks WITHOUT sales',(
   const r=buildV34Report(sim,{status:'UNAVAILABLE',reason:'simulated run'});
   assert.equal(r.quality.passed,true);assert.equal(r.sections.length,9);
  }
+});
+
+test('pinned public DNS honors Node all-address lookup and keeps private or mixed DNS blocked',async()=>{
+ const lookup=pinnedV34Lookup(['93.184.216.34']);lookup('example.org',{all:true},(e,addresses)=>{assert.equal(e,null);assert.deepEqual(addresses,[{address:'93.184.216.34',family:4}])});lookup('example.org',{},(e,address,family)=>{assert.equal(address,'93.184.216.34');assert.equal(family,4)});
+ for(const ips of [[],['127.0.0.1'],['93.184.216.34','10.0.0.1'],['::1']])assert.throws(()=>pinnedV34Lookup(ips),/Public/);
+ let requests=0;const get=(url,options,receive)=>{requests++;const request=new EventEmitter();request.destroy=()=>{};queueMicrotask(()=>{options.lookup(url.hostname,{all:true},(error,addresses)=>{assert.equal(error,null);assert.equal(addresses[0].family,4);assert.equal(addresses[0].address,'93.184.216.34');const response=new EventEmitter();response.statusCode=200;response.headers={'content-type':'text/html; charset=utf-8'};receive(response);response.emit('data',Buffer.from('<title>Actual fixture HTML</title><h1>Inquiry</h1>'));response.emit('end')})});return request};
+ const result=await inspectV34Homepage('https://public.example.org/',{resolve4:async()=>['93.184.216.34'],get});assert.equal(result.status,'INSPECTED');assert.equal(result.title,'Actual fixture HTML');assert.equal(requests,1);
+ const blocked=await inspectV34Homepage('https://public.example.org/',{resolve4:async()=>['93.184.216.34','169.254.169.254'],get});assert.equal(blocked.failureCode,'PUBLIC_PAGE_DNS_UNAVAILABLE');assert.equal(requests,1);
+ const noDns=await inspectV34Homepage('https://127.0.0.1/',{resolve4:async()=>{throw Error('must not resolve')},get});assert.equal(noDns.failureCode,'PUBLIC_PAGE_URL_RESTRICTED');assert.equal(requests,1);
+});
+test('public inspection refuses redirects and produces bounded safe diagnostics for network failures',async()=>{
+ const get=(status,fail=false)=>(_url,_options,receive)=>{const request=new EventEmitter();request.destroy=()=>{};queueMicrotask(()=>{if(fail){request.emit('error',Error('Sensitive fixture error must not escape'));return}const response=new EventEmitter();response.statusCode=status;response.headers={'content-type':'text/html',location:'https://127.0.0.1/'};response.resume=()=>{};receive(response)});return request};
+ const redirect=await inspectV34Homepage('https://public.example.org/',{resolve4:async()=>['93.184.216.34'],get:get(302)});assert.equal(redirect.failureCode,'PUBLIC_PAGE_NOT_HTML');
+ const failure=await inspectV34Homepage('https://public.example.org/',{resolve4:async()=>['93.184.216.34'],get:get(200,true)});assert.equal(failure.failureCode,'PUBLIC_PAGE_NETWORK_UNAVAILABLE');assert.doesNotMatch(JSON.stringify(failure),/Sensitive/);
 });

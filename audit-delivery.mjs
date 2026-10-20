@@ -6,7 +6,7 @@ import {serviceDocument,digest} from './service-document.mjs';
 const KEY='ultron-audit-delivery-v1',fresh=()=>({drafts:{}});
 export function auditCustomerLocation(order,token){if(!/^[a-f0-9]{48}$/.test(token||''))throw Error('Invalid private delivery token');return order?.product===V34_SKU&&order?.auditPackageId?'/audit-delivery#code='+token:'/fulfillment?token='+token}
 export function websiteObservations(site,url,at){
- if(site?.status!=='INSPECTED')throw Error('Public homepage evidence unavailable; checkout must remain blocked');
+ if(site?.status!=='INSPECTED'){const e=Error('Public homepage evidence unavailable; checkout must remain blocked');e.code=site?.failureCode;throw e}
  const checks=[['Page title',Boolean(site.title),'Title detected: '+(site.title||'(none detected)'),'Review a descriptive page title'],['Main heading',site.h1Count===1,'Static H1 count: '+site.h1Count,'Review heading hierarchy'],['Phone link',site.telLink,'Static tel: link '+(site.telLink?'detected':'not detected'),'Verify a usable contact method on mobile'],['Inquiry form',site.formCount>0,'Static form count: '+site.formCount,'Verify a usable inquiry path'],['Booking wording',site.bookingText,'Booking/request wording '+(site.bookingText?'detected':'not detected'),'Test a clear next-step call to action']];
  return checks.map(([check,detected,evidence,next],i)=>({id:'homepage-'+(i+1),check,category:detected?'OBSERVATION':'REVIEW_OPPORTUNITY',evidence,next,source:url,observedAt:at,limitation:'Static HTML only. Absence does not establish a missing live feature or lost sales.'}));
 }

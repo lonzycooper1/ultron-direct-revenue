@@ -49,19 +49,24 @@ function publicIPv4(ip){
  return true;
 }
 /** One read-only public HTTPS homepage check: pinned DNS, no redirects, cookies or auth. */
-export async function inspectV34Homepage(website){
- let u;try{u=new URL(website);if(u.protocol!=='https:'||u.username||u.password||u.port||isIP(u.hostname))throw Error('restricted')}catch{return {status:'UNAVAILABLE',reason:'invalid URL'};}
- let ips;try{ips=await dns.resolve4(u.hostname);if(!ips.length||!ips.every(publicIPv4))throw Error('restricted')}catch{return {status:'UNAVAILABLE',reason:'public DNS/IP check failed'};}
+export function pinnedV34Lookup(ips){
+ if(!Array.isArray(ips)||!ips.length||!ips.every(publicIPv4))throw Error('Public IPv4 addresses required');
+ const addresses=ips.map(address=>({address,family:4}));
+ return (_host,options,callback)=>options?.all?callback(null,addresses.map(a=>({...a}))):callback(null,addresses[0].address,4);
+}
+export async function inspectV34Homepage(website,{resolve4=host=>dns.resolve4(host),get=(...args)=>https.get(...args)}={}){
+ let u;try{u=new URL(website);if(u.protocol!=='https:'||u.username||u.password||u.port||isIP(u.hostname))throw Error('restricted')}catch{return {status:'UNAVAILABLE',reason:'invalid URL',failureCode:'PUBLIC_PAGE_URL_RESTRICTED'};}
+ let ips;try{ips=await resolve4(u.hostname);if(!ips.length||!ips.every(publicIPv4))throw Error('restricted')}catch{return {status:'UNAVAILABLE',reason:'public DNS/IP check failed',failureCode:'PUBLIC_PAGE_DNS_UNAVAILABLE'};}
  return new Promise(resolve=>{
   let closed=false,size=0,html='';const done=x=>{if(!closed){closed=true;resolve(x)}};
-  const req=https.get(u,{timeout:5000,lookup:(_h,_o,cb)=>cb(null,ips[0],4),headers:{'accept':'text/html','user-agent':'ULTRON-Audit/2.0 (single public homepage read)'}},res=>{
-   if(res.statusCode!==200||!/^text\/html/i.test(String(res.headers['content-type']||''))){res.resume();return done({status:'UNAVAILABLE',reason:'not a public 200 HTML response'})}
-   res.on('data',b=>{size+=b.length;if(size>200000){req.destroy();return done({status:'UNAVAILABLE',reason:'response size limit'})}html+=b.toString('utf8')});
+  const req=get(u,{timeout:5000,lookup:pinnedV34Lookup(ips),headers:{'accept':'text/html','user-agent':'ULTRON-Audit/2.0 (single public homepage read)'}},res=>{
+   if(res.statusCode!==200||!/^text\/html/i.test(String(res.headers['content-type']||''))){res.resume();return done({status:'UNAVAILABLE',reason:'not a public 200 HTML response',failureCode:'PUBLIC_PAGE_NOT_HTML'})}
+   res.on('data',b=>{size+=b.length;if(size>200000){req.destroy();return done({status:'UNAVAILABLE',reason:'response size limit',failureCode:'PUBLIC_PAGE_TOO_LARGE'})}html+=b.toString('utf8')});
    res.on('end',()=>done(inspectHtmlV34(html)));
-   res.on('error',()=>done({status:'UNAVAILABLE',reason:'read error'}));
+   res.on('error',()=>done({status:'UNAVAILABLE',reason:'read error',failureCode:'PUBLIC_PAGE_READ_FAILED'}));
   });
-  req.on('timeout',()=>{req.destroy();done({status:'UNAVAILABLE',reason:'timeout'})});
-  req.on('error',()=>done({status:'UNAVAILABLE',reason:'network error'}));
+  req.on('timeout',()=>{req.destroy();done({status:'UNAVAILABLE',reason:'timeout',failureCode:'PUBLIC_PAGE_TIMEOUT'})});
+  req.on('error',()=>done({status:'UNAVAILABLE',reason:'network error',failureCode:'PUBLIC_PAGE_NETWORK_UNAVAILABLE'}));
  });
 }
 export function inspectHtmlV34(source=''){
