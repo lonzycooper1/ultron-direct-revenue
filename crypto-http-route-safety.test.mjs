@@ -33,7 +33,7 @@ test('crypto HTTP owner-only state and manual cycles reject unauthenticated user
   child.stderr.on('data',chunk=>{stderr=(stderr+chunk.toString()).slice(-3000)});
   try{
     await waitForHealth(base,child);
-    for(const [path,method] of [['/state','GET'],['/cycle','POST'],['/api/proposals','POST'],['/api/exchange/verify','POST'],['/api/app/verify','POST'],['/api/provider/verify','POST']]){
+    for(const [path,method] of [['/state','GET'],['/cycle','POST'],['/api/proposals','POST'],['/api/exchange/verify','POST'],['/api/app/verify','POST'],['/api/provider/verify','POST'],['/api/app/readiness','POST'],['/api/app/quotes','POST'],['/api/app/quotes/00000000-0000-4000-8000-000000000001','GET'],['/api/app/quotes/00000000-0000-4000-8000-000000000001/review','POST'],['/api/proposals/00000000-0000-4000-8000-000000000001/approve','POST']]){
       const response=await fetch(base+path,{method,headers:{'content-type':'application/json'},body:method==='POST'?'{}':undefined,signal:AbortSignal.timeout(2000)});
       assert.equal(response.status,401,path+' must reject unauthenticated requests; '+stderr);
     }
