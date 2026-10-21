@@ -1,6 +1,6 @@
 import {createHash,createHmac,timingSafeEqual} from 'node:crypto';
 import {getJson,mutateJson} from './state-store.mjs';
-import {financialSummary,independentSale} from './ultron-revenue-operations-v41.mjs';
+import {financialSummary,independentSale,recordedAmount} from './ultron-revenue-operations-v41.mjs';
 import {executive} from './executive-runtime.mjs';
 import {productDeployer} from './product-deployer.mjs';
 
@@ -9,7 +9,7 @@ const hash=x=>createHash('sha256').update(String(x)).digest('hex');
 const text=(x,n=2000)=>String(x??'').trim().slice(0,n);
 export function reconciliationSnapshot(orders=[]){
  const seen=new Set(),paid=orders.filter(o=>o.status==='COMPLETED'&&o.captureId&&o.capturedAt&&!seen.has(o.captureId)&&(seen.add(o.captureId),true));
- const known=paid.filter(o=>o.capturedAmount!==null&&o.capturedAmount!==undefined&&o.capturedAmount!==''&&typeof o.capturedAmount!=='boolean'&&Number.isFinite(Number(o.capturedAmount))&&Number(o.capturedAmount)>=0),missingAmounts=paid.length-known.length;
+ const known=paid.filter(o=>recordedAmount(o.capturedAmount)),missingAmounts=paid.length-known.length;
  let summary;try{summary=financialSummary(known)}catch{summary={grossCapturedUsd:null,paypalFeesUsd:null,providerRefundsUsd:null,recordedCostsUsd:null,recordedContributionProfitUsd:null,bankSettlementStatus:'INVALID_RECORDS_REQUIRE_REVIEW'}}
  return {...summary,captures:paid.length,...(missingAmounts?{grossCapturedUsd:null,paypalFeesUsd:null,providerRefundsUsd:null,recordedCostsUsd:null,recordedContributionProfitUsd:null}:{}),missingCaptureAmounts:missingAmounts,bankSettlementIndependentlyVerified:false};
 }
