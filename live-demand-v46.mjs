@@ -23,7 +23,12 @@ function normalizeSignal(item,source,now){
  if(!keywords.some(k=>lower.includes(k)))return null;
  const created=Date.parse(item.createdAt||'');
  if(!Number.isFinite(created)||now-created>60*24*3600*1000||created>now+3600*1000)return null;
- const publicUrl=new URL(url);publicUrl.search='';publicUrl.hash='';
+ const publicUrl=new URL(url);publicUrl.hash='';
+ if(source==='hacker-news'){
+  const itemId=publicUrl.searchParams.get('id');
+  if(publicUrl.pathname!=='/item'||!/^\d+$/.test(itemId||''))return null;
+  publicUrl.search='';publicUrl.searchParams.set('id',itemId);
+ }else publicUrl.search='';
  return {id:stableId(source+':'+publicUrl.href),source,url:publicUrl.href,title,problem,
   observedAt:new Date(now).toISOString(),sourceCreatedAt:new Date(created).toISOString(),
   classification:'UNVERIFIED_PUBLIC_DISCUSSION_NOT_BUYER_INTENT',permissionToContact:false,
