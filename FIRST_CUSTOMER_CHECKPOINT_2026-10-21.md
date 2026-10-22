@@ -46,3 +46,10 @@ Recipient resolution, channel permission, owner approval, sender identity and ac
 3. Approve the exact latest tested production release after reviewing staged changes and current main. Deployment cancellation must be respected.
 4. Select a genuine permissioned prospect and approve the specific message/channel when ready.
 No secret, fake customer, payment, trade, refund or external message was created. Production DB contents beyond authenticated public application summaries were unavailable; database counts are application-reported, not a direct SQL audit.
+
+## Owner access persistence follow-up
+User instructed not to ask for the token again and requested persistent storage. No further credential request will be made. The configured token remains in Railway; its value is unavailable through OAuth inventory.
+
+This PR adds seven-day, server-persisted owner sessions using a random Secure/HttpOnly/SameSite=Strict host-only cookie. The database stores only the session hash, creation/expiry and owner-secret fingerprint. No raw token/session value is stored in browser storage or database. Session reads reject cross-site contexts, login/logout require the exact configured HTTPS origin, sign-out revokes server state, rotation invalidates existing sessions, and retained sessions are bounded to ten.
+
+The audit workspace automatically reuses a saved session and clears the credential input after successful authorization. Existing token headers remain supported. Initial authorization is still required; this is not credential recovery or an authentication bypass. No production session or release is claimed. Local HTTP tests verify private-route authorization, restart, expiry, rotation, logout and cross-origin rejection. Final full CI must pass before release.
