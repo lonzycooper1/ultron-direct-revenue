@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createOwnerSessions} from './owner-sessions.mjs';
 import {createApp} from './server.js';
+import {randomUUID} from 'node:crypto';
+import {getJson,mutateJson} from './state-store.mjs';
 function fixture(){let state={sessions:{}},now=Date.now();const secret='fixture-owner-high-entropy',origin='https://merchant.example';
  const options={secret,origin,clock:()=>now,read:async()=>structuredClone(state),mutate:async fn=>fn(state)};
  return {options,secret,origin,state,get now(){return now},advance(){now+=8*24*3600*1000}};
@@ -35,5 +37,17 @@ test('sessions expire, revoke on credential rotation and cannot be issued cross-
   const r=await fetch(s.base+'/api/owner/session',{method:'POST',headers:{origin:f.origin,authorization:'Bearer '+f.secret}}),headers={cookie:r.headers.get('set-cookie').split(';')[0],'sec-fetch-site':'same-origin'};
   assert.equal(await createOwnerSessions({...f.options,secret:'rotated-fixture'}).authenticated({headers}),false);
   f.advance();assert.equal(await createOwnerSessions(f.options).authenticated({headers}),false);
+ }finally{await s.close()}
+});
+
+test('isolated PostgreSQL persists hashed owner access across fresh service instances',async()=>{
+ const f=fixture(),key='owner-session-fixture-'+randomUUID(),seed=()=>({sessions:{}});
+ const options={...f.options,read:()=>getJson(key,seed()),mutate:fn=>mutateJson(key,seed(),fn)};
+ const s=await serverFor(createOwnerSessions(options));
+ try{
+  const r=await fetch(s.base+'/api/owner/session',{method:'POST',headers:{origin:f.origin,authorization:'Bearer '+f.secret}});
+  assert.equal(r.status,200);const cookie=r.headers.get('set-cookie').split(';')[0];
+  assert.equal(await createOwnerSessions(options).authenticated({headers:{cookie,'sec-fetch-site':'same-origin'}}),true);
+  const persisted=JSON.stringify(await options.read());assert.ok(!persisted.includes(f.secret));assert.ok(!persisted.includes(cookie.split('=')[1]));
  }finally{await s.close()}
 });
