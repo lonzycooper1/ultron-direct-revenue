@@ -1,4 +1,5 @@
 import {ecosystemSnapshot} from './ecosystem.mjs';
+import {createOwnerSessions} from './owner-sessions.mjs';
 import {creativeFactory,combineDeliverables} from './creative-products.mjs';
 import {printFactory} from './print-products.mjs';
 import {fileServices,startFileServices} from './file-service-runtime.mjs';
@@ -210,8 +211,10 @@ async function journeyPayPalRead(path){
 }
 const deliverableProducts=combineDeliverables(printFactory,creativeFactory);
 const customerJourney=createCustomerJourney({products:deliverableProducts,catalog:marketProduct,verify:order=>confirmCapturedOrderForDelivery(journeyPayPalRead,order)});
-export function createApp(){return createServer(async(req,res)=>{const u=new URL(req.url,'http://local'),path=u.pathname,json=(s,d)=>{res.writeHead(s,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(d))};try{
-const v13Owner=()=>Boolean(ACQ_TOKEN)&&((req.headers.authorization||'')==='Bearer '+ACQ_TOKEN||req.headers['x-ultron-admin']===ACQ_TOKEN);
+export function createApp({ownerSessions=createOwnerSessions({secret:ACQ_TOKEN,origin:PUBLIC})}={}){return createServer(async(req,res)=>{const u=new URL(req.url,'http://local'),path=u.pathname,json=(s,d)=>{res.writeHead(s,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(d))};try{
+if(await ownerSessions.route(req,res,u,json))return;
+const ownerAllowed=ownerSessions.direct(req)||await ownerSessions.authenticated(req);
+const v13Owner=()=>ownerAllowed;
 if(path==='/workbench'&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-frame-options':'DENY','referrer-policy':'no-referrer'});return res.end(await readFile(new URL('./public/workbench-v47.html',import.meta.url),'utf8'))}
 if(path.startsWith('/api/company-memory/v47/')){
  if(!v13Owner())return json(403,{error:'Owner authorization required'});
