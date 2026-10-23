@@ -1,3 +1,4 @@
+import {independentSale} from './ultron-revenue-operations-v41.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';import {createServer} from 'node:http';import {mkdtemp,writeFile,readFile,rm} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';import {execFileSync} from 'node:child_process';import {randomUUID} from 'node:crypto';
 import {createAuditDelivery,websiteObservations,auditCustomerLocation,validatePreparedAuditIntake} from './audit-delivery.mjs';import {auditDeliveryRoute} from './audit-delivery-http.mjs';import {serviceDocument} from './service-document.mjs';import {inspectHtmlV34,V34_SKU} from './ultron-autonomous-revenue-v34.mjs';import {getJson,mutateJson} from './state-store.mjs';
 const input={authorizationConfirmed:true,company:'Synthetic Plumbing',website:'https://example.org/',industry:'plumbing',monthlyLeads:40,missedPercent:10,responseMinutes:90,bookingMethod:'phone',followup:'manual'};
@@ -51,4 +52,11 @@ test('unknown audit measurements remain unknown through validation and the rende
  assert.equal(validatePreparedAuditIntake({...input,monthlyLeads:0}).monthlyLeads,0);
  for(const value of [-1,1.5,100001,true,{},'NaN'])assert.throws(()=>validatePreparedAuditIntake({...input,monthlyLeads:value}),/measurement/);
  assert.throws(()=>validatePreparedAuditIntake({...input,bookingMethod:'fabricated'}),/process/);
+});
+
+test('mini-audit acceptance is recorded in business evidence only with exact reviewed artifact and independent signed payment proof',async()=>{
+ const f=await fixture();await f.d.review(f.p.id,{sha256:f.p.manifest.pdfSha256,allPagesReviewed:true,factsChecked:true,reviewer:'Controlled document review'});await f.d.artifact(f.token);await f.d.accept(f.token,{accepted:true,sha256:f.p.manifest.pdfSha256});
+ let o=(await f.orderStore.read()).orders['ORDER-FIXTURE'];assert.equal(o.customerAcceptanceEvidence.source,'PRIVATE_AUDIT_DELIVERY_PAGE');assert.equal(independentSale(o),false);
+ o.capturedAt='2026-10-23T12:00:00Z';o.webhookEvidence={signatureVerified:true,captureId:o.captureId,eventId:'CONTROLLED_EVENT'};o.independentBuyerVerified=true;o.independentBuyerEvidence={source:'PAYPAL_ORDER_READ_AND_OWNER_REVIEW',orderId:o.id,captureId:o.captureId};assert.equal(independentSale(o),true);
+ o.auditDelivery.qualityReview.sha256='different';assert.equal(independentSale(o),false);o.auditDelivery.qualityReview.sha256=f.p.manifest.pdfSha256;o.independentBuyerEvidence.captureId='different';assert.equal(independentSale(o),false);
 });

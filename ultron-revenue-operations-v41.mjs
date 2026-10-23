@@ -78,10 +78,15 @@ export function recordSignedCapture(order,{eventId,captureId,receivedAt}={}){
  if(!order||order.captureId!==captureId||!eventId||!Number.isFinite(Date.parse(receivedAt)))throw Error('Matching signed capture evidence required');
  order.webhookEvidence={eventId,captureId,receivedAt,signatureVerified:true,provider:'PAYPAL'};return order;
 }
-export function independentSale(order){return Boolean(order?.status==='COMPLETED'&&order.captureId&&order.capturedAt&&
+export function independentSale(order){
+ const e=order?.customerAcceptanceEvidence,a=order?.auditDelivery;
+ const mini=order?.product==='instant-lead-audit-99'&&e?.source==='PRIVATE_AUDIT_DELIVERY_PAGE'&&e.packageId===order.auditPackageId&&a?.packageId===order.auditPackageId&&/^[a-f0-9]{64}$/.test(e.sha256||'')&&e.sha256===a.sha256&&a.qualityReview?.sha256===e.sha256&&a.qualityReview.reviewer&&a.downloadPreparedAt&&a.acceptedAt&&order.independentBuyerEvidence?.captureId===order.captureId;
+ const reviewed=order?.fulfillment?.review?.qualityApproved===true||mini;
+ return Boolean(order?.status==='COMPLETED'&&order.captureId&&order.capturedAt&&
  order.webhookEvidence?.signatureVerified===true&&order.webhookEvidence.captureId===order.captureId&&order.webhookEvidence.eventId&&
  order.independentBuyerEvidence?.source==='PAYPAL_ORDER_READ_AND_OWNER_REVIEW'&&order.independentBuyerEvidence.orderId===order.id&&order.independentBuyerVerified===true&&
- order.fulfillment?.review?.qualityApproved===true&&order.fulfillmentCompletedAt&&order.customerAcceptanceVerified===true&&order.customerAcceptanceEvidence?.at);}
+ reviewed&&order.fulfillmentCompletedAt&&order.customerAcceptanceVerified===true&&e?.at);
+}
 
 export function financialSummary(orders=[]){
  const seen=new Set(),paid=orders.filter(o=>o?.status==='COMPLETED'&&o.captureId&&o.capturedAt&&!seen.has(o.captureId)&&(seen.add(o.captureId),true));

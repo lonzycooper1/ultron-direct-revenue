@@ -513,7 +513,7 @@ if((path.startsWith('/api/audit/v41/')||path==='/api/revenue-operations/v41/reco
   }
   if(path==='/api/revenue-operations/v41/record'){await recordOps(data.kind,data);return json(200,{ok:true,message:'Owner record saved; no external effect inferred'})}
   const l=await ledger(),o=ownerPaths.includes(path)?l.orders?.[data.orderId]:Object.values(l.orders||{}).find(o=>typeof data.token==='string'&&data.token.length>=32&&o.fulfillment?.token===data.token);
-  if(!o||o.product!==AUDIT_SKU||!o.captureId)return json(404,{error:'Paid audit not found'});
+  if(!o||!o.captureId||o.product!==AUDIT_SKU&&!(o.product===V34_SKU&&path==='/api/audit/v41/buyer-verification'))return json(404,{error:'Paid audit not found'});
   if(path==='/api/audit/v41/review'){
    await saveLedger(z=>reviewAudit(z.orders[o.id],data));return json(200,{ok:true,message:'Quality-reviewed report available for customer review'});
   }
@@ -535,9 +535,9 @@ if((path.startsWith('/api/audit/v41/')||path==='/api/revenue-operations/v41/reco
    const provider=await paypal('/v2/checkout/orders/'+encodeURIComponent(o.id));
    const cap=provider.purchase_units?.flatMap(x=>x.payments?.captures||[]).find(x=>x.id===o.captureId);
    assertCaptureMatches(o,cap);
-   const payer=provider.payer?.payer_id,payee=provider.purchase_units?.[0]?.payee?.merchant_id;
+   if(provider.id!==o.id)throw Error('Provider order identity mismatch');const payer=provider.payer?.payer_id,payee=provider.purchase_units?.[0]?.payee?.merchant_id;
    if(!payer||!payee||payer===payee)throw Error('Distinct provider payer and merchant evidence required');
-   await saveLedger(z=>{const row=z.orders[o.id];row.independentBuyerVerified=true;row.independentBuyerEvidence={source:'PAYPAL_ORDER_READ_AND_OWNER_REVIEW',orderId:o.id,captureId:cap.id,payerId:payer,payeeId:payee,at:new Date().toISOString()};});
+   await saveLedger(z=>{const row=z.orders[o.id];if(row.captureId!==cap.id||row.status!=='COMPLETED')throw Error('Order changed during verification');row.independentBuyerVerified=true;row.independentBuyerEvidence={source:'PAYPAL_ORDER_READ_AND_OWNER_REVIEW',orderId:o.id,captureId:cap.id,payerId:payer,payeeId:payee,at:new Date().toISOString()};});
    return json(200,{ok:true,message:'Provider payer and owner unrelated-buyer review recorded'});
   }
   if(path==='/api/audit/v41/financial-review'){

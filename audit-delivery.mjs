@@ -71,7 +71,7 @@ export function createAuditDelivery({read=()=>getJson(KEY,fresh()),mutate=fn=>mu
  }
  async function accept(token,input){
   const {o,d}=await checked(token);if(d.review?.sha256!==d.manifest.pdfSha256||input.accepted!==true||input.sha256!==d.manifest.pdfSha256)throw Error('Exact artifact acceptance required');
-  await mutateOrders(s=>{const current=s.orders[o.id];if(current.captureId!==o.captureId||current.refunds?.length||current.auditPackageId!==d.id||current.auditDelivery?.sha256!==d.manifest.pdfSha256||!current.auditDelivery.downloadPreparedAt)throw Error('Download preparation and unchanged order required');current.auditDelivery.acceptedAt??=at()});return status(token);
+  await mutateOrders(s=>{const current=s.orders[o.id];if(current.captureId!==o.captureId||current.refunds?.length||current.auditPackageId!==d.id||current.auditDelivery?.sha256!==d.manifest.pdfSha256||!current.auditDelivery.downloadPreparedAt)throw Error('Download preparation and unchanged order required');current.auditDelivery.acceptedAt??=at();current.auditDelivery.qualityReview={...d.review};current.auditDelivery.packageId=d.id;current.fulfillmentCompletedAt??=current.auditDelivery.acceptedAt;current.customerAcceptanceEvidence={source:'PRIVATE_AUDIT_DELIVERY_PAGE',at:current.auditDelivery.acceptedAt,sha256:d.manifest.pdfSha256,packageId:d.id};current.customerAcceptanceVerified=true});return status(token);
  }
  async function salesReady(){const s=await read(),r=s.releaseReview,d=r&&s.drafts[r.id];return Boolean(d&&d.review?.sha256===r.sha256&&d.manifest.pdfSha256===r.sha256)}
  async function list(){return Object.values((await read()).drafts).map(({id,manifest,status,orderId,createdAt,review})=>({id,manifest,status,orderId,createdAt,review}))}
