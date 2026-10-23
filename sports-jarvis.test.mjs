@@ -9,3 +9,10 @@ test('line history is append-only',()=>{const h=recordLine({player:'A',stat:'Poi
 test('pass when no evidence',()=>assert.equal(analyzeProp({sport:'NBA',player:'A',stat:'Points',line:20,recent:[]}).direction,'PASS'));
 test('board ranking',()=>assert.equal(rankBoard([{sport:'NBA',player:'A',stat:'Points',line:20,recent:[]},{sport:'NBA',player:'B',stat:'Points',line:20,recent:[30,31,29,28,27,30,29,31,32,30]}])[0].player,'B'));
 test('analysis only safety',()=>assert.match(DATA_POLICY.execution,/Never submit/));
+test('missing odds do not synthesize a probability or bias a historical lean',()=>{
+ const empty=analyzeProp({sport:'NBA',player:'A',stat:'Points',line:20,recent:[]});assert.equal(empty.modelProbability,null);assert.equal(empty.market.impliedProbability,null);
+ const high=analyzeProp({sport:'NBA',player:'A',stat:'Points',line:20,recent:[30,31,32,29,28,30]});assert.equal(high.direction,'MORE');assert.ok(high.modelProbability>.5);
+});
+test('missing history values are not counted as zero performances',()=>{
+ assert.equal(analyzeProp({sport:'NBA',player:'A',stat:'Points',line:20,recent:[null,'',false,22]}).history.sample,1);
+});
