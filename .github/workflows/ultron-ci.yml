@@ -8,7 +8,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:16-alpine
@@ -31,7 +31,18 @@ jobs:
         with:
           node-version: 22
       - name: Ensure media and printable checks are available
-        run: (command -v ffmpeg && command -v pdfinfo && command -v unzip && command -v soffice) || (sudo apt-get update && sudo apt-get install -y ffmpeg poppler-utils unzip libreoffice fonts-dejavu-core)
+        shell: bash
+        run: |
+          if ! (command -v ffmpeg && command -v pdfinfo && command -v unzip && command -v soffice); then
+            # Keep Ubuntu signature verification; avoid a stalled Azure archive mirror.
+            for source in /etc/apt/apt-mirrors.txt /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list; do
+              if [ -f "$source" ]; then
+                sudo sed -i 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' "$source"
+              fi
+            done
+            sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
+            sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends ffmpeg poppler-utils unzip libreoffice-writer libreoffice-calc libreoffice-impress fonts-dejavu-core
+          fi
       - run: npm ci --no-audit --no-fund
       - run: npm test
       - name: Verify official-image startup without Railway builds

@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import {getJson,mutateJson} from './state-store.mjs';
 
 const KEY='ultron-live-demand-v46';
-const fresh=()=>({lastStartedAt:null,lastCompletedAt:null,signals:{},counts:{},lastError:null,sourceStatus:'NOT_RUN'});
+const fresh=()=>({lastStartedAt:null,lastCompletedAt:null,signals:{},counts:{},sources:{},lastError:null,sourceStatus:'NOT_RUN'});
 const clip=(s,n=600)=>String(s??'').replace(/[\u0000-\u001f]/g,' ').trim().slice(0,n);
 const stableId=(url)=>crypto.createHash('sha256').update(url).digest('hex').slice(0,32);
 const COOL_DOWN_MS=30*60*1000;
@@ -36,9 +36,13 @@ function normalizeSignal(item,source,now){
 }
 async function limitedJson(url,host,request){
  if(!publicHttps(url,host))throw Error('Demand feed host not permitted');
- const r=await request(url,{redirect:'error',signal:AbortSignal.timeout(9000),headers:{
-  accept:'application/json','user-agent':'ULTRON-PublicMarketResearch/46 (public metadata only)'
- }});
+ let r;
+ for(let attempt=0;attempt<2;attempt++){
+  try{r=await request(url,{redirect:'error',signal:AbortSignal.timeout(9000),headers:{accept:'application/json','user-agent':'ULTRON-PublicMarketResearch/46 (public metadata only)'}});}
+  catch(e){if(attempt===1)throw e;await new Promise(resolve=>setTimeout(resolve,100));continue}
+  if(attempt===0&&r.status>=500){await r.body?.cancel?.();await new Promise(resolve=>setTimeout(resolve,100));continue}
+  break;
+ }
  if(!r.ok)throw Error('Demand feed unavailable HTTP '+r.status);
  const type=r.headers.get('content-type')||'';
  if(!type.includes('json'))throw Error('JSON demand feed required');
@@ -61,13 +65,15 @@ async function limitedJson(url,host,request){
  return JSON.parse(Buffer.from(bytes).toString('utf8'));
 }
 export async function fetchPublicDemand({request=fetch,now=Date.now(),sources=targets}={}){
- const results=[],errors=[];
+ const results=[],errors=[],sourceResults=[];
  for(const source of sources.slice(0,2)){
+  const before=results.length;
   try{
    if(source.name==='hacker-news'){
     const url='https://hn.algolia.com/api/v1/search_by_date?tags=ask_hn&query='+encodeURIComponent(queries[1])+'&hitsPerPage=20';
     const payload=await limitedJson(url,'hn.algolia.com',request);
-    for(const hit of (Array.isArray(payload.hits)?payload.hits:[]).slice(0,20)){
+    if(!Array.isArray(payload.hits))throw Error('Invalid HN response schema');
+    for(const hit of payload.hits.slice(0,20)){
      const x=normalizeSignal({title:hit.title||hit.story_title,problem:hit.story_text||hit.comment_text||hit.title,
       url:'https://news.ycombinator.com/item?id='+encodeURIComponent(hit.objectID||''),
       createdAt:hit.created_at},source.name,now);
@@ -79,18 +85,20 @@ export async function fetchPublicDemand({request=fetch,now=Date.now(),sources=ta
     // than discarding a whole 12-item response at the ingestion limit.
     const url='https://api.github.com/search/issues?q='+encodeURIComponent(q)+'&sort=created&order=desc&per_page=3';
     const payload=await limitedJson(url,'api.github.com',request);
-    for(const issue of (Array.isArray(payload.items)?payload.items:[]).slice(0,12)){
+    if(!Array.isArray(payload.items))throw Error('Invalid GitHub response schema');
+    for(const issue of payload.items.slice(0,12)){
      if(issue.pull_request)continue;
      const x=normalizeSignal({title:issue.title,problem:issue.body||issue.title,
       url:issue.html_url,createdAt:issue.created_at},source.name,now);
      if(x)results.push(x);
     }
    }
-  }catch(e){errors.push({source:source.name,reason:clip(e.message,80)})}
+  sourceResults.push({source:source.name,status:'SUCCESS',observedAt:new Date(now).toISOString(),accepted:results.length-before});
+  }catch(e){const reason=/HTTP (\d{3})/.exec(e.message)?.[0]||(/too large|ingestion limit/.test(e.message)?'Feed exceeds ingestion limit':e.name==='TimeoutError'?'TIMEOUT':'UNAVAILABLE_OR_INVALID_RESPONSE');errors.push({source:source.name,reason});sourceResults.push({source:source.name,status:'FAILED',observedAt:new Date(now).toISOString(),reason});}
  }
  const unique=[...new Map(results.map(x=>[x.id,x])).values()].slice(0,25);
  return {signals:unique,checkedAt:new Date(now).toISOString(),sourcesChecked:sources.length,
-  partial:errors.length>0,errors};
+  partial:errors.length>0,errors,sourceResults};
 }
 export function createLiveDemandListener({env=process.env,read=()=>getJson(KEY,fresh()),
  mutate=fn=>mutateJson(KEY,fresh(),fn),search=fetchPublicDemand,clock=Date.now}={}){
@@ -101,9 +109,9 @@ export function createLiveDemandListener({env=process.env,read=()=>getJson(KEY,f
   await mutate(s=>{
    const last=Date.parse(s.lastStartedAt||'');
    if(Number.isFinite(last)&&at-last<COOL_DOWN_MS)return;
-   s.lastStartedAt=timestamp;allowed=true;
+   s.lastStartedAt=timestamp;s.sources??={};for(const t of targets)s.sources[t.name]={...s.sources[t.name],lastAttemptAt:timestamp,status:'RUNNING'};allowed=true;
   });
-  if(!allowed)return {status:'COOLDOWN',signals:[],minIntervalMinutes:30};
+  if(!allowed)return {status:'COOLDOWN',sourceStatus:(await read()).sourceStatus,signals:[],minIntervalMinutes:30};
   try{
    const result=await search({now:at});
    await mutate(s=>{
@@ -113,14 +121,16 @@ export function createLiveDemandListener({env=process.env,read=()=>getJson(KEY,f
     }
     const sorted=Object.values(s.signals).sort((a,b)=>b.observedAt.localeCompare(a.observedAt)).slice(0,100);
     s.signals=Object.fromEntries(sorted.map(x=>[x.id,x]));
+    s.sources??={};
+    for(const r of result.sourceResults||[]){const old=s.sources[r.source]||{};s.sources[r.source]={...old,lastAttemptAt:timestamp,status:r.status,accepted:r.accepted??0,failure:r.reason||null,...(r.status==='SUCCESS'?{lastSuccessAt:timestamp}:{})};}
     s.lastCompletedAt=timestamp;
-    s.sourceStatus=result.errors?.length?'PARTIAL_PUBLIC_FEED':'LIVE_PUBLIC_FEED';
+    s.sourceStatus=result.errors?.length?(result.sourceResults?.every(r=>r.status==='FAILED')?'FEED_UNAVAILABLE':'PARTIAL_PUBLIC_FEED'):'LIVE_PUBLIC_FEED';
     s.lastError=(result.errors||[]).map(e=>e.source+': '+e.reason).join('; ').slice(0,220)||null;
    });
-   return {status:result.errors?.length?'PARTIAL':'COMPLETED',
+   return {status:result.errors?.length?(result.sourceResults?.every(r=>r.status==='FAILED')?'FEED_UNAVAILABLE':'PARTIAL'):'COMPLETED',
     fetched:result.signals?.length||0,errors:result.errors||[],minIntervalMinutes:30};
   }catch(e){
-   await mutate(s=>{s.sourceStatus='FAILED_RETRY_AFTER_COOLDOWN';s.lastError=clip(e.message,180)});
+   await mutate(s=>{s.sourceStatus='FAILED_RETRY_AFTER_COOLDOWN';s.lastError='POLL_FAILED_RETRY_AFTER_COOLDOWN'});
    return {status:'FEED_UNAVAILABLE',minIntervalMinutes:30};
   }
  }
@@ -128,6 +138,9 @@ export function createLiveDemandListener({env=process.env,read=()=>getJson(KEY,f
   const s=await read(),signals=Object.values(s.signals||{}).sort((a,b)=>b.observedAt.localeCompare(a.observedAt));
   return {sourceStatus:s.sourceStatus,lastStartedAt:s.lastStartedAt,lastCompletedAt:s.lastCompletedAt,
    signalCount:signals.length,minIntervalMinutes:30,
+   freshness:!s.lastCompletedAt?'NOT_VERIFIED':clock()-Date.parse(s.lastCompletedAt)>COOL_DOWN_MS*2?'STALE':'RECENT',
+   nextRunAt:s.lastStartedAt?new Date(Date.parse(s.lastStartedAt)+COOL_DOWN_MS).toISOString():null,
+   sources:Object.entries(s.sources||{}).map(([source,x])=>({source,...x,ageSeconds:x.lastSuccessAt?Math.max(0,Math.floor((clock()-Date.parse(x.lastSuccessAt))/1000)):null})),
    signals:privateView?signals.slice(0,20):signals.slice(0,5).map(x=>({source:x.source,url:x.url,title:x.title,classification:x.classification})),
    lastError:privateView?s.lastError:null};
  }
