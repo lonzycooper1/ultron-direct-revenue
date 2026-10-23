@@ -1,4 +1,4 @@
-import {createHash} from 'node:crypto';
+import {createHash,randomUUID} from 'node:crypto';
 import {getJson,mutateJson} from './state-store.mjs';
 import {ledger} from './ledger-store.mjs';
 import {financialSummary} from './ultron-revenue-operations-v41.mjs';
@@ -6,7 +6,7 @@ import {analyzeProp} from './sports-jarvis.mjs';
 import {buildLiveBoard} from './sports-live-feed.mjs';
 import {executive} from './executive-runtime.mjs';
 
-const KEY='intelligence-runtime-v1';
+const KEY='intelligence-runtime-v1',RUN_ID=randomUUID();
 const fresh=()=>({version:1,events:{},subscriptions:{},tasks:{}});
 const digest=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
 const validId=x=>typeof x==='string'&&/^[a-zA-Z0-9_.:-]{1,120}$/.test(x);
@@ -18,17 +18,23 @@ export const INTELLIGENCE_TOOLS=Object.freeze({
  'sports.summary':{module:'sports',effects:'read-only'},
  'conversation':{module:'shared',effects:'draft-only',worker:'existing-executive'}
 });
-const BILLING_EVENTS=new Set(['BILLING.SUBSCRIPTION.ACTIVATED','BILLING.SUBSCRIPTION.CANCELLED','BILLING.SUBSCRIPTION.SUSPENDED','BILLING.SUBSCRIPTION.EXPIRED','BILLING.SUBSCRIPTION.PAYMENT.FAILED','PAYMENT.SALE.COMPLETED']);
+export const BILLING_EVENTS=new Set(['BILLING.SUBSCRIPTION.ACTIVATED','BILLING.SUBSCRIPTION.CANCELLED','BILLING.SUBSCRIPTION.SUSPENDED','BILLING.SUBSCRIPTION.EXPIRED','BILLING.SUBSCRIPTION.PAYMENT.FAILED','PAYMENT.SALE.COMPLETED']);
+export function billingCoverage(webhook){
+ if(!webhook||!Array.isArray(webhook.event_types))return {status:'UNVERIFIED',missingEvents:null,checkedAt:null};
+ const names=webhook.event_types.map(x=>x.name),all=names.includes('*');
+ const missingEvents=[...BILLING_EVENTS].filter(x=>!all&&!names.includes(x));
+ return {status:missingEvents.length?'INCOMPLETE':'SUBSCRIBED',missingEvents,checkedAt:new Date().toISOString(),actualIngestionVerified:false};
+}
 export function revenueSnapshot(orders,state,at=new Date().toISOString()){
  const usd=orders.filter(o=>o.currency==='USD');
  const subscriptions=Object.values(state.subscriptions);
  return {asOf:at,source:'APPLICATION_LEDGER_AND_SIGNED_PAYPAL_EVENTS',currency:'USD',...financialSummary(usd),
   excludedNonUsdOrders:orders.length-usd.length,
   subscriptions:{observed:subscriptions.length,active:subscriptions.filter(s=>s.status==='ACTIVE').length,
-   riskSignals:subscriptions.filter(s=>s.paymentFailed||s.status==='SUSPENDED').map(s=>({subscriptionId:s.id,status:s.status,paymentFailed:s.paymentFailed,asOf:s.at,recommendation:'Review provider billing history and contact permission before recovery; no charge or message executed'}))},
+   riskSignals:subscriptions.filter(s=>s.paymentFailed||s.status==='SUSPENDED'||s.reconciliationRequired).map(s=>({subscriptionId:s.id,status:s.status,paymentFailed:s.paymentFailed,reconciliationRequired:s.reconciliationRequired===true,asOf:s.at,recommendation:'Review provider billing history and contact permission before recovery; no charge or message executed'}))},
   arpuUsd:null,ltvUsd:null,churnRate:null,mrrUsd:null,
   missingEvidence:['Stable customer identities, billing amounts, cohort history and observation windows are required for ARPU, LTV, churn and MRR.'],
-  recoveryMode:'REVIEW_ONLY',bankSettlementVerified:false};
+  billingCoverage:state.monitor?.latest?.billingCoverage||{status:'NOT_CHECKED',actualIngestionVerified:false},recoveryMode:'REVIEW_ONLY',bankSettlementVerified:false};
 }
 export function sportsNarrative(board,eventId,kind){
  const e=board.events?.find(x=>x.id===eventId);if(!e)throw Error('Invalid event ID: not in current provider board');
@@ -38,7 +44,7 @@ export function sportsNarrative(board,eventId,kind){
   text:kind==='preview'?`${e.name} is scheduled for ${e.date}. ${e.status}.`:`${e.name}: ${e.teams.map(t=>`${t.name} ${t.score??'score unavailable'}`).join('; ')}. ${e.status}.`,
   teams:e.teams,prediction:null,missingEvidence:kind==='preview'?['Confirmed starters, injuries, player history and verified prop lines']:[],guaranteed:false};
 }
-export function createIntelligence({read=()=>getJson(KEY,fresh()),mutate=fn=>mutateJson(KEY,fresh(),fn),orders=ledger,board=buildLiveBoard,worker=executive,clock=Date.now}={}){
+export function createIntelligence({read=()=>getJson(KEY,fresh()),mutate=fn=>mutateJson(KEY,fresh(),fn),orders=ledger,board=buildLiveBoard,worker=executive,billingRead=null,clock=Date.now,release=process.env.RAILWAY_GIT_COMMIT_SHA||null,runId=RUN_ID}={}){
  const iso=()=>new Date(clock()).toISOString();
  // Internal only: the HTTP webhook calls this AFTER successful PayPal signature verification.
  async function signedBillingEvent(event){
@@ -52,7 +58,7 @@ export function createIntelligence({read=()=>getJson(KEY,fresh()),mutate=fn=>mut
    // Do not silently evict financial evidence. Backpressure allows provider retry and reconciliation.
    if(Object.keys(s.events).length>=10000)throw Error('Billing evidence capacity requires archival');
    s.events[row.id]=row;
-   const old=s.subscriptions[id];if(old&&old.at>=row.at)return;
+   const old=s.subscriptions[id];if(old&&old.at>row.at)return;if(old&&old.at===row.at){old.reconciliationRequired=true;old.paymentFailed=old.paymentFailed||row.type==='BILLING.SUBSCRIPTION.PAYMENT.FAILED';return;}
    const status=({'BILLING.SUBSCRIPTION.ACTIVATED':'ACTIVE','BILLING.SUBSCRIPTION.CANCELLED':'CANCELLED','BILLING.SUBSCRIPTION.SUSPENDED':'SUSPENDED','BILLING.SUBSCRIPTION.EXPIRED':'EXPIRED'})[row.type];
    s.subscriptions[id]={id,status:status||old?.status||'UNKNOWN',paymentFailed:row.type==='BILLING.SUBSCRIPTION.PAYMENT.FAILED'?true:row.type==='PAYMENT.SALE.COMPLETED'||row.type==='BILLING.SUBSCRIPTION.ACTIVATED'?false:old?.paymentFailed||false,at:row.at,eventId:row.id};
   });return {recorded:true,duplicate};
@@ -76,7 +82,7 @@ export function createIntelligence({read=()=>getJson(KEY,fresh()),mutate=fn=>mut
   const hash=digest({tool,input});let replay,claimed=false;
   await mutate(s=>{
    const old=s.tasks[idempotencyKey];
-   if(old){if(old.hash!==hash)throw Error('Conflict: task key reused');if(old.status==='COMPLETED'){replay=old;return}throw Error('Conflict: task active or failed; inspect evidence and use a new key')}
+   if(old){if(old.hash!==hash)throw Error('Conflict: task key reused');if(['COMPLETED','QUEUED','DRAFT_READY'].includes(old.status)){replay=old;return}throw Error('Conflict: task active or failed; inspect evidence and use a new key')}
    if(Object.keys(s.tasks).length>=1000)throw Error('Task capacity requires archival');
    s.tasks[idempotencyKey]={id:idempotencyKey,tool,hash,status:'RUNNING',startedAt:iso()};claimed=true;
   });
@@ -84,23 +90,29 @@ export function createIntelligence({read=()=>getJson(KEY,fresh()),mutate=fn=>mut
   try{
    const result=await perform(tool,input,idempotencyKey);
    if(Buffer.byteLength(JSON.stringify(result))>500000)throw Error('Result exceeds durable task limit');
-   let task;await mutate(s=>{task=s.tasks[idempotencyKey];Object.assign(task,{status:'COMPLETED',finishedAt:iso(),result,externalActionTaken:false})});return task;
+   let task;await mutate(s=>{task=s.tasks[idempotencyKey];Object.assign(task,{status:tool==='conversation'?'QUEUED':'COMPLETED',finishedAt:iso(),result,completionMeaning:tool==='conversation'?'ENQUEUED_NOT_MODEL_EXECUTED':'TOOL_RETURNED_NOT_EXTERNAL_OUTCOME',externalActionTaken:false})});return task;
   }catch(e){if(claimed)await mutate(s=>{Object.assign(s.tasks[idempotencyKey],{status:'FAILED',finishedAt:iso(),error:'Execution failed; check provider availability or validated input'})});throw e}
  }
- async function cycle(){
+ async function task(id){
+  if(!validId(id))throw Error('Invalid task ID');const s=await read(),saved=s.tasks[id];if(!saved)return null;
+  const {hash,...result}=saved;
+  if(result.tool==='conversation'&&result.result?.job?.id){const state=await worker.status(true),job=state.jobs?.find(x=>x.id===result.result.job.id);if(job){result.workerState=job.status;result.status=job.status==='DRAFT_READY'?'DRAFT_READY':['BLOCKED','CANCELLED','RECONCILIATION_REQUIRED'].includes(job.status)?job.status:'QUEUED';result.deliverable=job.status==='DRAFT_READY'?{result:job.result,review:job.review}:null}}
+  if(result.status==='RUNNING'&&clock()-Date.parse(result.startedAt)>300000)result.status='RECONCILIATION_REQUIRED';return result;
+ }
+ async function cycle({trigger='manual'}={}){
   const slot=Math.floor(clock()/600000),claim=digest({slot,at:clock()});let admitted=false;
   await mutate(s=>{s.monitor??={history:[]};if(s.monitor.slot===slot||Date.parse(s.monitor.leaseUntil||'')>clock())return;s.monitor.slot=slot;s.monitor.claim=claim;s.monitor.leaseUntil=new Date(clock()+120000).toISOString();admitted=true});
   if(!admitted)return {status:'ALREADY_CLAIMED'};
-  const results=await Promise.allSettled([snapshot(),providerBoard()]);
-  const evidence={at:iso(),slot,releaseCommit:process.env.RAILWAY_GIT_COMMIT_SHA||null,
+  const results=await Promise.allSettled([snapshot(),providerBoard(),billingRead?Promise.resolve().then(billingRead).then(billingCoverage):Promise.resolve({status:'NOT_CONFIGURED',actualIngestionVerified:false})]);
+  const evidence={at:iso(),slot,trigger,runId,releaseCommit:release,billingCoverage:results[2].status==='fulfilled'?results[2].value:{status:'UNAVAILABLE',actualIngestionVerified:false},
    revenue:results[0].status==='fulfilled'?results[0].value:{status:'UNAVAILABLE'},
    sports:results[1].status==='fulfilled'?{status:'PROVIDER_RESPONDED',events:results[1].value.events?.length||0,providerHealth:results[1].value.providerHealth,observedAt:results[1].value.updatedAt}:{status:'UNAVAILABLE'}};
   await mutate(s=>{if(s.monitor.claim!==claim)throw Error('Cycle lease lost');s.monitor.latest=evidence;s.monitor.history.push(evidence);s.monitor.history=s.monitor.history.slice(-72);delete s.monitor.claim;delete s.monitor.leaseUntil});
-  return {status:results.every(x=>x.status==='fulfilled')?'OBSERVED':'DEGRADED',...evidence};
+  return {status:results.slice(0,2).every(x=>x.status==='fulfilled')?'OBSERVED':'DEGRADED',...evidence};
  }
- async function health(){const s=await read();return {version:1,releaseCommit:process.env.RAILWAY_GIT_COMMIT_SHA||null,lastObservationAt:s.monitor?.latest?.at||null,revenueObservationAvailable:Boolean(s.monitor?.latest?.revenue?.source),sportsStatus:s.monitor?.latest?.sports?.status||'NOT_OBSERVED',observedCycles:s.monitor?.history?.length||0}}
+ async function health(){const s=await read(),history=s.monitor?.history||[],current=history.filter(x=>x.releaseCommit===release);return {version:1,releaseCommit:release,lastObservationAt:s.monitor?.latest?.at||null,revenueObservationAvailable:Boolean(s.monitor?.latest?.revenue?.source),sportsStatus:s.monitor?.latest?.sports?.status||'NOT_OBSERVED',observedCycles:history.length,currentReleaseScheduledCycles:current.filter(x=>x.trigger==='scheduled'&&x.revenue?.source&&x.sports?.status==='PROVIDER_RESPONDED').length,scheduledAttempts:current.filter(x=>x.trigger==='scheduled').length,monitorStatus:!s.monitor?.latest?'NOT_OBSERVED':clock()-Date.parse(s.monitor.latest.at)>1200000?'STALE':'RECENT',observedRunCount:new Set(history.map(x=>x.runId).filter(Boolean)).size,billingCoverageStatus:s.monitor?.latest?.billingCoverage?.status||'NOT_CHECKED'}}
  async function status(){const s=await read();return {version:1,monitor:s.monitor||null,tools:INTELLIGENCE_TOOLS,paymentProvider:'PayPal',releaseCommit:process.env.RAILWAY_GIT_COMMIT_SHA||null,
   persistence:'postgres-ultron_state',tasks:Object.values(s.tasks).map(({result,hash,...t})=>({...t,...(t.status==='RUNNING'&&clock()-Date.parse(t.startedAt)>300000?{status:'RECONCILIATION_REQUIRED'}:{})})),worker:await worker.status(false),billingEvents:Object.keys(s.events).length};}
- return {execute,status,snapshot,signedBillingEvent,cycle,health};
+ return {execute,status,snapshot,signedBillingEvent,cycle,health,task};
 }
 export const intelligence=createIntelligence();

@@ -154,12 +154,15 @@ export function createExecutive({env=process.env,read=()=>getJson(KEY,fresh()),m
  return {enqueue,tick,schedule,status,cancel,control};
 }
 export const executive=createExecutive();
-let loop;
+let loop;const activeRuns=new Set();
 export function startExecutive(orders=async()=>[]){
  if(loop||process.env.ULTRON_EXECUTIVE_ENABLED!=='true')return;
  const run=async()=>{try{await executive.schedule(await orders())}catch{console.error('ULTRON executive scheduling unavailable; inspect private job status')}try{await executive.tick()}catch{console.error('ULTRON executive execution unavailable; inspect private job status')}};
- run();loop=setInterval(run,60000);loop.unref();return loop;
+ const tracked=()=>{const work=run();activeRuns.add(work);work.finally(()=>activeRuns.delete(work));return work};
+ tracked();loop=setInterval(tracked,60000);loop.unref();return loop;
 }
+
+export async function stopExecutive(){clearInterval(loop);loop=null;await Promise.allSettled([...activeRuns])}
 
 /** Enterprise worker uses the same persistent executive queue and existing provider credential flow.
  * Starts the independent evidence-to-draft loop; neither creates a separate agent identity nor grants new scopes.

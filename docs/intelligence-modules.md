@@ -31,3 +31,15 @@ Existing capture accounting is reused. It describes application capture records,
 New behavior is included in `npm test`. Focused local command: `node --test intelligence-runtime.test.mjs sports-jarvis.test.mjs sports-live-feed.test.mjs executive-runtime.test.mjs`.
 
 Production acceptance requires the merged revision to be live, the public health endpoint to show a fresh scheduled observation, authenticated tool execution and replay, verified actual sports responses, and signed real PayPal billing events when available. Fixtures do not count as actual customers, payments, sports outcomes or model-provider executions. No test payment or customer message is needed or authorized.
+
+## Completion evidence extension
+
+`/intelligence` is an owner workspace using the existing secure session (no browser storage of credentials). `GET /api/intelligence/tasks/:reference` retrieves a saved result. Conversation submission now returns `QUEUED`; retrieval resolves the existing executive job into `DRAFT_READY`, blocked or reconciliation state. A generated draft never becomes an externally completed action. Task identity conflicts still prevent duplicate work.
+
+Scheduled observations now record startup versus scheduled trigger, release commit and process run ID. Public health exposes current-release scheduled-cycle count separately from all retained observations. Older release and startup counts cannot satisfy the two-natural-cycle acceptance check. Observation history survives deployment; that alone does not verify two scheduled runs or interrupted model recovery.
+
+The existing PayPal credential performs only a GET of the configured webhook, once per observation cycle. Private revenue evidence reports missing subscription event names, wildcard coverage or provider unavailability; no remote webhook configuration is changed. Subscribed events do not prove a real signed event arrived. Conflicting events with equal provider timestamps retain a reconciliation/risk flag rather than silently clearing a payment failure.
+
+The HTTP process handles SIGTERM/SIGINT with bounded admission shutdown, HTTP draining and a wait for existing executive runs. A 25-second deadline records unresolved durable reconciliation rather than marking work completed. The operating system can still terminate sooner; leases and provider reconciliation remain necessary. This does not certify every older background loop as drained. The executive timer stops admitting new interval runs.
+
+One-sided sportsbook odds without at least five supplied historical observations return PASS; confidence is explicitly a heuristic score, not a calibrated cover probability.
