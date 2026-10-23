@@ -80,14 +80,16 @@ async function oddsForSport(sport){
  }catch{return []}
 }
 export async function buildLiveBoard({sport='ALL'}={}){
+ if(sport!=='ALL'&&!LEAGUES.some(x=>x.sport===sport))throw Error('Invalid sport: feed not supported');
  const score=await liveScoreboard();
+ const available=sport==='ALL'?score.ok:score.providerHealth.some(x=>x.sport===sport&&x.status==='RESPONDED');
  let events=score.events.filter(e=>sport==='ALL'||e.sport===sport);
  const focus=events.filter(e=>e.state==='in').slice(0,8);
  const playerSets=await Promise.all(focus.map(e=>liveEventPlayers(e)));
  const projections=focus.flatMap((e,i)=>projectionCandidates(playerSets[i],e));
  const oddsSports=[...new Set(events.map(e=>e.sport))].slice(0,8);
  const odds=(await Promise.all(oddsSports.map(async s=>({sport:s,markets:await oddsForSport(s)})))).filter(x=>x.markets.length);
- return {ok:score.ok,mode:score.ok?'PROVIDER_OBSERVATIONS':'UNAVAILABLE',providerHealth:score.providerHealth,refreshSeconds:30,events,projections,odds,top3:projections.filter(x=>x.direction!=='PASS').sort((a,b)=>b.confidence-a.confidence).slice(0,3),providers:score.providers,updatedAt:new Date().toISOString(),truthNote:'Top picks require a verified comparison line. ULTRON does not label a live-pace estimate as MORE/LESS without one.'};
+ return {ok:available,mode:available?'PROVIDER_OBSERVATIONS':'UNAVAILABLE',providerHealth:score.providerHealth,refreshSeconds:30,events,projections,odds,top3:projections.filter(x=>x.direction!=='PASS').sort((a,b)=>b.confidence-a.confidence).slice(0,3),providers:score.providers,updatedAt:new Date().toISOString(),truthNote:'Top picks require a verified comparison line. ULTRON does not label a live-pace estimate as MORE/LESS without one.'};
 }
 export function mergePropLines(board,lines=[]){
  const clean=(Array.isArray(lines)?lines:[]).filter(x=>x&&x.line!==null&&x.line!==''&&Number.isFinite(Number(x.line)));

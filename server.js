@@ -215,21 +215,21 @@ async function journeyPayPalRead(path){
 }
 const deliverableProducts=combineDeliverables(printFactory,creativeFactory);
 const customerJourney=createCustomerJourney({products:deliverableProducts,catalog:marketProduct,verify:order=>confirmCapturedOrderForDelivery(journeyPayPalRead,order)});
-export function createApp({ownerSessions=createOwnerSessions({secret:ACQ_TOKEN,origin:PUBLIC})}={}){return createServer(async(req,res)=>{const u=new URL(req.url,'http://local'),path=u.pathname,json=(s,d)=>{res.writeHead(s,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(d))};try{
+export function createApp({ownerSessions=createOwnerSessions({secret:ACQ_TOKEN,origin:PUBLIC}),intelligenceRuntime=intelligence}={}){return createServer(async(req,res)=>{const u=new URL(req.url,'http://local'),path=u.pathname,json=(s,d)=>{res.writeHead(s,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(d))};try{
 if(await ownerSessions.route(req,res,u,json))return;
 const ownerAllowed=ownerSessions.direct(req)||await ownerSessions.authenticated(req);
 const v13Owner=()=>ownerAllowed;
-if(path==='/api/intelligence/health'&&req.method==='GET'){try{return json(200,await intelligence.health())}catch{return json(503,{error:'Intelligence observation storage unavailable'})}}
+if(path==='/api/intelligence/health'&&req.method==='GET'){try{return json(200,await intelligenceRuntime.health())}catch{return json(503,{error:'Intelligence observation storage unavailable'})}}
 if(path.startsWith('/api/intelligence/')){
  if(!v13Owner())return json(403,{error:'Owner authorization required'});
  try{
-  if(path==='/api/intelligence/status'&&req.method==='GET')return json(200,await intelligence.status());
-  if(path==='/api/intelligence/revenue'&&req.method==='GET')return json(200,await intelligence.snapshot());
+  if(path==='/api/intelligence/status'&&req.method==='GET')return json(200,await intelligenceRuntime.status());
+  if(path==='/api/intelligence/revenue'&&req.method==='GET')return json(200,await intelligenceRuntime.snapshot());
   if(path!=='/api/intelligence/execute'||req.method!=='POST')return json(404,{error:'Unknown intelligence operation'});
   if(!(req.headers['content-type']||'').startsWith('application/json'))return json(415,{error:'JSON required'});
   let raw='';for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>32000)return json(413,{error:'Request too large'})}
   const b=JSON.parse(raw);if(!b||typeof b!=='object'||Array.isArray(b))return json(400,{error:'JSON object required'});
-  return json(200,await intelligence.execute(b));
+  return json(200,await intelligenceRuntime.execute(b));
  }catch(e){if(e instanceof SyntaxError||String(e.message).startsWith('Invalid '))return json(400,{error:'Invalid intelligence request'});if(String(e.message).startsWith('Conflict:'))return json(409,{error:e.message});return json(503,{error:'Intelligence execution unavailable; inspect task evidence'})}
 }
 

@@ -77,3 +77,16 @@ test('PostgreSQL serializes concurrent claims and persists completed replay acro
  assert.ok(results.some(r=>r.status==='fulfilled'));assert.equal(calls,1);
  assert.equal((await createIntelligence(options).execute(request)).status,'COMPLETED');assert.equal(calls,1);
 });
+test('authenticated API validates size/type and executes/replays a real allowed tool',async()=>{
+ const f=fixture(),runtime=createIntelligence(f.options),server=createApp({ownerSessions:{route:async()=>false,direct:()=>true,authenticated:async()=>false},intelligenceRuntime:runtime}).listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));
+ const url='http://127.0.0.1:'+server.address().port+'/api/intelligence/execute',headers={'content-type':'application/json'},body=JSON.stringify({tool:'revenue.snapshot',idempotencyKey:'http'});
+ try{
+  assert.equal((await fetch(url,{method:'POST',body})).status,415);
+  assert.equal((await fetch(url,{method:'POST',headers,body:'{bad'})).status,400);
+  assert.equal((await fetch(url,{method:'POST',headers,body:JSON.stringify({tool:'refund',idempotencyKey:'bad'})})).status,400);
+  assert.equal((await fetch(url,{method:'POST',headers,body:' '.repeat(33000)})).status,413);
+  const first=await (await fetch(url,{method:'POST',headers,body})).json();assert.equal(first.result.currency,'USD');
+  assert.deepEqual(await (await fetch(url,{method:'POST',headers,body})).json(),first);
+  const changed=await fetch(url,{method:'POST',headers,body:JSON.stringify({tool:'sports.board',idempotencyKey:'http'})});assert.equal(changed.status,409);
+ }finally{server.closeAllConnections();await new Promise(r=>server.close(r))}
+});
