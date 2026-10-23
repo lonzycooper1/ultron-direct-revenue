@@ -43,8 +43,21 @@ async function limitedJson(url,host,request){
  const type=r.headers.get('content-type')||'';
  if(!type.includes('json'))throw Error('JSON demand feed required');
  if(Number(r.headers.get('content-length')||0)>150000)throw Error('Feed too large');
- const bytes=await r.arrayBuffer();
- if(bytes.byteLength>150000)throw Error('Feed exceeds ingestion limit');
+ let bytes;
+ if(r.body?.getReader){
+  const reader=r.body.getReader(),chunks=[];let size=0;
+  try{
+   while(true){const {done,value}=await reader.read();if(done)break;
+    size+=value.byteLength;
+    if(size>150000){await reader.cancel();throw Error('Feed exceeds ingestion limit')}
+    chunks.push(value);
+   }
+   bytes=Buffer.concat(chunks,size);
+  }finally{reader.releaseLock()}
+ }else{
+  bytes=await r.arrayBuffer();
+  if(bytes.byteLength>150000)throw Error('Feed exceeds ingestion limit');
+ }
  return JSON.parse(Buffer.from(bytes).toString('utf8'));
 }
 export async function fetchPublicDemand({request=fetch,now=Date.now(),sources=targets}={}){
@@ -62,7 +75,9 @@ export async function fetchPublicDemand({request=fetch,now=Date.now(),sources=ta
     }
    }else if(source.name==='github-issues'){
     const q='is:issue is:open '+queries[0];
-    const url='https://api.github.com/search/issues?q='+encodeURIComponent(q)+'&sort=created&order=desc&per_page=12';
+    // Issue bodies can be large: keep this one bounded request small rather
+    // than discarding a whole 12-item response at the ingestion limit.
+    const url='https://api.github.com/search/issues?q='+encodeURIComponent(q)+'&sort=created&order=desc&per_page=3';
     const payload=await limitedJson(url,'api.github.com',request);
     for(const issue of (Array.isArray(payload.items)?payload.items:[]).slice(0,12)){
      if(issue.pull_request)continue;

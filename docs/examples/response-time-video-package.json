@@ -1,0 +1,144 @@
+{
+  "title": "Measure your response time before estimating lost sales",
+  "audience": "Small service business owners",
+  "niche": "Practical inquiry handling",
+  "demandReference": "UNPAID ORIGINAL INTERNAL SAMPLE. No customer demand or engagement is asserted.",
+  "competitors": [
+    {
+      "channel": "Source inspiration only: gptprompts.ai",
+      "source": "https://www.instagram.com/p/Des9pWboJYF/?img_index=4",
+      "observedAt": "2026-10-23T18:00:00.000Z",
+      "gap": "Original educational measurement example; channel performance was not evaluated."
+    }
+  ],
+  "scenes": [
+    {
+      "scene": 1,
+      "seconds": 8,
+      "narration": "How long does a new inquiry wait for your first reply? Measure that before estimating what a delay costs.",
+      "visual": "Original animated clock beside an empty response log.",
+      "rightsReference": "Original ULTRON text and native shapes; no third-party footage.",
+      "caption": "Measure reply time first",
+      "startSeconds": 0,
+      "endSeconds": 8
+    },
+    {
+      "scene": 2,
+      "seconds": 10,
+      "narration": "Record when each authorized inquiry arrived and when someone replied. Keep customer details private. Separate business hours from overnight waits.",
+      "visual": "Original table with column labels only: received, replied, business hours.",
+      "rightsReference": "Original ULTRON table; no customer data or invented measurements.",
+      "caption": "Record received and replied times",
+      "startSeconds": 8,
+      "endSeconds": 18
+    },
+    {
+      "scene": 3,
+      "seconds": 10,
+      "narration": "Review unanswered inquiries and compare the same time periods. A response-time change is an observation. It does not by itself prove extra sales.",
+      "visual": "Original comparison diagram marked observation, not a revenue forecast.",
+      "rightsReference": "Original ULTRON text and shapes.",
+      "caption": "An observation is not proof of extra sales",
+      "startSeconds": 18,
+      "endSeconds": 28
+    },
+    {
+      "scene": 4,
+      "seconds": 7,
+      "narration": "Choose one practical reply improvement and measure again. Start with the records you already have permission to use.",
+      "visual": "Original checklist: record, review, improve, measure again.",
+      "rightsReference": "Original ULTRON checklist.",
+      "caption": "Choose one improvement. Measure again.",
+      "startSeconds": 28,
+      "endSeconds": 35
+    }
+  ],
+  "durationSeconds": 35,
+  "script": "How long does a new inquiry wait for your first reply? Measure that before estimating what a delay costs.\n\nRecord when each authorized inquiry arrived and when someone replied. Keep customer details private. Separate business hours from overnight waits.\n\nReview unanswered inquiries and compare the same time periods. A response-time change is an observation. It does not by itself prove extra sales.\n\nChoose one practical reply improvement and measure again. Start with the records you already have permission to use.",
+  "thumbnailBrief": "Original typography: HOW LONG DO LEADS WAIT? Use a clock and a blank measurement sheet, not revenue figures.",
+  "scriptReview": {
+    "hookSeconds": 8,
+    "hookWithinSourceGuidance": true,
+    "checklist": [
+      "Verify factual claims against listed sources",
+      "Use an honest opening hook",
+      "Remove repetition",
+      "Review transitions and conclusion",
+      "Use a natural call to action"
+    ],
+    "source": "https://www.instagram.com/p/Des9pWboJYF/?img_index=4"
+  },
+  "calendar": [
+    {
+      "week": 1,
+      "draftDueAt": "2026-10-26T15:00:00.000Z",
+      "experiment": "Test an opening hook against prior retention",
+      "metric": "First-30-second retention with sample size",
+      "publishing": "NOT_AUTHORIZED"
+    },
+    {
+      "week": 2,
+      "draftDueAt": "2026-11-02T15:00:00.000Z",
+      "experiment": "Test an original thumbnail against prior CTR",
+      "metric": "Click-through rate with impressions",
+      "publishing": "NOT_AUTHORIZED"
+    },
+    {
+      "week": 3,
+      "draftDueAt": "2026-11-09T15:00:00.000Z",
+      "experiment": "Test an opening hook against prior retention",
+      "metric": "First-30-second retention with sample size",
+      "publishing": "NOT_AUTHORIZED"
+    },
+    {
+      "week": 4,
+      "draftDueAt": "2026-11-16T15:00:00.000Z",
+      "experiment": "Test an original thumbnail against prior CTR",
+      "metric": "Click-through rate with impressions",
+      "publishing": "NOT_AUTHORIZED"
+    },
+    {
+      "week": 5,
+      "draftDueAt": "2026-11-23T15:00:00.000Z",
+      "experiment": "Test an opening hook against prior retention",
+      "metric": "First-30-second retention with sample size",
+      "publishing": "NOT_AUTHORIZED"
+    },
+    {
+      "week": 6,
+      "draftDueAt": "2026-11-30T15:00:00.000Z",
+      "experiment": "Test an original thumbnail against prior CTR",
+      "metric": "Click-through rate with impressions",
+      "publishing": "NOT_AUTHORIZED"
+    },
+    {
+      "week": 7,
+      "draftDueAt": "2026-12-07T15:00:00.000Z",
+      "experiment": "Test an opening hook against prior retention",
+      "metric": "First-30-second retention with sample size",
+      "publishing": "NOT_AUTHORIZED"
+    },
+    {
+      "week": 8,
+      "draftDueAt": "2026-12-14T15:00:00.000Z",
+      "experiment": "Test an original thumbnail against prior CTR",
+      "metric": "Click-through rate with impressions",
+      "publishing": "NOT_AUTHORIZED"
+    }
+  ],
+  "production": [
+    "Record authorized narration",
+    "Create or license listed visuals",
+    "Edit scenes to timestamps",
+    "Add and verify captions",
+    "Inspect rendered video and audio",
+    "Owner review before publishing"
+  ],
+  "monetization": {
+    "status": "UNVERIFIED",
+    "officialRequirements": "https://support.google.com/youtube/answer/72851",
+    "revenueGuaranteed": false
+  },
+  "renderedVideo": false,
+  "published": false
+}
