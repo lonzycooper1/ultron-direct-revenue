@@ -34,3 +34,14 @@ test('PostgreSQL claims serialize separate workers and retain pause and complete
  await Promise.all([a,b].map(w=>w.run({feed:async()=>{n++;return {status:'COMPLETED'}}})));assert.equal(n,1);
  await a.control('pause');const restarted=createContinuousOperations(store);assert.equal((await restarted.snapshot()).paused,true);assert.equal((await restarted.snapshot()).runs.length,1);
 });
+
+test('separate process crash recovers an expired lease without changing unrelated customer state',async()=>{
+ const {execFile}=await import('node:child_process'),{promisify}=await import('node:util');const run=promisify(execFile);
+ const key='continuous-process-test-'+randomUUID(),customerKey='continuous-customer-test-'+randomUUID();
+ await mutateJson(customerKey,{orders:{}},s=>{s.orders.fixture={status:'UNCHANGED_CONTROLLED_CUSTOMER_FIXTURE'}});
+ const source=(now,operation)=>`import {createContinuousOperations,freshContinuous} from './continuous-operations.mjs';import {getJson,mutateJson} from './state-store.mjs';const key=${JSON.stringify(key)};const w=createContinuousOperations({clock:()=>${now},read:()=>getJson(key,freshContinuous()),mutate:f=>mutateJson(key,freshContinuous(),f)});await w.run({feed:async()=>{${operation}}},{trigger:'CONTROLLED_TEST'});process.exit(0);`;
+ await assert.rejects(run(process.execPath,['--input-type=module','-e',source(initial,'process.exit(23)')],{cwd:import.meta.dirname}),e=>e.code===23);
+ await run(process.execPath,['--input-type=module','-e',source(initial+360000,"return {status:'COMPLETED'}")],{cwd:import.meta.dirname});
+ const s=await getJson(key,freshContinuous());assert.equal(s.runs[0].status,'INTERRUPTED_REVIEW_REQUIRED');assert.equal(s.runs[1].status,'COMPLETED');assert.equal(s.running,null);
+ assert.equal((await getJson(customerKey,{})).orders.fixture.status,'UNCHANGED_CONTROLLED_CUSTOMER_FIXTURE');
+});

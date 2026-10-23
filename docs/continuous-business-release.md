@@ -44,3 +44,9 @@ Patch `ec0ebf5b-5a6f-4a72-acac-fbf980cde6ca` read-back contained ONLY revenue `d
 5. Wait for two naturally scheduled cycles; verify trigger SCHEDULED and source statuses, not only startup. A partial feed remains degraded.
 6. Use isolated controlled customer journeys for payment/delivery failure cases; no real demonstration charge, trade, outreach or spend.
 7. No external owner alert destination is configured in the inspected variable-name inventory. In-app status is available; delivered notifications are not claimed.
+
+## Local validation evidence
+
+- Isolated loopback PostgreSQL full regression: 476 application tests + 43 crypto safety tests = 519, all passed with zero skips (`/tmp/ultron-continuous-reviewed-tests.log`).
+- Final focused tests after the review corrections: 18 passed, zero failures/skips. These include a genuinely terminated child process holding a persisted cycle lease, recovery in a separate process at a controlled later clock, and verification that an unrelated synthetic customer record is unchanged. This is controlled restart evidence, not a production restart claim.
+- Node syntax checks for server/modules and both changed browser scripts passed; `git diff --check` passed. Exact-head GitHub CI and production deployment remain separate gates.
