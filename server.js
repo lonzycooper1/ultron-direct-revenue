@@ -1,4 +1,5 @@
 import {ecosystemSnapshot} from './ecosystem.mjs';
+import {createOwnerSessions} from './owner-sessions.mjs';
 import {creativeFactory,combineDeliverables} from './creative-products.mjs';
 import {printFactory} from './print-products.mjs';
 import {fileServices,startFileServices} from './file-service-runtime.mjs';
@@ -14,6 +15,8 @@ import {customerJourneyRoute} from './customer-journey-http.mjs';
 import {printProductRoute} from './print-products-http.mjs';
 import {workflows,submitWorkflow,qualifyLead} from './reference-workflows.mjs';
 import {companyMemory} from './company-memory-v47.mjs';
+import {sourceWorkflows} from './source-workflows.mjs';
+import {sourceCoverage} from './source-coverage.mjs';
 import {sectors,sourceReview,sourceIntegration} from './source-integration.mjs';
 import {refinanceScenario,screenCompanies} from './research-tools-v47.mjs';
 import {executive,startExecutive,savedExecutiveArtifact} from './executive-runtime.mjs';
@@ -211,8 +214,10 @@ async function journeyPayPalRead(path){
 }
 const deliverableProducts=combineDeliverables(printFactory,creativeFactory);
 const customerJourney=createCustomerJourney({products:deliverableProducts,catalog:marketProduct,verify:order=>confirmCapturedOrderForDelivery(journeyPayPalRead,order)});
-export function createApp(){return createServer(async(req,res)=>{const u=new URL(req.url,'http://local'),path=u.pathname,json=(s,d)=>{res.writeHead(s,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(d))};try{
-const v13Owner=()=>Boolean(ACQ_TOKEN)&&((req.headers.authorization||'')==='Bearer '+ACQ_TOKEN||req.headers['x-ultron-admin']===ACQ_TOKEN);
+export function createApp({ownerSessions=createOwnerSessions({secret:ACQ_TOKEN,origin:PUBLIC})}={}){return createServer(async(req,res)=>{const u=new URL(req.url,'http://local'),path=u.pathname,json=(s,d)=>{res.writeHead(s,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(d))};try{
+if(await ownerSessions.route(req,res,u,json))return;
+const ownerAllowed=ownerSessions.direct(req)||await ownerSessions.authenticated(req);
+const v13Owner=()=>ownerAllowed;
 if(path==='/source-lab'&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-frame-options':'DENY','referrer-policy':'no-referrer'});return res.end(await readFile(new URL('./public/source-lab.html',import.meta.url),'utf8'))}
 if(path==='/api/source-lab/catalog'&&req.method==='GET')return json(200,{sectors,review:sourceReview});
 if(path.startsWith('/api/source-lab/')){
@@ -224,6 +229,19 @@ if(path.startsWith('/api/source-lab/')){
  let raw='';for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>24000)return json(413,{error:'Request too large'})}
  try{const b=JSON.parse(raw||'{}');if(!b||typeof b!=='object'||Array.isArray(b))return json(400,{error:'JSON object required'});return json(200,{ok:true,result:await sourceIntegration[action](b)})}
  catch(e){const msg=String(e.message);if(e instanceof SyntaxError)return json(400,{error:'Invalid JSON'});if(/^(Invalid |Experiment not found|Research not found|Experiment limit|Watchlist limit)/.test(msg))return json(400,{error:msg});if(msg.startsWith('Conflict:'))return json(409,{error:msg});return json(503,{error:'Source lab storage unavailable'})}
+}
+
+if(path==='/source-workflows'&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-frame-options':'DENY','referrer-policy':'no-referrer'});return res.end(await readFile(new URL('./public/source-workflows.html',import.meta.url),'utf8'))}
+if(path==='/api/source-workflows/coverage'&&req.method==='GET')return json(200,{...sourceCoverage,release:{commit:process.env.RAILWAY_GIT_COMMIT_SHA||process.env.ULTRON_BOOTSTRAP_COMMIT||null,workflowVersion:1}});
+if(path.startsWith('/api/source-workflows/')){
+ if(!v13Owner())return json(403,{error:'Owner authorization required'});
+ const action=path.slice('/api/source-workflows/'.length);
+ if(action==='snapshot'&&req.method==='GET')return json(200,await sourceWorkflows.snapshot());
+ if(req.method!=='POST'||!['startTutor','answerTutor','assess','packageContent','market','risk','arbitrage','strategy','events'].includes(action))return json(404,{error:'Unknown source workflow operation'});
+ if(!(req.headers['content-type']||'').startsWith('application/json'))return json(415,{error:'JSON required'});
+ let raw='';for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>500000)return json(413,{error:'Request too large'})}
+ try{const b=JSON.parse(raw||'{}');if(!b||typeof b!=='object'||Array.isArray(b))return json(400,{error:'JSON object required'});return json(200,{ok:true,result:await sourceWorkflows[action](b)})}
+ catch(e){const msg=String(e.message);if(e instanceof SyntaxError)return json(400,{error:'Invalid JSON'});if(msg.startsWith('Invalid '))return json(400,{error:msg.slice(0,180)});if(msg.startsWith('Conflict:'))return json(409,{error:msg});return json(503,{error:'Source workflow storage unavailable'})}
 }
 if(path==='/workbench'&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-frame-options':'DENY','referrer-policy':'no-referrer'});return res.end(await readFile(new URL('./public/workbench-v47.html',import.meta.url),'utf8'))}
 if(path.startsWith('/api/company-memory/v47/')){
