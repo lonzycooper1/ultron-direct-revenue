@@ -45,3 +45,8 @@ test('separate process crash recovers an expired lease without changing unrelate
  const s=await getJson(key,freshContinuous());assert.equal(s.runs[0].status,'INTERRUPTED_REVIEW_REQUIRED');assert.equal(s.runs[1].status,'COMPLETED');assert.equal(s.running,null);
  assert.equal((await getJson(customerKey,{})).orders.fixture.status,'UNCHANGED_CONTROLLED_CUSTOMER_FIXTURE');
 });
+
+test('scheduled successes from another release cannot verify the current revision',async()=>{
+ const store=memory();let now=initial;const a=createContinuousOperations({...store,clock:()=>now,revision:'old-release'});await a.run({feed:async()=>({status:'COMPLETED'})});now+=INTERVAL_MS;await a.run({feed:async()=>({status:'COMPLETED'})});
+ const next=createContinuousOperations({...store,clock:()=>now,revision:'new-release'});assert.equal((await next.snapshot()).scheduledRuns,0);assert.equal((await next.snapshot()).consecutiveSuccessfulScheduledRuns,0);
+});
