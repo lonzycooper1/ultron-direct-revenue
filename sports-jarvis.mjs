@@ -10,7 +10,7 @@ export const PERSONA=`You are Sports JARVIS 2.0, ULTRON's evidence-first sports 
 
 export function analyzeProp(input={}){
   const {sport,player,stat,line,recent=[],sportsbookOdds=null,marketConsensus=null,context={},lineHistory=[]}=input;
-  if(!sport||!player||!stat||line===null||line===''||!Number.isFinite(Number(line))||!Array.isArray(recent)||recent.length>200) throw new Error('sport, player, stat and numeric line are required');
+  if(!sport||!player||!stat||line===null||line===''||!Number.isFinite(Number(line))||!Array.isArray(recent)||recent.length>200||!Array.isArray(lineHistory)||lineHistory.length>200) throw new Error('sport, player, stat and numeric line are required');
   const vals=recent.filter(v=>v!==null&&v!==''&&typeof v!=='boolean').map(Number).filter(Number.isFinite);
   const target=Number(line);
   const over=vals.filter(x=>x>target).length;
@@ -24,10 +24,10 @@ export function analyzeProp(input={}){
   const modelProb=vals.length>=5?clamp(0.5+((mean-target)/(volatility||Math.max(Math.abs(target)*.12,1)))*.18,.05,.95):null;
   const blended=modelProb==null?marketProb==null?null:marketProb:marketProb==null?modelProb:modelProb*.6+marketProb*.4;
   const edge=blended==null?null:blended-.5;
-  const direction=blended==null||Math.abs(edge)<.035?'PASS':edge>0?'MORE':'LESS';
+  const direction=vals.length<5||blended==null||Math.abs(edge)<.035?'PASS':edge>0?'MORE':'LESS';
   const movement=lineHistory.length>1?Number(lineHistory.at(-1).line)-Number(lineHistory[0].line):0;
   const confidence=blended==null?0:Math.round(clamp(50+Math.abs(blended-.5)*100-(vals.length<10?5:0),50,95));
-  return {version:SPORTS_JARVIS_VERSION,sport,player,stat,line:target,direction,projection,modelProbability:blended,probabilityType:'UNCALIBRATED_HEURISTIC_NOT_COVER_PROBABILITY',confidence,edge,history:{sample:vals.length,over,under,ties,hitRate,mean,volatility},market:{sportsbookOdds,impliedProbability:marketProb,consensusProbability:consensus},lineMovement:{observations:lineHistory.length,delta:movement,history:lineHistory},context,verdict:direction==='PASS'?'PASS — insufficient verified edge':`${direction} — evidence-based lean, not a guarantee`,requiredChecks:['current PrizePicks line','official player/game status','injuries and starters','role/minutes/usage','matchup and opponent strength','pace/game environment','recent + season sample','sportsbook consensus/no-vig','line movement','correlation and payout impact','sport-specific scoring/reboot rules'],risks:['small-sample noise','late injury/news changes','role changes','market movement','outlier performance']};
+  return {version:SPORTS_JARVIS_VERSION,sport,player,stat,line:target,direction,projection,modelProbability:blended,probabilityType:'UNCALIBRATED_HEURISTIC_NOT_COVER_PROBABILITY',confidenceType:'HEURISTIC_SCORE_NOT_PROBABILITY',confidence,edge,history:{sample:vals.length,over,under,ties,hitRate,mean,volatility},market:{sportsbookOdds,impliedProbability:marketProb,consensusProbability:consensus},lineMovement:{observations:lineHistory.length,delta:movement,history:lineHistory},context,verdict:direction==='PASS'?'PASS — insufficient verified edge':`${direction} — evidence-based lean, not a guarantee`,requiredChecks:['current PrizePicks line','official player/game status','injuries and starters','role/minutes/usage','matchup and opponent strength','pace/game environment','recent + season sample','sportsbook consensus/no-vig','line movement','correlation and payout impact','sport-specific scoring/reboot rules'],risks:['small-sample noise','late injury/news changes','role changes','market movement','outlier performance']};
 }
 
 export function rankBoard(props=[]){

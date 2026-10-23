@@ -87,6 +87,25 @@ test('authenticated API validates size/type and executes/replays a real allowed 
   assert.equal((await fetch(url,{method:'POST',headers,body:' '.repeat(33000)})).status,413);
   const first=await (await fetch(url,{method:'POST',headers,body})).json();assert.equal(first.result.currency,'USD');
   assert.deepEqual(await (await fetch(url,{method:'POST',headers,body})).json(),first);
+  const saved=await fetch(url.replace('/execute','/tasks/http'));assert.equal(saved.status,200);assert.equal((await saved.json()).result.currency,'USD');assert.equal((await fetch(url.replace('/execute','/tasks/missing'))).status,404);
   const changed=await fetch(url,{method:'POST',headers,body:JSON.stringify({tool:'sports.board',idempotencyKey:'http'})});assert.equal(changed.status,409);
  }finally{server.closeAllConnections();await new Promise(r=>server.close(r))}
+});
+test('queued conversation retrieval distinguishes worker drafts from external completion',async()=>{
+ const f=fixture();let workerStatus='QUEUED';const worker={enqueue:async()=>({id:'j1',status:'QUEUED'}),status:async()=>({jobs:[{id:'j1',status:workerStatus,result:{text:'Evidence-only draft'}}]})};
+ const api=createIntelligence({...f.options,worker});const request={tool:'conversation',input:{module:'revenue',message:'Explain evidence'},idempotencyKey:'retrieve-chat'};
+ assert.equal((await api.execute(request)).status,'QUEUED');assert.equal((await api.task('retrieve-chat')).deliverable,null);
+ workerStatus='DRAFT_READY';const task=await api.task('retrieve-chat');assert.equal(task.status,'DRAFT_READY');assert.equal(task.deliverable.result.text,'Evidence-only draft');assert.equal(task.externalActionTaken,false);assert.equal(await api.task('missing'),null);
+});
+test('subscription coverage handles wildcard, missing events, failed reads and same-time ambiguity',async()=>{
+ const {billingCoverage,BILLING_EVENTS}=await import('./intelligence-runtime.mjs');assert.equal(billingCoverage({event_types:[{name:'*'}]}).status,'SUBSCRIBED');
+ assert.equal(billingCoverage({event_types:[]}).missingEvents.length,BILLING_EVENTS.size);assert.equal(billingCoverage(null).status,'UNVERIFIED');
+ const f=fixture(),api=createIntelligence({...f.options,billingRead:async()=>{throw Error('sensitive-provider-body')}});await api.cycle({trigger:'scheduled'});assert.equal((await api.health()).billingCoverageStatus,'UNAVAILABLE');assert.doesNotMatch(JSON.stringify(f.state),/sensitive-provider/);
+ await api.signedBillingEvent(event('same-1','BILLING.SUBSCRIPTION.ACTIVATED'));await api.signedBillingEvent(event('same-2','BILLING.SUBSCRIPTION.PAYMENT.FAILED'));assert.equal((await api.snapshot()).subscriptions.riskSignals[0].reconciliationRequired,true);
+});
+test('monitoring distinguishes natural schedules, release history and preserved records across restart',async()=>{
+ const f=fixture();let at=Date.parse('2026-10-23T12:00:00Z');
+ const a=createIntelligence({...f.options,clock:()=>at,release:'release-A',runId:'boot-A'});await a.cycle({trigger:'startup'});at+=600000;await a.cycle({trigger:'scheduled'});at+=600000;await a.cycle({trigger:'scheduled'});
+ assert.equal((await a.health()).currentReleaseScheduledCycles,2);
+ const b=createIntelligence({...f.options,clock:()=>at+600000,release:'release-B',runId:'boot-B'});await b.cycle({trigger:'startup'});const h=await b.health();assert.equal(h.observedCycles,4);assert.equal(h.currentReleaseScheduledCycles,0);assert.equal(h.observedRunCount,2);
 });

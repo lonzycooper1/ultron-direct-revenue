@@ -16,3 +16,7 @@ test('missing odds do not synthesize a probability or bias a historical lean',()
 test('missing history values are not counted as zero performances',()=>{
  assert.equal(analyzeProp({sport:'NBA',player:'A',stat:'Points',line:20,recent:[null,'',false,22]}).history.sample,1);
 });
+test('one-sided market odds alone never establish a model edge',()=>{
+ assert.equal(analyzeProp({sport:'NBA',player:'A',stat:'Points',line:20,recent:[],sportsbookOdds:-150}).direction,'PASS');
+ assert.throws(()=>analyzeProp({sport:'NBA',player:'A',stat:'Points',line:20,lineHistory:null}),/required/);
+});
