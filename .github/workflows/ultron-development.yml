@@ -1,0 +1,82 @@
+name: ULTRON agent development
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: Specific customer-facing copy improvement
+        required: true
+        type: string
+      role:
+        description: Agent role
+        required: true
+        type: choice
+        options:
+          - Opportunity Scout
+          - Offer Architect
+          - Platform Builder
+          - Agent Engineer
+          - Quality Auditor
+          - Pricing Analyst
+          - Sales Strategist
+          - Delivery Coordinator
+          - Customer Success
+          - Operations Director
+permissions:
+  contents: read
+concurrency:
+  group: ultron-agent-development
+  cancel-in-progress: false
+jobs:
+  propose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Generate and audit candidate
+        env:
+          OPENAI_API_KEY: ${{ secrets.ULTRON_DEVELOPMENT_OPENAI_KEY }}
+          AGENT_TASK: ${{ inputs.task }}
+          AGENT_ROLE: ${{ inputs.role }}
+        run: node automation/develop.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reviewed-candidate
+          path: |
+            public/index.html
+            review/
+          retention-days: 7
+  publish-proposal:
+    needs: propose
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: ultron-development-write
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: reviewed-candidate
+      - name: Publish reviewed change as a pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ultron/agent-${{ github.run_id }}
+          REPO: ${{ github.repository }}
+        run: |
+          git config user.name 'ULTRON development'
+          git config user.email 'ultron-development@users.noreply.github.com'
+          git checkout -b "$BRANCH"
+          git add public/index.html
+          git diff --cached --quiet && exit 0
+          git commit -m 'Apply audited ULTRON copy improvement'
+          gh auth setup-git
+          git push origin "$BRANCH"
+          gh pr create --repo "$REPO" --base main --head "$BRANCH" --title 'ULTRON reviewed software change' --body-file review/report.json
