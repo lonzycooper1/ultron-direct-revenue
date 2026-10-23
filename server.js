@@ -1,3 +1,6 @@
+import {appStudio} from './app-studio.mjs';
+import {appDocument} from './app-studio-templates.mjs';
+import {octoberSource} from './source-oct23.mjs';
 import {supportIntake} from './support-intake.mjs';
 import {continuousOperations} from './continuous-operations.mjs';
 import {businessEvidence,businessEvidenceReport,capacityGate,validateCostBreakdown} from './business-evidence.mjs';
@@ -222,6 +225,24 @@ if(await ownerSessions.route(req,res,u,json))return;
 const ownerAllowed=ownerSessions.direct(req)||await ownerSessions.authenticated(req);
 const v13Owner=()=>ownerAllowed;
 if(req.method==='GET'&&['/autonomous-audit','/audit-intake'].includes(path))void businessEvidence.record(path==='/autonomous-audit'?'OFFER_HTTP_VIEW':'INTAKE_HTTP_VIEW',crypto.randomUUID()).catch(()=>console.error('Funnel measurement unavailable'));
+if(path==='/app-studio'&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','referrer-policy':'no-referrer','x-frame-options':'DENY'});return res.end(await readFile(new URL('./public/app-studio.html',import.meta.url),'utf8'))}
+if(path==='/api/app-studio/source'&&req.method==='GET')return json(200,octoberSource);
+if(path.startsWith('/api/app-studio/')){
+ if(!v13Owner())return json(403,{error:'Owner authorization required'});
+ const action=path.slice('/api/app-studio/'.length);
+ try{
+  if(req.method==='GET'){
+   if(action==='snapshot')return json(200,await appStudio.snapshot());
+   if(action==='bundle'){const a=await appStudio.bundle(u.searchParams.get('id'));res.writeHead(200,{'content-type':'application/zip','content-length':a.bytes.length,'content-disposition':'attachment; filename="'+a.filename+'"','cache-control':'private,no-store','x-content-type-options':'nosniff'});return res.end(a.bytes)}
+   if(action==='preview'){const a=(await appStudio.snapshot()).apps.find(x=>x.id===u.searchParams.get('id'));if(!a)return json(404,{error:'App not found'});res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'private,no-store','referrer-policy':'no-referrer','x-frame-options':'DENY'});return res.end(appDocument(a,{installable:false}))}
+  }
+  if(req.method!=='POST'||!['create','save','analyze'].includes(action))return json(404,{error:'Unknown app operation'});
+  if(!(req.headers['content-type']||'').startsWith('application/json'))return json(415,{error:'JSON required'});
+  let raw='';for await(const c of req){raw+=c;if(Buffer.byteLength(raw)>128000)return json(413,{error:'Request too large'})}
+  const b=JSON.parse(raw||'{}');if(!b||typeof b!=='object'||Array.isArray(b))return json(400,{error:'JSON object required'});
+  return json(200,{result:await appStudio[action](b)});
+ }catch(e){if(e instanceof SyntaxError)return json(400,{error:'Invalid JSON'});if(String(e.message).startsWith('Invalid '))return json(400,{error:e.message});if(String(e.message).startsWith('Conflict:'))return json(409,{error:e.message});return json(503,{error:'App storage or capacity unavailable'})}
+}
 if(path==='/business-operations'&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-frame-options':'DENY','referrer-policy':'no-referrer'});return res.end(await readFile(new URL('./public/business-operations.html',import.meta.url),'utf8'))}
 if(path==='/api/continuous-operations'&&req.method==='GET'){
  const [runtime,feeds]=await Promise.all([continuousOperations.snapshot(),liveDemandListener.snapshot(false)]);
