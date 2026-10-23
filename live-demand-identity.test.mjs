@@ -31,3 +31,15 @@ test('oversized chunked feed is cancelled before reading its entire body',async(
  assert.match(result.errors[0].reason,/ingestion limit/);
  assert.equal(cancelled,true);assert.ok(pulls<=3);
 });
+
+test('feed source failures remain independent and sanitize errors',async()=>{
+ const result=await fetchPublicDemand({request:async url=>{if(url.includes('algolia'))throw Error('credential-private');return new Response('{"items":[]}',{headers:{'content-type':'application/json'}})}});
+ assert.equal(result.sourceResults.find(x=>x.source==='hacker-news').status,'FAILED');
+ assert.equal(result.sourceResults.find(x=>x.source==='github-issues').status,'SUCCESS');
+ assert.equal(JSON.stringify(result).includes('credential-private'),false);
+});
+test('transient server error retries once; rate limit does not retry',async()=>{
+ let n=0;const r=await fetchPublicDemand({sources:[{name:'github-issues'}],request:async()=>{n++;return n===1?new Response('',{status:503}):new Response('{"items":[]}',{headers:{'content-type':'application/json'}})}});
+ assert.equal(n,2);assert.equal(r.partial,false);n=0;
+ await fetchPublicDemand({sources:[{name:'github-issues'}],request:async()=>{n++;return new Response('',{status:429})}});assert.equal(n,1);
+});

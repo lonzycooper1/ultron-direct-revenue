@@ -1,3 +1,4 @@
+import {continuousOperations} from './continuous-operations.mjs';
 import crypto from 'node:crypto';
 import {enqueueEnterpriseJob,claimEnterpriseJob,finishEnterpriseJob,enterpriseStoreHealth} from './enterprise-store-v45.mjs';
 import {executive} from './executive-runtime.mjs';
@@ -49,9 +50,9 @@ export function createEnterpriseCycle({env=process.env,readSignals=()=>readAutho
     research='QUEUED_OR_ALREADY_PRESENT';
    }catch(e){research='QUEUE_REQUIRES_REVIEW'}
   }
-  let incoming=0,ignored=0;
+  let incoming=0,ignored=0,discovery='NOT_RUN';
   try{
-   const feed=await readSignals();
+   const feed=await readSignals();discovery=feed.sourceStatus;
    for(const candidate of feed.signals.slice(0,2)){
     try{
      const brief=turnSignalIntoBrief(candidate);
@@ -60,7 +61,7 @@ export function createEnterpriseCycle({env=process.env,readSignals=()=>readAutho
      incoming++;
     }catch{ignored++}
    }
-  }catch{lastStatus='DISCOVERY_SOURCE_REVIEW_REQUIRED'}
+  }catch{discovery='DISCOVERY_SOURCE_REVIEW_REQUIRED'}
   const job=await claim({kinds:['PRODUCT_DRAFT'],leaseSeconds:300});
   let generated=0;
   if(job){
@@ -72,8 +73,8 @@ export function createEnterpriseCycle({env=process.env,readSignals=()=>readAutho
     await finish(job,{status:'REVIEW_REQUIRED',result:{error:clean(e.message,160),published:false,revenueUsd:0}}).catch(()=>{});
    }
   }
-  lastStatus='CYCLE_EXECUTED';
-  return {status:lastStatus,research,queued:incoming,ignored,generated,automaticPublishing:false,
+  lastStatus=discovery==='DISCOVERY_SOURCE_REVIEW_REQUIRED'?'DISCOVERY_SOURCE_REVIEW_REQUIRED':'CYCLE_EXECUTED';
+  return {status:lastStatus,research,discovery,queued:incoming,ignored,generated,automaticPublishing:false,
    moneyMovedUsd:0,unsafeBulkOutbound:false};
  }
  return {pulse,status:()=>({status:lastStatus,enabled:env.ULTRON_ENTERPRISE_ENABLED==='true'})};
@@ -81,13 +82,14 @@ export function createEnterpriseCycle({env=process.env,readSignals=()=>readAutho
 export const enterpriseCycle=createEnterpriseCycle();
 export function startEnterpriseCycle(){
  if(interval||process.env.ULTRON_ENTERPRISE_ENABLED!=='true')return false;
- const run=async()=>{if(busy)return;busy=true;try{
-  const live=await liveDemandListener.poll();
-  const reconcile=await demandAssetFactory.reconcile();
-  const scheduled=await demandAssetFactory.schedule();
-  const result=await enterpriseCycle.pulse();
-  if(live.status==='FEED_UNAVAILABLE'||scheduled.status==='QUEUE_UNAVAILABLE')console.warn('ULTRON demand feed/asset requires review');
-  if(result.status!=='CYCLE_EXECUTED')console.warn('ULTRON v45 enterprise cycle:',result.status);
- }catch(e){console.error('ULTRON v45 cycle needs investigation:',String(e.message).slice(0,180))}finally{busy=false}};
- void run();interval=setInterval(run,30*60*1000);interval.unref();return true;
+ const run=async(trigger='SCHEDULED')=>{if(busy)return;busy=true;try{
+  const result=await continuousOperations.run({
+   publicFeeds:()=>liveDemandListener.poll(),
+   artifactReconciliation:()=>demandAssetFactory.reconcile(),
+   draftScheduling:()=>demandAssetFactory.schedule(),
+   enterprise:()=>enterpriseCycle.pulse()
+  },{trigger});
+  console.log('ULTRON continuous operations',JSON.stringify({status:result.status,id:result.id||null,steps:result.steps||{}}));
+ }catch{console.error('ULTRON continuous operations unavailable; inspect authorized status')}finally{busy=false}};
+ void run('STARTUP');interval=setInterval(()=>run('SCHEDULED'),30*60*1000);interval.unref();return true;
 }

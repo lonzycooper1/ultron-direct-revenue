@@ -1,3 +1,5 @@
+import {continuousOperations} from './continuous-operations.mjs';
+import {businessEvidence,businessEvidenceReport,capacityGate,validateCostBreakdown} from './business-evidence.mjs';
 import {ecosystemSnapshot} from './ecosystem.mjs';
 import {createOwnerSessions} from './owner-sessions.mjs';
 import {creativeFactory,combineDeliverables} from './creative-products.mjs';
@@ -34,7 +36,7 @@ import {completionExecution as v43CompletionExecution} from './ultron-completion
 import {CINEMA_SKU,VIDEO_TERMS,makeStoryboard,createVideoJob,authorizeVideoJob,submitOneShot,pollVideoJob,recordVideoReview,cinematicState,publicJob,videoPreflight,salesReadiness,publicCinematic,cinematicCycle,recordVideoInquiry,makeVideoQuote,issueVideoQuote,claimVideoQuote,checkoutQuoteRecorded,ensurePaidVideoJob,customerVideo,acceptCustomerVideo,attachVideoArtifact,editVideoJob,retryVideoShot,sampleEligible} from './ultron-cinematic-v43.mjs';
 import {videoLabManifest,videoLabActions,appPrototype,mediaPrototype,videoLabSafeCycle,videoLabState} from './ultron-video-lab-v42.mjs';
 import {dispatchOperationalAlerts} from './ultron-alert-delivery-v41.mjs';
-import {AUDIT_SKU,TERMS,validateAuditIntake,prepareAudit,reviewAudit,acceptAudit,recordSignedCapture,independentSale,operationsState,recordOps,operationsPulse,publicOperations,renderAuditDelivery} from './ultron-revenue-operations-v41.mjs';
+import {AUDIT_SKU,TERMS,validateAuditIntake,prepareAudit,reviewAudit,acceptAudit,recordSignedCapture,independentSale,recordedAmount,operationsState,recordOps,operationsPulse,publicOperations,renderAuditDelivery} from './ultron-revenue-operations-v41.mjs';
 import {ingestReplies} from './ultron-mail-ingestion-v41.mjs';
 import {activationReport as v40ActivationReport} from './ultron-work-activation-v40.mjs';
 import {quantumManifest,runCircuit,propertyScenario,pilotBlueprint} from './ultron-quantum-core-v39.mjs';
@@ -117,7 +119,7 @@ const auditDelivery=createAuditDelivery({verify:o=>confirmCapturedOrderForDelive
 let cache={token:null,exp:0},payment={ok:false,checkedAt:null},businessBilling={productId:null,planId:null,invoiceApi:false,subscriptionApi:false,lastVerifiedAt:null,lastError:null},timer=null;
 async function token(){if(cache.token&&Date.now()<cache.exp-60000)return cache.token;const r=await fetch(BASE+'/v1/oauth2/token',{method:'POST',headers:{authorization:'Basic '+Buffer.from(CID+':'+SECRET).toString('base64'),'content-type':'application/x-www-form-urlencoded'},body:'grant_type=client_credentials'}),d=await r.json();if(!r.ok)throw Error('PayPal OAuth failed');cache={token:d.access_token,exp:Date.now()+Number(d.expires_in||300)*1000};return cache.token}
 async function paypal(path,method='GET',body=null,rid=null){const h={authorization:'Bearer '+await token(),'content-type':'application/json'};if(rid)h['paypal-request-id']=rid;const r=await fetch(BASE+path,{method,headers:h,body:body?JSON.stringify(body):undefined}),d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.message||`PayPal ${r.status}`);return d}
-async function createOrder(key,intake=null,assetId=null){const videoQuote=key===CINEMA_SKU?await claimVideoQuote(intake||{}):null;const p=videoQuote?{id:CINEMA_SKU,name:'Original Cinematic Short',price:videoQuote.priceUsd,storeId:'videostudio'}:marketProduct(key);if(!p)throw Error('Unknown product');const v34Intake=key===V34_SKU?validatePreparedAuditIntake(intake||{}):null;const auditIntake=key===AUDIT_SKU?validateAuditIntake(intake||{}):null;if(assetId){if(videoQuote||v34Intake||auditIntake)throw Error('Only finished catalog guides eligible');await demandAssetFactory.getApprovedArtifact(assetId,key)}const preparedAudit=key===V34_SKU?await auditDelivery.prepare({...v34Intake,authorizationConfirmed:intake?.authorizationConfirmed}):null;const amount=Number(p.price).toFixed(2),o=await paypal('/v2/checkout/orders','POST',{intent:'CAPTURE',purchase_units:[{reference_id:key,description:p.name,amount:{currency_code:'USD',value:amount}}],payment_source:{paypal:{experience_context:{user_action:'PAY_NOW',return_url:PUBLIC+'/paypal/return',cancel_url:PUBLIC+'/paypal/cancel'}}}},'create-'+key+'-'+crypto.randomUUID()),approve=(o.links||[]).find(x=>x.rel==='payer-action'||x.rel==='approve')?.href;if(!o.id||!approve)throw Error('No approval URL');await saveLedger(l=>{l.orders[o.id]={id:o.id,product:key,name:p.name,amount,currency:'USD',market:true,storeId:p.storeId,status:o.status,createdAt:new Date().toISOString(),auditPackageId:preparedAudit?.id||null,v34Intake,auditIntake,videoQuote,auditTerms:auditIntake?{...TERMS}:null,demandAssetId:assetId||null}});if(videoQuote)await checkoutQuoteRecorded(videoQuote.id,o.id,approve);return approve}
+async function createOrder(key,intake=null,assetId=null){const capacity=capacityGate(Object.values((await ledger()).orders||{}));if(!capacity.allowed)throw Error('New checkout paused: paid delivery capacity requires review');const videoQuote=key===CINEMA_SKU?await claimVideoQuote(intake||{}):null;const p=videoQuote?{id:CINEMA_SKU,name:'Original Cinematic Short',price:videoQuote.priceUsd,storeId:'videostudio'}:marketProduct(key);if(!p)throw Error('Unknown product');const v34Intake=key===V34_SKU?validatePreparedAuditIntake(intake||{}):null;const auditIntake=key===AUDIT_SKU?validateAuditIntake(intake||{}):null;if(assetId){if(videoQuote||v34Intake||auditIntake)throw Error('Only finished catalog guides eligible');await demandAssetFactory.getApprovedArtifact(assetId,key)}const preparedAudit=key===V34_SKU?await auditDelivery.prepare({...v34Intake,authorizationConfirmed:intake?.authorizationConfirmed}):null;const amount=Number(p.price).toFixed(2),o=await paypal('/v2/checkout/orders','POST',{intent:'CAPTURE',purchase_units:[{reference_id:key,description:p.name,amount:{currency_code:'USD',value:amount}}],payment_source:{paypal:{experience_context:{user_action:'PAY_NOW',return_url:PUBLIC+'/paypal/return',cancel_url:PUBLIC+'/paypal/cancel'}}}},'create-'+key+'-'+crypto.randomUUID()),approve=(o.links||[]).find(x=>x.rel==='payer-action'||x.rel==='approve')?.href;if(!o.id||!approve)throw Error('No approval URL');await saveLedger(l=>{l.orders[o.id]={id:o.id,product:key,name:p.name,amount,currency:'USD',market:true,storeId:p.storeId,status:o.status,createdAt:new Date().toISOString(),auditPackageId:preparedAudit?.id||null,v34Intake,auditIntake,videoQuote,auditTerms:auditIntake?{...TERMS}:null,demandAssetId:assetId||null}});if(videoQuote)await checkoutQuoteRecorded(videoQuote.id,o.id,approve);await businessEvidence.record('CHECKOUT_CREATED',o.id).catch(()=>console.error('Checkout measurement requires reconciliation'));return approve}
 async function capture(id){const o=await paypal('/v2/checkout/orders/'+encodeURIComponent(id)+'/capture','POST',{},'capture-'+id);return o.purchase_units?.flatMap(u=>u.payments?.captures||[])[0]||null}
 async function fulfill(id,c){
  const known=(await ledger()).orders?.[id];if(!known)throw Error('Unknown order');assertCaptureMatches(known,c);
@@ -128,7 +130,7 @@ async function fulfill(id,c){
  await saveLedger(l=>{
   const o=l.orders[id];if(!o)throw Error('Unknown order');assertCaptureMatches(o,c);
   o.status='COMPLETED';o.captureId=String(c.id||o.captureId||'');o.capturedAt??=new Date().toISOString();o.capturedAmount=Number(c.amount.value);
-  if(c.seller_receivable_breakdown?.paypal_fee?.currency_code==='USD'&&Number.isFinite(Number(c.seller_receivable_breakdown.paypal_fee.value))){o.paypalFeeUsd=Number(c.seller_receivable_breakdown.paypal_fee.value);o.paypalFeeSource='PROVIDER';}
+  if(c.seller_receivable_breakdown?.paypal_fee?.currency_code==='USD'&&recordedAmount(c.seller_receivable_breakdown.paypal_fee.value)){o.paypalFeeUsd=Number(c.seller_receivable_breakdown.paypal_fee.value);o.paypalFeeSource='PROVIDER';}
   if(!o.fulfillment){
    if(o.product===CINEMA_SKU)o.fulfillment={token:crypto.randomBytes(24).toString('hex'),title:'Cinematic video production',summary:'Payment received; storyboard and production are pending. A payment token is not a finished video.',sections:[{title:'Production',body:'Your paid project is queued for storyboard, rights confirmation, generation, editing and quality review. Use the private video delivery link for progress.'}],createdAt:new Date().toISOString()};
    else if(o.product===AUDIT_SKU)o.fulfillment=prepareAudit(o,inspection||{status:'UNAVAILABLE',reason:'Inspection unavailable'});
@@ -218,6 +220,28 @@ export function createApp({ownerSessions=createOwnerSessions({secret:ACQ_TOKEN,o
 if(await ownerSessions.route(req,res,u,json))return;
 const ownerAllowed=ownerSessions.direct(req)||await ownerSessions.authenticated(req);
 const v13Owner=()=>ownerAllowed;
+if(req.method==='GET'&&['/autonomous-audit','/audit-intake'].includes(path))void businessEvidence.record(path==='/autonomous-audit'?'OFFER_HTTP_VIEW':'INTAKE_HTTP_VIEW',crypto.randomUUID()).catch(()=>console.error('Funnel measurement unavailable'));
+if(path==='/business-operations'&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-frame-options':'DENY','referrer-policy':'no-referrer'});return res.end(await readFile(new URL('./public/business-operations.html',import.meta.url),'utf8'))}
+if(path==='/api/continuous-operations'&&req.method==='GET'){
+ const [runtime,feeds]=await Promise.all([continuousOperations.snapshot(),liveDemandListener.snapshot(false)]);
+ return json(200,{runtime,feeds,schedulerEnabled:process.env.ULTRON_ENTERPRISE_ENABLED==='true',intervalMinutes:30,release:process.env.RAILWAY_GIT_COMMIT_SHA||process.env.ULTRON_BOOTSTRAP_COMMIT||null,notificationDelivery:process.env.ULTRON_ALERT_WEBHOOK_URL?'CONFIGURED_UNVERIFIED':'OWNER_ALERT_DESTINATION_REQUIRED'});
+}
+if(path==='/api/business-evidence/owner'&&req.method==='GET'){
+ if(!v13Owner())return json(403,{error:'Owner authorization required'});
+ const [orders,inbound,funnel,continuous,feeds,sampleReady]=await Promise.all([ledger(),inboundWorkQueue(),businessEvidence.snapshot(),continuousOperations.snapshot(),liveDemandListener.snapshot(false),auditDelivery.salesReady()]);
+ return json(200,businessEvidenceReport({orders:Object.values(orders.orders||{}),inbound,funnel,continuous,feeds,payment,sampleReady,env:process.env}));
+}
+if((path==='/api/continuous-operations/control'||path==='/api/business-evidence/costs')&&req.method==='POST'){
+ if(!v13Owner())return json(403,{error:'Owner authorization required'});
+ if(!(req.headers['content-type']||'').startsWith('application/json'))return json(415,{error:'JSON required'});
+ let raw='';for await(const c of req){raw+=c;if(Buffer.byteLength(raw)>5000)return json(413,{error:'Request too large'})}
+ try{const b=JSON.parse(raw||'{}');if(!b||typeof b!=='object'||Array.isArray(b))return json(400,{error:'JSON object required'});
+  if(path.endsWith('/control'))return json(200,await continuousOperations.control(b.action));
+  const review=validateCostBreakdown(b);let found=false;
+  await saveLedger(l=>{const o=l.orders?.[b.orderId];if(!o?.captureId||o.status!=='COMPLETED')throw Error('Paid order required');o.costBreakdownHistory??=[];o.costBreakdownHistory.push(review);o.costBreakdownHistory=o.costBreakdownHistory.slice(-20);if(review.basis==='ESTIMATE')o.costEstimate=review;else{o.costBreakdown=review;o.costReview=review}found=true});
+  return json(200,{recorded:found,review});
+ }catch(e){if(e instanceof SyntaxError||/Choose pause|cost|Paid order/.test(e.message))return json(400,{error:'Valid action, paid order and explicit cost evidence required'});return json(503,{error:'Operations storage unavailable'})}
+}
 if(path==='/source-lab'&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-frame-options':'DENY','referrer-policy':'no-referrer'});return res.end(await readFile(new URL('./public/source-lab.html',import.meta.url),'utf8'))}
 if(path==='/api/source-lab/catalog'&&req.method==='GET')return json(200,{sectors,review:sourceReview});
 if(path.startsWith('/api/source-lab/')){
@@ -503,7 +527,7 @@ if((path.startsWith('/api/audit/v41/')||path==='/api/revenue-operations/v41/reco
   }
   if(path==='/api/audit/v41/support'){
    if(!String(data.notes||'').trim())throw Error('Describe your request');
-   await recordOps('MANUAL_TASK',{type:'SUPPORT',reference:o.id,notes:data.notes});return json(200,{ok:true,message:'Support request queued for review; no refund was initiated'});
+   if(data.requestType!==undefined&&!['SUPPORT','REFUND_REVIEW'].includes(data.requestType))throw Error('Choose support or refund review');await recordOps('MANUAL_TASK',{type:data.requestType||'SUPPORT',reference:o.id,notes:data.notes});return json(200,{ok:true,message:'Support request queued for review; no refund was initiated'});
   }
   if(path==='/api/audit/v41/buyer-verification'){
    if(data.ownerReviewedUnrelatedBuyer!==true)throw Error('Owner review of genuinely unrelated buyer required');
