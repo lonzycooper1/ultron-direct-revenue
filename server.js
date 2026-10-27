@@ -1,3 +1,4 @@
+import {founderSnapshot} from './founder-method.mjs';
 import {attachShutdown} from './service-lifecycle.mjs';
 import {appStudio} from './app-studio.mjs';
 import {appDocument} from './app-studio-templates.mjs';
@@ -229,6 +230,8 @@ if(runtimeStopping)return json(503,{error:'Service restarting; retry shortly'});
 if(await ownerSessions.route(req,res,u,json))return;
 const ownerAllowed=ownerSessions.direct(req)||await ownerSessions.authenticated(req);
 const v13Owner=()=>ownerAllowed;
+if(path==='/founder-method'&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-frame-options':'DENY'});return res.end(await readFile(new URL('./public/founder-method.html',import.meta.url),'utf8'))}
+if(path==='/api/founder-method'&&req.method==='GET'){if(!v13Owner())return json(403,{error:'Owner authorization required'});const l=await ledger();return json(200,founderSnapshot(Object.values(l.orders||{})))}
 if(req.method==='GET'&&['/autonomous-audit','/audit-intake'].includes(path))void businessEvidence.record(path==='/autonomous-audit'?'OFFER_HTTP_VIEW':'INTAKE_HTTP_VIEW',crypto.randomUUID()).catch(()=>console.error('Funnel measurement unavailable'));
 if(path==='/app-studio'&&req.method==='GET'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','referrer-policy':'no-referrer','x-frame-options':'DENY'});return res.end(await readFile(new URL('./public/app-studio.html',import.meta.url),'utf8'))}
 if(path==='/api/app-studio/source'&&req.method==='GET')return json(200,octoberSource);
