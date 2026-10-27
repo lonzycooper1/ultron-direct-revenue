@@ -67,6 +67,12 @@ class PioneerTests(unittest.TestCase):
         result=asyncio.run(factory.consensus(factory.extract('Only an unverified public observation','https://market.example/a')))
         self.assertEqual(result['status'],'QUARANTINED')
 
+    def test_context_window_and_quality_inputs_block_before_spend(self):
+        calls=[];router=self.compute([node(context_tokens=1024)],lambda *a,**kw:calls.append(1))
+        with self.assertRaises(RouterUnavailable):asyncio.run(router.generate('Public evidence',tier='micro'))
+        with self.assertRaises(GuardError):asyncio.run(router.generate('Public evidence',tier='micro',min_quality=float('nan')))
+        self.assertEqual(calls,[]);self.assertEqual(self.store.summary()['reservedOrObservedUsd'],0)
+
     def test_zero_budget_makes_no_network_calls(self):
         calls=[];e=env();e['ULTRON_PIONEER_DAILY_BUDGET_USD']='0';router=ComputeRouter(self.store,e,lambda *a,**kw:calls.append(1))
         with self.assertRaises(RouterUnavailable):asyncio.run(router.generate('Read public evidence',tier='micro'))

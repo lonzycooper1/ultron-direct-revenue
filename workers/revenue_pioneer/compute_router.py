@@ -25,6 +25,7 @@ class Node:
     rpm: int = 5
     max_latency_ms: int = 60000
     open_source: bool = False
+    context_tokens: int = 8192
 
 
 def configured_nodes(env):
@@ -36,6 +37,8 @@ def configured_nodes(env):
     paths = {'openai': '/v1/responses', 'anthropic': '/v1/messages', 'deepseek': '/chat/completions'}
     for row in raw:
         n = Node(**row)
+        if type(n.context_tokens) is not int or not 1024 <= n.context_tokens <= 1000000 or type(n.rpm) is not int:
+            raise ValueError('Explicit bounded context window and integer request rate required')
         if n.id in ids or not n.id or len(n.id) > 80 or len(n.model) > 120:
             raise ValueError('Unique bounded node identifiers required')
         ids.add(n.id)
@@ -94,9 +97,13 @@ class ComputeRouter:
 
     async def generate(self, prompt, *, tier='standard', min_quality=.8, max_tokens=1024, excluded=()):
         self.guard.inspect('generate', {'text': prompt})
+        if tier not in {'micro','standard','heavy'} or type(min_quality) not in (float,int) or not math.isfinite(min_quality) or not 0 <= min_quality <= 1:
+            raise GuardError('Valid task tier and finite quality threshold required')
         if type(max_tokens) is not int or not 1 <= max_tokens <= self.guard.max_tokens or len(prompt.encode()) > 32000:
             raise GuardError('Generation input/output limit exceeded')
         for n in self.candidates(tier, min_quality, excluded=excluded)[:3]:
+            if len(prompt.encode()) + 2048 + max_tokens > n.context_tokens:
+                continue
             # One UTF-8 byte per input token is a conservative upper bound; include framing.
             reservation = math.ceil((len(prompt.encode()) + 2048) * n.input_per_million + max_tokens * n.output_per_million)
             try:
