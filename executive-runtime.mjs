@@ -1,3 +1,4 @@
+import {pioneerCall,pioneerResearchContext} from './workers/pioneer-bridge.mjs';
 import {companyMemory} from './company-memory-v47.mjs';
 import crypto from 'node:crypto';
 import {getJson,mutateJson} from './state-store.mjs';
@@ -27,10 +28,12 @@ export function validateJob(input){
  if(typeof input.prompt!=='string'||!input.prompt.trim()||input.prompt.length>24000)throw Error('Prompt must contain 1–24000 characters');
  if(input.provider==='anthropic'&&!['marketing','support','finance','analysis'].includes(input.kind))throw Error('This task requires OpenAI tools or a dedicated worker');
  if(input.idempotencyKey&&!/^[a-zA-Z0-9_.:-]{1,120}$/.test(input.idempotencyKey))throw Error('Invalid idempotency key');
+ if(input.dataClass==='public'&&(input.memoryScope||input.kind==='support'))throw Error('Private memory and support context cannot enter public multi-provider routing');
+ if(input.dataClass!==undefined&&!['public','internal'].includes(input.dataClass))throw Error('Invalid data classification');
  if(input.memoryScope!==undefined&&(!/^[-a-zA-Z0-9_]{1,80}$/.test(input.memoryScope)||typeof input.memoryScope!=='string'))throw Error('Invalid memory scope');
- return {kind:input.kind,provider:input.provider||'openai',prompt:input.prompt.trim(),...(input.memoryScope?{memoryScope:input.memoryScope}:{}),idempotencyKey:input.idempotencyKey||crypto.randomUUID()};
+ return {...(input.dataClass?{dataClass:input.dataClass}:{}),kind:input.kind,provider:input.provider||'openai',prompt:input.prompt.trim(),...(input.memoryScope?{memoryScope:input.memoryScope}:{}),idempotencyKey:input.idempotencyKey||crypto.randomUUID()};
 }
-export function createExecutive({env=process.env,read=()=>getJson(KEY,fresh()),mutate=f=>mutateJson(KEY,fresh(),f),request=fetch,clock=Date.now,hosted=runHostedJob,memory=companyMemory}={}){
+export function createExecutive({env=process.env,read=()=>getJson(KEY,fresh()),mutate=f=>mutateJson(KEY,fresh(),f),request=fetch,clock=Date.now,hosted=runHostedJob,memory=companyMemory,pioneer=pioneerCall,researchContext=pioneerResearchContext}={}){
  const now=()=>new Date(clock()).toISOString();
  async function enqueue(input){
   const v=validateJob(input);let job;
@@ -39,7 +42,7 @@ export function createExecutive({env=process.env,read=()=>getJson(KEY,fresh()),m
    const old=Object.values(s.jobs).filter(j=>['DRAFT_READY','BLOCKED','CANCELLED'].includes(j.status)).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
    for(const j of old.slice(0,Math.max(0,Object.keys(s.jobs).length-250)))delete s.jobs[j.id];
    job=Object.values(s.jobs).find(j=>j.idempotencyKey===v.idempotencyKey);
-   if(job){if(job.prompt!==v.prompt||job.kind!==v.kind||job.provider!==v.provider||job.memoryScope!==v.memoryScope)throw Error('Idempotency key reused for different work');return}
+   if(job){if(job.prompt!==v.prompt||job.kind!==v.kind||job.provider!==v.provider||job.memoryScope!==v.memoryScope||job.dataClass!==v.dataClass)throw Error('Idempotency key reused for different work');return}
    if(Object.values(s.jobs).filter(j=>['QUEUED','RUNNING'].includes(j.status)).length>=50)throw Error('Queue full');
    job={id:crypto.randomUUID(),...v,status:'QUEUED',createdAt:now(),attempts:0};s.jobs[job.id]=job;
   });return job;
@@ -99,12 +102,15 @@ export function createExecutive({env=process.env,read=()=>getJson(KEY,fresh()),m
   try{
    let context=null;
    if(job.memoryScope)context=await memory.context(job.memoryScope,job.prompt.slice(0,500));
-   const effectiveJob=context?{...job,prompt:job.prompt+'\n\n'+context.text}:job;
-   let result= ['build','computer'].includes(job.kind)?await dedicatedWorker(effectiveJob):job.provider==='anthropic'?await anthropic(effectiveJob):await openai(effectiveJob,effectiveJob.prompt);
+   const pioneerContext=env.ULTRON_PIONEER_ENABLED==='true'&&job.kind==='research'?await researchContext():'';
+   const effectiveJob=context?{...job,prompt:job.prompt+'\n\n'+context.text+pioneerContext}:{...job,prompt:job.prompt+pioneerContext};
+   const routePioneer=env.ULTRON_PIONEER_ENABLED==='true'&&job.dataClass==='public'&&!job.memoryScope&&job.kind==='marketing'&&job.provider==='openai';
+   let result=routePioneer?await pioneer('generate',{kind:job.kind,text:effectiveJob.prompt,data_class:'public',max_tokens:1024},{env,key:existingOpenAIKey(env)}): ['build','computer'].includes(job.kind)?await dedicatedWorker(effectiveJob):job.provider==='anthropic'?await anthropic(effectiveJob):await openai(effectiveJob,effectiveJob.prompt);
    if(context)result.companyEvidence={scope:context.scope,revision:context.revision,citations:context.citations};
    // Independent review is evidence for an owner, never permission to act.
    let review=null;
-   if(!['image','build','computer'].includes(job.kind)&&job.provider==='openai')review=await openai(job,'Review this task and draft for unsupported claims, missing evidence and whether the requested work was actually performed. Return a concise verdict and corrections. TASK: '+effectiveJob.prompt+'\nDRAFT: '+clip(result.text,18000),true);
+   if(routePioneer)review=await pioneer('generate',{kind:job.kind,data_class:'public',text:'Independently review this draft for unsupported claims. TASK: '+effectiveJob.prompt+'\nDRAFT: '+clip(result.text,12000),max_tokens:512},{env,key:existingOpenAIKey(env)});
+   if(!routePioneer&&!['image','build','computer'].includes(job.kind)&&job.provider==='openai')review=await openai(job,'Review this task and draft for unsupported claims, missing evidence and whether the requested work was actually performed. Return a concise verdict and corrections. TASK: '+effectiveJob.prompt+'\nDRAFT: '+clip(result.text,18000),true);
    if(Buffer.byteLength(JSON.stringify(result))>12*1024*1024)throw Error('Deliverable exceeds durable artifact size limit');
    await mutate(s=>{const j=s.jobs[job.id];if(j.claim!==claim||j.status!=='RUNNING')throw Error('Job lease lost');Object.assign(j,{status:'DRAFT_READY',result,review,finishedAt:now()});delete j.stagedResult;delete j.claim;delete j.leaseUntil;s.usage[day].observedTokens=(s.usage[day].observedTokens||0)+observedTokens(result,review)});
    return {status:'DRAFT_READY',jobId:job.id};

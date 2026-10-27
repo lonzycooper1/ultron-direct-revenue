@@ -1,7 +1,8 @@
+import {pioneerPulse} from './workers/pioneer-bridge.mjs';
 import {createHash,createHmac,timingSafeEqual} from 'node:crypto';
 import {getJson,mutateJson} from './state-store.mjs';
 import {financialSummary,independentSale,recordedAmount} from './ultron-revenue-operations-v41.mjs';
-import {executive} from './executive-runtime.mjs';
+import {executive,existingOpenAIKey} from './executive-runtime.mjs';
 import {founderGuidance,founderSnapshot} from './founder-method.mjs';
 import {productDeployer} from './product-deployer.mjs';
 
@@ -78,6 +79,7 @@ export function createBusinessRuntime({read=()=>getJson(KEY,fresh()),mutate=f=>m
 }
 export const businessRuntime=createBusinessRuntime();
 export async function executiveBusinessPulse(orders){
+ if(process.env.ULTRON_PIONEER_ENABLED==='true')void pioneerPulse({key:existingOpenAIKey()});
  const [leads,ops]=await Promise.all([getJson('acquisition-leads-v1',{leads:[]}),getJson('ultron-revenue-operations-v41',{tasks:{}})]);
  const result=await businessRuntime.sync({orders,leads:leads.leads||[],tasks:Object.values(ops.tasks||{})});
  if(process.env.ULTRON_VERCEL_TOKEN&&process.env.ULTRON_VERCEL_PROJECT_ID){
