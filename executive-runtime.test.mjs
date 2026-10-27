@@ -29,3 +29,10 @@ test('completed saved image exports actual provider PNG without trusting unfinis
  assert.equal(savedExecutiveArtifact({...job,status:'RUNNING'},'image-1'),null);assert.equal(savedExecutiveArtifact(job,'missing'),null);
  job.result.artifacts[0].result='bm90IGFuIGltYWdl';assert.equal(savedExecutiveArtifact(job,'image-1'),null);
 });
+test('public marketing uses bounded pioneer router and review; private context cannot be relabeled public',async()=>{
+ const calls=[];const f=fixture({env:{ULTRON_EXECUTIVE_ENABLED:'true',OPENAI_API_KEY:'fixture-key',ULTRON_PIONEER_ENABLED:'true'},pioneer:async(action,payload)=>{calls.push({action,payload});return {text:'Reviewed public draft',usage:{input_tokens:5,output_tokens:5},draftOnly:true}}});
+ await f.app.enqueue({kind:'marketing',dataClass:'public',prompt:'Write a public offer draft'});
+ assert.equal((await f.app.tick()).status,'DRAFT_READY');assert.equal(calls.length,2);assert.equal(f.calls(),0);assert.equal(calls[0].payload.data_class,'public');
+ assert.throws(()=>validateJob({kind:'support',dataClass:'public',prompt:'Private order context'}),/cannot enter public/);
+ assert.throws(()=>validateJob({kind:'marketing',dataClass:'public',memoryScope:'private',prompt:'Use memory'}),/cannot enter public/);
+});
