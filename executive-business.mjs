@@ -2,6 +2,7 @@ import {createHash,createHmac,timingSafeEqual} from 'node:crypto';
 import {getJson,mutateJson} from './state-store.mjs';
 import {financialSummary,independentSale,recordedAmount} from './ultron-revenue-operations-v41.mjs';
 import {executive} from './executive-runtime.mjs';
+import {founderGuidance,founderSnapshot} from './founder-method.mjs';
 import {productDeployer} from './product-deployer.mjs';
 
 const KEY='ultron-executive-business',fresh=()=>({events:{},lastSync:null,learning:null});
@@ -60,7 +61,7 @@ export function createBusinessRuntime({read=()=>getJson(KEY,fresh()),mutate=f=>m
    saved={...event,status:'PENDING',createdAt:new Date().toISOString()};s.events[event.id]=saved;
   });
   if(saved.status==='QUEUED')return {duplicate:true,jobId:saved.jobId};
-  const job=await enqueue({kind:saved.kind,prompt:saved.prompt,idempotencyKey:saved.id});
+  const job=await enqueue({kind:saved.kind,prompt:founderGuidance()+'\n\nCurrent task evidence:\n'+saved.prompt,idempotencyKey:saved.id});
   await mutate(s=>{s.events[saved.id].status='QUEUED';s.events[saved.id].jobId=job.id});
   return {queued:true,jobId:job.id};
  }
@@ -70,9 +71,9 @@ export function createBusinessRuntime({read=()=>getJson(KEY,fresh()),mutate=f=>m
   const pending=Object.values((await read()).events).filter(e=>e.status==='PENDING');
   for(const event of [...pending,...events].slice(0,30)){try{const result=await receive(event);if(result.queued)queued++}catch{break}}
   const learning=learningSnapshot(input.orders);
-  await mutate(s=>{s.lastSync=new Date().toISOString();s.learning=learning;s.finance=reconciliationSnapshot(input.orders)});return {queued,learning};
+  await mutate(s=>{s.lastSync=new Date().toISOString();s.learning=learning;s.finance=reconciliationSnapshot(input.orders);s.founderMethod=founderSnapshot(input.orders)});return {queued,learning};
  }
- async function status(){const s=await read();return {lastSync:s.lastSync,eventCount:Object.keys(s.events).length,pending:Object.values(s.events).filter(e=>e.status==='PENDING').length,learning:s.learning,finance:s.finance}}
+ async function status(){const s=await read();return {lastSync:s.lastSync,eventCount:Object.keys(s.events).length,pending:Object.values(s.events).filter(e=>e.status==='PENDING').length,learning:s.learning,finance:s.finance,founderMethod:s.founderMethod||founderSnapshot()}}
  return {receive,sync,status};
 }
 export const businessRuntime=createBusinessRuntime();
